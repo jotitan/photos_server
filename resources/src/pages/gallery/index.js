@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useState, useCallback} from 'react'
 import {Col, Popconfirm, Row, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
@@ -49,11 +49,11 @@ export default function MyGallery({urlFolder,refresh}) {
         }
     },[currentImage,key,lightboxVisible,images]);
 
-    const loadImages = url => {
-        if(url === ''){return;}
+    const memLoadImages = useCallback(()=> {
+        if(urlFolder === ''){return;}
         axios({
             method:'GET',
-            url:url,
+            url:urlFolder,
         }).then(d=>{
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl)
@@ -73,9 +73,9 @@ export default function MyGallery({urlFolder,refresh}) {
                     }
                 }));
         })
-    };
+    },[urlFolder,baseUrl,baseUrlHref]);
 
-    useEffect(()=>loadImages(urlFolder),[urlFolder]);
+    useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages]);
 
     const selectImage = index=>{
         setImages(list=>{
@@ -105,7 +105,7 @@ export default function MyGallery({urlFolder,refresh}) {
                 url:baseUrl + updateUrl,
             }).then(()=>{
                 // Reload folder
-                loadImages(urlFolder);
+                memLoadImages(urlFolder);
                 setUpdateRunning(false);
             })
         }
@@ -171,17 +171,17 @@ export default function MyGallery({urlFolder,refresh}) {
             <Row className={"gallery"}>
                 <Col span={24} style={{marginTop:30+'px'}}>
                     <Gallery ref={node=>{setComp(node);window.t = node}}
-                        images={images}
-                        imageCountSeparator={" / "}
-                        showImageCount={false}
-                        lightboxWillClose={()=>setLightboxVisible(false)}
-                        lightboxWillOpen={()=>setLightboxVisible(true)}
-                        onSelectImage={selectImage}
-                        enableImageSelection={canDelete===true}
-                        currentImageWillChange={indexImage=>setCurrentImage(indexImage)}
-                        customControls={getCustomActions()}
-                        showLightboxThumbnails={showThumbnails}
-                        backdropClosesModal={true} lightboxWidth={2000}/>
+                             images={images}
+                             imageCountSeparator={" / "}
+                             showImageCount={false}
+                             lightboxWillClose={()=>setLightboxVisible(false)}
+                             lightboxWillOpen={()=>setLightboxVisible(true)}
+                             onSelectImage={selectImage}
+                             enableImageSelection={canDelete===true}
+                             currentImageWillChange={indexImage=>setCurrentImage(indexImage)}
+                             customControls={getCustomActions()}
+                             showLightboxThumbnails={showThumbnails}
+                             backdropClosesModal={true} lightboxWidth={2000}/>
                 </Col>
             </Row>
         </>
