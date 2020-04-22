@@ -35,6 +35,8 @@ jobs:
         npm run-script build
         ls -l
         tar -cvzf build.tar.gz build
+        ls -l
+        pwd
 
     # Upload artifact
     - uses: actions/upload-artifact@v1
