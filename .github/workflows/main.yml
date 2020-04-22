@@ -33,6 +33,7 @@ jobs:
         cd resources
         npm install
         npm run-script build
+        ls -l
         tar -cvzf build.tar.gz build
 
     # Upload artifact
