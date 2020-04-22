@@ -33,13 +33,10 @@ jobs:
         cd resources
         npm install
         npm run-script build
-        ls -l
         tar -cvzf build.tar.gz build
-        ls -l
-        pwd
 
     # Upload artifact
     - uses: actions/upload-artifact@v1
       with:
         name: Artifact front
-        path: build.tar.gz
+        path: resources/build.tar.gz
