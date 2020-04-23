@@ -1,8 +1,8 @@
 package main
 
 import (
-	"arguments"
-	"photos_server"
+	"github.com/jotitan/photos_server/arguments"
+	"github.com/jotitan/photos_server/photos_server"
 )
 
 func main(){

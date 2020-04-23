@@ -1,7 +1,7 @@
 package arguments
 
 import (
-	"logger"
+	"github.com/jotitan/photos_server/logger"
 	"os"
 	"strconv"
 	"strings"

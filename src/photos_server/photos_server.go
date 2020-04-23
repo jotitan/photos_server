@@ -3,9 +3,9 @@ package photos_server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jotitan/photos_server/logger"
 	"io"
 	"io/ioutil"
-	"logger"
 	"net/http"
 	"os"
 	"path/filepath"

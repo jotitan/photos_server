@@ -1,8 +1,8 @@
 package photos_server
 
 import (
+	"github.com/jotitan/photos_server/logger"
 	"io"
-	"logger"
 	"os"
 	"path/filepath"
 	"strings"
