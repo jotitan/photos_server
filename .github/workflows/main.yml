@@ -27,6 +27,8 @@ jobs:
       run: |
         echo Run build server go
         cd src/main
+        export GOOS=linux
+        export GOARCH=arm
         go build -o photos_server
         cd ../../
         mkdir artifacts
