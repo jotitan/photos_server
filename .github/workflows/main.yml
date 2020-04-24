@@ -24,17 +24,16 @@ jobs:
 
     # Runs a single command using the runners shell
 
-    - name: Build go server
-      uses: cedrickring/golang-action/go1.12@1.5.2
-      env:
-        GO111MODULE: "on"
-        PROJECT_PATH: "./src"
+    #- name: Build go server
+    #  uses: cedrickring/golang-action/go1.12@1.5.2
+    #  env:
+    #    GO111MODULE: "on"
+    #    PROJECT_PATH: "./src"
 
       # Runs a set of commands using the runners shell
     - name: Build front
       run: |
-        ls
-        ls src
+        go version
         echo Install and build app,
         cd resources
         npm install
