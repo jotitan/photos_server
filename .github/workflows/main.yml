@@ -30,6 +30,13 @@ jobs:
     #    GO111MODULE: "on"
     #    PROJECT_PATH: "./src"
 
+    - name: Build go server
+      run: |
+        cd src/main
+        go build -o photos_server
+        ls -l
+        cd ../../
+
       # Runs a set of commands using the runners shell
     - name: Build front
       run: |
