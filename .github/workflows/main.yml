@@ -26,6 +26,8 @@ jobs:
 
     - name: Build go server
       uses: cedrickring/golang-action/go1.12@1.5.2
+      with:
+        args: go build main\photos_server_run.go -o photos_server
       env:
         GO111MODULE: "on"
         PROJECT_PATH: "./src"
