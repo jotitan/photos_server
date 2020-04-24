@@ -33,11 +33,11 @@ jobs:
     #    PROJECT_PATH: "./src"
 
     - name: Build go server
-           run: |
+      run: |
         cd src/main
         go build -o photos_server
         ls -l
-      cd ../../
+        cd ../../
 
       # Runs a set of commands using the runners shell
     - name: Build front
