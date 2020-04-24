@@ -1,6 +1,6 @@
-# This is a basic workflow to help you get started with Actions
+# Workflow to build at each commit in master the application
 
-name: CI
+name: CI build photos app
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
@@ -22,25 +22,18 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
-    # Runs a single command using the runners shell
-
-    #- name: Build go server
-    #  uses: cedrickring/golang-action/go1.12@1.5.2
-    #  with:
-    #    args: go build main/photos_server_run.go -o photos_server
-    #  env:
-    #    GO111MODULE: "on"
-    #    PROJECT_PATH: "./src"
-
+    # Build the back
     - name: Build go server
       run: |
+        echo Run build server go
         cd src/main
         go build -o photos_server
         cd ../../
-        mkdir build
-        mv src/main/photos_server build
+        mkdir artifacts
+        echo Copy server artifact in artifacts/
+        mv src/main/photos_server artifacts
 
-      # Runs a set of commands using the runners shell
+      # Build the front
     - name: Build front
       run: |
         echo Install and build app,
@@ -48,10 +41,10 @@ jobs:
         npm install
         npm run-script build
         tar -cvzf build.tar.gz build
-        mv build.tar.gz ../build
+        mv build.tar.gz ../artifacts
 
     # Upload artifact
     - uses: actions/upload-artifact@v1
       with:
-        name: Artifact front
-        path: build
+        name: Artifacts photos server
+        path: artifacts
