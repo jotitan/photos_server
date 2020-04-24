@@ -1,4 +1,4 @@
-# Photos server
+# Photos server ![CI build photos app](https://github.com/jotitan/photos_server/workflows/CI%20build%20photos%20app/badge.svg?branch=master)
 
 Simple website which display photos stored on a HDD.
 Features : 
