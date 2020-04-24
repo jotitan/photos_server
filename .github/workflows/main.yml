@@ -36,21 +36,22 @@ jobs:
       run: |
         cd src/main
         go build -o photos_server
-        ls -l
         cd ../../
+        mkdir build
+        mv src/main/photos_server build
 
       # Runs a set of commands using the runners shell
     - name: Build front
       run: |
-        ls -Rl
         echo Install and build app,
         cd resources
         npm install
         npm run-script build
         tar -cvzf build.tar.gz build
+        mv build.tar.gz ../build
 
     # Upload artifact
     - uses: actions/upload-artifact@v1
       with:
         name: Artifact front
-        path: resources/build.tar.gz
+        path: build
