@@ -29,7 +29,9 @@ func NewPhotosServer(cache,resources,garbage,maskForAdmin string)Server{
 }
 
 func (s Server)canAccessAdmin(r * http.Request)bool{
-	return !strings.EqualFold("",s.maskForAdmin) && strings.Contains(r.Referer(),s.maskForAdmin)
+	return !strings.EqualFold("",s.maskForAdmin) && (
+		strings.Contains(r.Referer(),s.maskForAdmin) ||
+			strings.Contains(r.RemoteAddr,s.maskForAdmin))
 }
 
 func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
@@ -244,38 +246,45 @@ type folderRestFul struct{
 	Children []interface{}
 }
 
+func (s Server)newImageRestful(node *Node)imageRestFul{
+	return imageRestFul{
+		Name: node.Name, Width: node.Width, Height: node.Height,Date:node.Date,
+		HdLink:filepath.ToSlash(filepath.Join("/imagehd",node.RelativePath)),
+		ThumbnailLink: filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetSmallImageName(*node))),
+		ImageLink:     filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetMiddleImageName(*node)))}
+}
+
 // Convert node to restful response
 func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 	files := make([]interface{},0,len(nodes))
 	for _,node := range nodes {
 		if !node.IsFolder {
 			if !onlyFolders {
-				files = append(files, imageRestFul{
-					Name: node.Name, Width: node.Width, Height: node.Height,Date:node.Date,
-					HdLink:filepath.ToSlash(filepath.Join("/imagehd",node.RelativePath)),
-					ThumbnailLink: filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetSmallImageName(*node))),
-					ImageLink:     filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetMiddleImageName(*node)))})
+				files = append(files, s.newImageRestful(node))
 			}
 		}else{
 			folder := folderRestFul{Name:node.Name,Link:filepath.ToSlash(filepath.Join("/browserf",node.RelativePath))}
 			if onlyFolders {
-				// Relaunch on subfolders
-				subNodes := make([]*Node,0,len(node.Files))
-				hasImages := false
-				for _,n := range node.Files {
-					subNodes = append(subNodes,n)
-					if !n.IsFolder {
-						hasImages = true
-					}
-				}
-				childrens :=s.convertPaths(subNodes,onlyFolders)
-				folder.Children = childrens
-				folder.HasImages = hasImages
+				s.convertSubFolders(node,&folder)
 			}
 			files = append(files,folder)
 		}
 	}
 	return files
+}
+
+func (s Server)convertSubFolders(node *Node,folder *folderRestFul){
+	// Relaunch on subfolders
+	subNodes := make([]*Node,0,len(node.Files))
+	hasImages := false
+	for _,n := range node.Files {
+		subNodes = append(subNodes,n)
+		if !n.IsFolder {
+			hasImages = true
+		}
+	}
+	folder.Children = s.convertPaths(subNodes,true)
+	folder.HasImages = hasImages
 }
 
 func (s Server)Launch(port string){

@@ -357,31 +357,42 @@ func (fm foldersManager)Analyse(rootFolder,path string)Files{
 		// If cache, create cache and go deep
 		if stat,errStat := file.Stat() ; errStat == nil {
 			if stat.IsDir() {
-				files,_ := file.Readdirnames(-1)
-				nodes := make(map[string]*Node,0)
-				for _,file := range files {
-					for name,node := range fm.Analyse(rootFolder,filepath.Join(path,file)){
-						nodes[name] = node
-					}
-				}
-				if len(nodes) > 0 {
-					r := make(map[string]*Node,0)
-					r[stat.Name()] = NewFolder(rootFolder,path, stat.Name(), nodes,false)
-					return r
-				}
+				return fm.treatFolder(rootFolder,path,stat.Name(),file)
 			}else{
-				// Test if is image
-				if isImage(stat.Name()){
-					r := make(map[string]*Node,0)
-					r[stat.Name()] = NewImage(rootFolder,path, stat.Name())
-					return r
-				}
+				fm.treatImage(rootFolder,path,stat.Name())
 			}
 		}
 	}else{
 		logger.GetLogger2().Error(err.Error() + " : " + rootFolder + " ; " + path)
 	}
 	return Files{}
+}
+
+func (fm foldersManager)treatImage(rootFolder,path,name string)map[string]*Node{
+	// Test if is image
+	if isImage(name){
+		return createSimpleMap(name,NewImage(rootFolder,path, name))
+	}
+	return Files{}
+}
+
+func (fm foldersManager)treatFolder (rootFolder,path,name string,file *os.File)map[string]*Node{
+	files,_ := file.Readdirnames(-1)
+	nodes := make(map[string]*Node,0)
+	for _,file := range files {
+		for name,node := range fm.Analyse(rootFolder,filepath.Join(path,file)){
+			nodes[name] = node
+		}
+	}
+	if len(nodes) > 0 {
+		return createSimpleMap(name,NewFolder(rootFolder,path, name, nodes,false))
+	}
+	return Files{}
+}
+func createSimpleMap(name string,node *Node)map[string]*Node{
+	r := make(map[string]*Node,0)
+	r[name] = node
+	return r
 }
 
 func (fm foldersManager)List()[]*Node{
@@ -398,22 +409,9 @@ func (fm *foldersManager) Browse(path string) ([]*Node,error){
 		return fm.List(),nil
 
 	}else{
-		var node *Node
-		var exist bool
-		// Browse path
-		for i,folder := range strings.Split(path[1:],"/") {
-			if i == 0 {
-				if node,exist = fm.Folders[folder] ; !exist {
-					return nil,errors.New("Invalid path " + folder)
-				}
-			}else{
-				if !strings.EqualFold("",strings.Trim(folder," ")) {
-					if !node.IsFolder {
-						return nil, errors.New("Not a valid cache " + folder)
-					}
-					node = node.Files[folder]
-				}
-			}
+		node,err:= fm.browsePaths(path)
+		if err != nil{
+			return nil,err
 		}
 		// Parse file of nodes
 		nodes := make([]*Node,0,len(node.Files))
@@ -422,6 +420,27 @@ func (fm *foldersManager) Browse(path string) ([]*Node,error){
 		}
 		return nodes,nil
 	}
+}
+
+func (fm * foldersManager)browsePaths(path string)(*Node,error){
+	var node *Node
+	var exist bool
+	// Browse path
+	for i,folder := range strings.Split(path[1:],"/") {
+		if i == 0 {
+			if node,exist = fm.Folders[folder] ; !exist {
+				return nil,errors.New("Invalid path " + folder)
+			}
+		}else{
+			if !strings.EqualFold("",strings.Trim(folder," ")) {
+				if !node.IsFolder {
+					return nil, errors.New("Not a valid cache " + folder)
+				}
+				node = node.Files[folder]
+			}
+		}
+	}
+	return node,nil
 }
 
 func isImage(name string)bool{
