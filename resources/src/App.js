@@ -32,10 +32,11 @@ function App() {
                             <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos</span>
                         </Menu.Item>
                     </Menu>
+                    {!collapsed ?
                     <div style={{color:'white',padding:10+'px'}}>
                         <Switch onChange={isCalendar=>setShowGallery(!isCalendar)}/>
                         <span style={{paddingLeft:10+'px'}}>Dossiers / Calendrier</span>
-                    </div>
+                    </div>:<></>}
 
                     {!collapsed ? showGallery ?
                         <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery}/>:
