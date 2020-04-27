@@ -43,7 +43,7 @@ function dateCellRender(value,dates){
     let count = days != null ? days.filter(day=>day.date === fullKey).reduce((somme,d)=>somme+d.nb,0) : 0;
     return count > 0 ?(
         <div className="notes-month">
-            <PictureOutlined title={count + ' photo(s)'} style={{color:'green',fontSize:16+'px'}}/>
+            <Badge count={count} overflowCount={100} style={{ backgroundColor: '#002d4b' }}/>
         </div>
     ):null;
 }
@@ -103,7 +103,7 @@ function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
         if(dates.dates[key] == null || !dates.dates[key].some(d=>d.date === value.format('YYYYMMDD'))){return;}
 
         // Check if photos exist for this date
-        setTitleGallery(value.format('YYYYMMDD'));
+        setTitleGallery(value.format('DD/MM/YYYY') + " - ");
         // Load gallery with date and url
         setUrlFolder(`${getBaseUrl()}/getByDate?date=${value.format('YYYYMMDD')}`);
     }

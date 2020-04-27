@@ -87,6 +87,22 @@ body {
   height:35px;
 }
 
+.ant-picker-calendar-full .ant-picker-panel .ant-picker-cell .ant-picker-calendar-date {
+  padding: 4px 2px 0;
+}
+
+.ant-badge .ant-badge-multiple-words {
+  padding: 0px 4px;
+}
+
+.ant-badge-count {
+  line-height: 18px;
+}
+
+.ant-badge-multiple-words {
+  padding: 0px 4px;
+}
+
 .header-calendar {
   text-align:center;
 }
