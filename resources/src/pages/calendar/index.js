@@ -43,7 +43,7 @@ function dateCellRender(value,dates){
     let count = days != null ? days.filter(day=>day.date === fullKey).reduce((somme,d)=>somme+d.nb,0) : 0;
     return count > 0 ?(
         <div className="notes-month">
-            <Badge count={count} overflowCount={100} style={{ backgroundColor: '#002d4b' }}/>
+            <Badge count={1000} overflowCount={999} style={{ backgroundColor: '#002d4b' }}/>
         </div>
     ):null;
 }
