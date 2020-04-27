@@ -5,7 +5,7 @@ import fr from 'antd/lib/calendar/locale/fr_FR';
 import {Badge, Calendar} from 'antd';
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
-import {LeftOutlined, PictureOutlined, RightOutlined, RollbackOutlined} from "@ant-design/icons";
+import {LeftOutlined, RightOutlined, RollbackOutlined} from "@ant-design/icons";
 
 const DatesGrouped = {
     dates:null,
