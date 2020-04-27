@@ -40,6 +40,28 @@ func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
 	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.foldersManager.garbageManager!=nil && s.canAccessAdmin(r))))
 }
 
+func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
+	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
+		if photos,exist := s.foldersManager.GetPhotosByDate()[date] ; exist {
+			converts := s.convertPaths(photos,false)
+			w.Header().Set("Access-Control-Allow-Origin","*")
+			w.Header().Set("Content-type","application/json")
+			if data,err := json.Marshal(converts) ; err == nil {
+				w.Write(data)
+			}
+		}
+	}
+}
+
+// Return all dates of photos
+func (s Server)getAllDates(w http.ResponseWriter,r * http.Request){
+	dates := s.foldersManager.GetAllDates()
+	data,_ := json.Marshal(dates)
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	w.Header().Set("Content-type","application/json")
+	w.Write(data)
+}
+
 func (s Server)listFolders(w http.ResponseWriter,r * http.Request){
 	names := make([]string,0,len(s.foldersManager.Folders))
 	for name := range s.foldersManager.Folders {
@@ -144,7 +166,6 @@ func (s Server)imageHD(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-
 func (s Server)browse(w http.ResponseWriter,r * http.Request){
 	// Extract folder
 	path := r.URL.Path[7:]
@@ -186,8 +207,6 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 		w.Write([]byte("success"))
 	}
 }
-
-
 
 func (s Server)getRootFolders(w http.ResponseWriter,r * http.Request){
 	logger.GetLogger2().Info("Get root folders")
@@ -298,6 +317,9 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/updateFolder",s.updateFolder)
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canDelete",s.canDelete)
+	// By date
+	server.HandleFunc("/allDates",s.getAllDates)
+	server.HandleFunc("/getByDate",s.getPhotosByDate)
 	server.HandleFunc("/",s.defaultHandle)
 
 	logger.GetLogger2().Info("Start server on port " + port)

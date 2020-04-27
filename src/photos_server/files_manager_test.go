@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCompare(t *testing.T){
@@ -61,7 +62,38 @@ func TestManager(t *testing.T){
 	filesRoot["folder1"] = sub1
 	fm.Folders["root"] = NewFolder("/home","/home/folder1","folder1",filesRoot,false)
 	if node,_,err := fm.FindNode("root/folder1/folder2/leaf2.jpg") ; err != nil || node == nil {
-		t.Error("Imposible to find node")
+		t.Error("Impossible to find node")
+	}
+}
+
+func TestGroupByDate(t *testing.T){
+	fm := NewFoldersManager("//","","")
+	filesRoot := Files{}
+	filesRoot["f1"] = &Node{Name:"f1",IsFolder:false,Date:time.Date(2020,3,10,12,0,12,0,time.Local)}
+	filesRoot["f2"] = &Node{Name:"f2",IsFolder:false,Date:time.Date(2020,3,10,12,15,36,0,time.Local)}
+	filesRoot["f3"] = &Node{Name:"f3",IsFolder:false,Date:time.Date(2020,3,7,12,0,12,0,time.Local)}
+	filesRoot["f4"] = &Node{Name:"f4",IsFolder:false,Date:time.Date(2020,3,12,0,0,12,0,time.Local)}
+	filesRoot["f5"] = &Node{Name:"f5",IsFolder:false,Date:time.Date(2020,3,12,23,59,12,0,time.Local)}
+	filesRoot["f6"] = &Node{Name:"f6",IsFolder:false,Date:time.Date(2020,4,12,23,59,12,0,time.Local)}
+
+	fm.Folders["root"] = NewFolder("/home","/home/folder1","folder1",filesRoot,false)
+	byDate := fm.computePhotosByDate(fm.Folders)
+	if len(byDate) != 4 {
+		t.Error("Must find 4 group of date")
+	}
+	if list,exist := byDate[time.Date(2020,3,10,0,0,0,0,time.UTC)] ; !exist || len(list) != 2 {
+		t.Error("Must find 2 photos for 20200310")
+	}
+
+}
+
+func TestConvertDateToMidnight(t *testing.T){
+	if formatDate := getMidnightDate(time.Date(2020,10,5,12,36,12,0,time.Local)) ; formatDate.Hour() != 0 || formatDate.Month() != 10 || formatDate.Minute()!= 0 && formatDate.Second() != 0 {
+		t.Error("Date must be set at midnight but found",formatDate)
+	}
+
+	if formatDate := getMidnightDate(time.Date(2019,1,1,17,36,12,0,time.Local)) ; formatDate.Hour() != 0 || formatDate.Month() != 1 || formatDate.Minute()!= 0 && formatDate.Second() != 0 {
+		t.Error("Date must be set at midnight but found",formatDate)
 	}
 }
 

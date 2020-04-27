@@ -5,7 +5,7 @@ import axios from "axios";
 import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
 import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined} from "@ant-design/icons";
 
-export default function MyGallery({urlFolder,refresh}) {
+export default function MyGallery({urlFolder,refresh,titleGallery}) {
     const [images,setImages] = useState([]);
     const [updateUrl,setUpdateUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
@@ -56,8 +56,9 @@ export default function MyGallery({urlFolder,refresh}) {
             url:urlFolder,
         }).then(d=>{
             // Filter image by time before
-            setUpdateUrl(d.data.UpdateUrl)
-            setImages(d.data.Files
+            setUpdateUrl(d.data.UpdateUrl);
+            let photos = d.data.Files != null ? d.data.Files:d.data;
+            setImages(photos
                 .filter(file=>file.ImageLink != null)
                 .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
                 .map(img=>{
@@ -158,6 +159,7 @@ export default function MyGallery({urlFolder,refresh}) {
         <>
             <Row className={"options"}>
                 <Col span={8}>
+                    {titleGallery}
                     {images.length} <PictureOutlined />
                 </Col>
                 <Col span={8}>

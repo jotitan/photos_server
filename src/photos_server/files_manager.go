@@ -60,6 +60,7 @@ func NewFolder(rootFolder,path,name string,files Files, imageResized bool)*Node{
 // Store many folders
 type foldersManager struct{
 	Folders map[string]*Node
+	PhotosByDate map[time.Time][]*Node
 	garbageManager * GarbageManager
 	reducer Reducer
 }
@@ -69,6 +70,28 @@ func NewFoldersManager(cache,garbageFolder,maskAdmin string)*foldersManager{
 	fm.load()
 	fm.garbageManager = NewGarbageManager(garbageFolder,maskAdmin,fm)
 	return fm
+}
+
+type photosByDate struct {
+	Date time.Time
+	Nb int
+}
+
+func (fm * foldersManager)GetAllDates()[]photosByDate{
+	byDate := fm.GetPhotosByDate()
+	dates := make([]photosByDate,0,len(byDate))
+	for date,nodes := range byDate {
+		dates = append(dates,photosByDate{Date:date,Nb:len(nodes)})
+	}
+	return dates
+}
+
+
+func (fm * foldersManager)GetPhotosByDate()map[time.Time][]*Node{
+	if fm.PhotosByDate == nil {
+		fm.PhotosByDate = fm.computePhotosByDate(fm.Folders)
+	}
+	return fm.PhotosByDate
 }
 
 func (fm foldersManager) GetSmallImageName(node Node)string{
@@ -441,6 +464,39 @@ func (fm * foldersManager)browsePaths(path string)(*Node,error){
 		}
 	}
 	return node,nil
+}
+
+func (fm *foldersManager) computePhotosByDate(files Files) map[time.Time][]*Node {
+	byDate := make(map[time.Time][]*Node)
+	// Browse all pictures and group by date
+	for _,node := range files {
+		if node.IsFolder {
+			// Relaunch
+			for date,nodes := range fm.computePhotosByDate(node.Files) {
+				addInTimeMap(byDate,date,nodes)
+			}
+		}else{
+			formatDate := getMidnightDate(node.Date)
+			addInTimeMap(byDate,formatDate,[]*Node{node})
+		}
+	}
+	return byDate
+}
+
+func addInTimeMap(byDate map[time.Time][]*Node,date time.Time,nodes []*Node){
+	if list,exist := byDate[date] ; !exist {
+		byDate[date] = nodes
+	}else{
+		byDate[date] = append(list,nodes...)
+	}
+
+}
+
+func getMidnightDate(date time.Time)time.Time {
+	if format,err := time.Parse("2006-01-02",date.Format("2006-01-02")) ; err == nil {
+		return format
+	}
+	return date
 }
 
 func isImage(name string)bool{

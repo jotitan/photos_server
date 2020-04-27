@@ -78,3 +78,20 @@ body {
   color:white;
   text-transform: uppercase;
 }
+
+.ant-picker-calendar-full .ant-picker-panel .ant-picker-calendar-date-content {
+  height:22px;
+}
+
+.ant-picker-calendar-full .ant-picker-panel .ant-picker-cell .ant-picker-calendar-date-content {
+  height:35px;
+}
+
+.header-calendar {
+  text-align:center;
+}
+
+.header-calendar > span {
+  padding-left:10px;
+  padding-right:10px;
+}
