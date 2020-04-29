@@ -30,7 +30,7 @@ const adapt = node => {
     return data;
 }
 
-export default function TreeFolder({setUrlFolder,setTitleGallery}) {
+export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const [tree,setTree] = useState([]);
     const { DirectoryTree } = Tree;
     const [height,setHeight] = useState(window.innerHeight-95);
@@ -42,7 +42,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery}) {
         }).then(d=>{
             setTree([adapt(d.data)]);
         })
-    },[]);
+    },[update]);
 
     const onSelect = (e,f)=>{
         setTitleGallery('');

@@ -3,16 +3,15 @@ import {Col, Popconfirm, Row, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
-import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined} from "@ant-design/icons";
+import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined,DeleteTwoTone} from "@ant-design/icons";
 
-export default function MyGallery({urlFolder,refresh,titleGallery}) {
+export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
     const [images,setImages] = useState([]);
     const [updateUrl,setUpdateUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
     const [updateRunning,setUpdateRunning] = useState(false);
     const [key,setKey] = useState(-1);
     const [lightboxVisible,setLightboxVisible] = useState(false);
-    const [canDelete,setCanDelete] = useState(false);
     const [showThumbnails,setShowThumbnails] = useState(false);
     const [comp,setComp] = useState(null);
     let baseUrl = getBaseUrl();
@@ -25,26 +24,20 @@ export default function MyGallery({urlFolder,refresh,titleGallery}) {
     },[refresh,comp])
 
     useEffect(()=>{
-        axios({
-            method:'GET',
-            url:baseUrl+'/canDelete',
-        }).then(d=>{
-            setCanDelete(d.data.can);
-            if(d.data.can){
-                window.addEventListener('keydown',e=>{
-                    if(e.key === "t"){
-                        // Switch thumbnail
-                        setShowThumbnails(s=> !s);
-                    }
-                    setKey(e.key)
-                });
-            }
-        });
-    },[baseUrl,setShowThumbnails]);
+        if(canDelete){
+            window.addEventListener('keydown',e=>{
+                if(e.key === "t"){
+                    // Switch thumbnail
+                    setShowThumbnails(s=> !s);
+                }
+                setKey(e.key)
+            });
+        }
+    },[canDelete,setShowThumbnails]);
 
     useEffect(()=>{
         if(lightboxVisible && key === "Delete"){
-            images[currentImage].isSelected=true;
+            images[currentImage].isSelected=!images[currentImage].isSelected;
             setKey("");
         }
     },[currentImage,key,lightboxVisible,images]);
@@ -63,9 +56,11 @@ export default function MyGallery({urlFolder,refresh,titleGallery}) {
                 .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
                 .map(img=>{
                     let d = new Date(img.Date).toLocaleString();
+                    let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
                     return {
                         hdLink:baseUrlHref + img.HdLink,
                         path:img.HdLink,
+                        folder:folder,
                         Date:d,
                         caption:"",thumbnail:baseUrl + img.ThumbnailLink,src:baseUrl + img.ImageLink,
                         customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
@@ -142,6 +137,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery}) {
     const getCustomActions = ()=> {
         return [
             <div style={{paddingTop:5+'px'}} key={"detail-lightbox"}>
+                {images!=null && currentImage !== -1 && images[currentImage].isSelected? <DeleteTwoTone twoToneColor={"red"} style={{color:'red',fontSize:22+'px'}} />:''}
                 <Tooltip key={"image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex:20000}}>
                     <a target={"_blank"} rel="noopener noreferrer"
                        download={images != null && currentImage !== -1 ? images[currentImage].Name:''}
@@ -151,6 +147,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery}) {
                 </Tooltip>
                 <span style={{color:'white',paddingLeft:20+'px'}}>
                    {images!=null && currentImage!==-1 ? images[currentImage].Date:''}
+                   {images!=null && currentImage!==-1 ? ' - ' + images[currentImage].folder:''}
                </span>
             </div>
         ]

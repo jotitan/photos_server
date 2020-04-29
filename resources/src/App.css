@@ -111,3 +111,33 @@ body {
   padding-left:10px;
   padding-right:10px;
 }
+
+.upload-list img {
+  margin: 10px;
+  border: solid 1px;
+  width:100px;
+}
+
+.upload-list {
+  height:300px;
+  overflow:auto;
+}
+
+.upload-photos-modal .ant-modal-body {
+  padding:5px;
+}
+
+.add-folder-text {
+  color: white;
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.switch-selection.ant-switch {
+  background-color: darkgreen;
+}
+
+.switch-selection.ant-switch-checked {
+  background-color: #1890ff;
+}

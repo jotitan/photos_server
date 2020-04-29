@@ -81,7 +81,6 @@ func (args Arguments)GetMandatoryString(argName,errorMessage string)string{
 		return value
 	}
 	logger.GetLogger().Error(errorMessage)
-	//fmt.Println("Error",errorMessage)
 	os.Exit(1)
 	return ""
 }

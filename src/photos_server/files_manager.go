@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jotitan/photos_server/logger"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,10 +65,12 @@ type foldersManager struct{
 	PhotosByDate map[time.Time][]*Node
 	garbageManager * GarbageManager
 	reducer Reducer
+	// Path of folder where to upload files
+	UploadedFolder string
 }
 
-func NewFoldersManager(cache,garbageFolder,maskAdmin string)*foldersManager{
-	fm := &foldersManager{Folders:make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250})}
+func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder string)*foldersManager{
+	fm := &foldersManager{Folders:make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),UploadedFolder:uploadedFolder}
 	fm.load()
 	fm.garbageManager = NewGarbageManager(garbageFolder,maskAdmin,fm)
 	return fm
@@ -86,6 +90,9 @@ func (fm * foldersManager)GetAllDates()[]photosByDate{
 	return dates
 }
 
+func (fm * foldersManager)resetPhotosByDate(){
+	fm.PhotosByDate = nil
+}
 
 func (fm * foldersManager)GetPhotosByDate()map[time.Time][]*Node{
 	if fm.PhotosByDate == nil {
@@ -108,7 +115,6 @@ var extensions = []string{"jpg","jpeg","png"}
 // For each files in new version : search if old version exist, if true, keep information, otherwise, store new node in separate list
 // To detect deletion, create a copy at beginning and remove element at each turn
 func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node){
-	//fmt.Println("Compare",files,previousFiles)
 	newNodes := make([]*Node,0)
 	nodesToDelete := make(map[string]*Node,0)
 	// First recopy old version
@@ -285,8 +291,33 @@ func (fm foldersManager)removeFile(path string)error{
 	return os.Remove(path)
 }
 
+// used when upload
+func (fm * foldersManager)AddFolderToNode(folderPath,relativePath string,forceRotate bool)error{
+	// Compute relative path
+	rootFolder := filepath.Dir(relativePath)
+	if strings.EqualFold("",rootFolder) || strings.EqualFold(".",rootFolder) {
+		// Add folder as usual (new one)
+		fm.AddFolder(folderPath,forceRotate)
+		return nil
+	}
+	// Find the node of root folder
+	if node,_,err := fm.FindNode(rootFolder) ; err == nil {
+		fm.AddFolderWithNode(node.Files,fm.UploadedFolder,folderPath,forceRotate)
+	}else{
+		// Add the parent folder (which is recursive)
+		return fm.AddFolderToNode(filepath.Dir(folderPath),rootFolder,forceRotate)
+	}
+	return nil
+}
+
 func (fm * foldersManager)AddFolder(folderPath string,forceRotate bool){
-	rootFolder := filepath.Dir(folderPath)
+	fm.AddFolderWithNode(fm.Folders,"",folderPath,forceRotate)
+}
+
+func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath string,forceRotate bool){
+	if strings.EqualFold("",rootFolder) {
+		rootFolder = filepath.Dir(folderPath)
+	}
 	node := fm.Analyse(rootFolder,folderPath)
 	logger.GetLogger2().Info("Add folder",folderPath,"with",len(node))
 	// Check if images already exists to improve computing
@@ -294,7 +325,7 @@ func (fm * foldersManager)AddFolder(folderPath string,forceRotate bool){
 	logger.GetLogger2().Info("Found existing",len(existings))
 	globalWaiter := sync.WaitGroup{}
 	for name,folder := range node{
-		fm.Folders[name] = folder
+		files[name] = folder
 		fm.launchImageResize(folder,strings.Replace(folderPath,name,"",-1),&globalWaiter,existings,forceRotate)
 	}
 	globalWaiter.Wait()
@@ -346,7 +377,48 @@ func getSavePath()string{
 	return filepath.Join(wd,"save-images.json")
 }
 
-func (fm foldersManager)save(){
+// folder must be a relative path
+func (fm * foldersManager)UploadFolder(folder string, files []multipart.File,names []string)error{
+	if len(files) != len(names){
+		return errors.New("error during upload")
+	}
+	if strings.EqualFold("",fm.UploadedFolder) {
+		return errors.New("impossible to upload file without folder defined")
+	}
+	// Check no double dots to move info tree
+	if strings.Contains(folder,"..") {
+		return errors.New("too dangerous relative path folder with .. inside")
+	}
+
+	outputFolder := filepath.Join(fm.UploadedFolder,folder)
+	if err := createFolderIfExistOfFail(outputFolder) ; err != nil {
+		return err
+	}
+	for i,file := range files {
+		if imageFile,err := os.OpenFile(filepath.Join(outputFolder,names[i]),os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
+			if _,err := io.Copy(imageFile,file) ; err != nil {
+				return err
+			}
+			imageFile.Close()
+		}else{
+			return err
+		}
+	}
+	logger.GetLogger2().Info("Folder",folder,"well uploaded with",len(files),"files")
+	// Launch add folder
+	return fm.AddFolderToNode(outputFolder,folder,false)
+}
+
+func createFolderIfExistOfFail(path string)error {
+	if _,err := os.Open(path) ; err == nil {
+		// Already exist
+		return errors.New("folder already exist, must be new (" + path + ")")
+	}
+	return os.MkdirAll(path,os.ModePerm)
+}
+
+func (fm * foldersManager)save(){
+	fm.resetPhotosByDate()
 	data,_ := json.Marshal(fm.Folders)
 	if f,err := os.OpenFile(getSavePath(),os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm) ; err == nil {
 		defer f.Close()
@@ -356,7 +428,6 @@ func (fm foldersManager)save(){
 		logger.GetLogger2().Error("Impossible to save tree in file",getSavePath())
 	}
 }
-
 
 func (fm * foldersManager)launchImageResize(folder *Node, rootFolder string,globalWaiter * sync.WaitGroup, existings map[string]struct{},forceRotate bool){
 	globalWaiter.Add(1)
@@ -382,7 +453,7 @@ func (fm foldersManager)Analyse(rootFolder,path string)Files{
 			if stat.IsDir() {
 				return fm.treatFolder(rootFolder,path,stat.Name(),file)
 			}else{
-				fm.treatImage(rootFolder,path,stat.Name())
+				return fm.treatImage(rootFolder,path,stat.Name())
 			}
 		}
 	}else{

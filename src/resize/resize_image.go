@@ -14,70 +14,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 )
 
 type Request struct {
 	from string
 	to string
 }
-
-func GetPhotosToTreat(from,to string)[]Request{
-	var requests []Request
-	if file,err := os.Open(from) ; err == nil {
-		if info,_ := file.Stat() ; info.IsDir() {
-			// List jpg file
-			names,_ := file.Readdirnames(0)
-			for _,name := range names {
-				if strings.HasSuffix(name,".jpg") {
-					from := filepath.Join(from,name)
-					to := fmt.Sprintf("%s_%s", to, name)
-					requests = append(requests,Request{from,to})
-				}
-			}
-		}else{
-			requests = []Request{Request{from,to}}
-		}
-	}
-	return requests
-}
-
-func ResizeMany(from, to string, width,height uint){
-	counter := sync.WaitGroup{}
-	begin := time.Now()
-	gor := GetResizer()
-
-	requests := GetPhotosToTreat(from,to)
-	for _,r := range requests {
-		counter.Add(1)
-		go func(req Request) {
-			if err,_,_ := gor.Resize(req.from, req.to, width,height); err == nil {
-				fmt.Println("Img resized", req.to)
-			}else {
-				fmt.Println("Impossible",err)
-			}
-			counter.Done()
-		}(r)
-	}
-	counter.Wait()
-	fmt.Println("Done",time.Now().Sub(begin))
-}
-
 type Resizer interface{
 	Resize(from,to string,width,height uint)(error,uint,uint)
 	ToString()string
-}
-
-// GetResizer return a resizer acoording to context
-func GetResizer()Resizer{
-	// CHeck if convert (imagemagick) is present
-	if result,err := exec.Command("convert","-version") .Output() ; err == nil {
-		if strings.Contains(string(result),"ImageMagick") {
-			return ImageMagickResizer{}
-		}
-	}
-	return GoResizer{}
 }
 
 // ImageMagickResizer use image magick (convert command) to compress

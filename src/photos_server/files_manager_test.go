@@ -48,7 +48,7 @@ func TestCompare(t *testing.T){
 }
 
 func TestManager(t *testing.T){
-	fm := NewFoldersManager("//","","")
+	fm := NewFoldersManager("//","","","")
 	leaf1 := NewImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg")
 	leaf2 := NewImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg")
 	filesSub2 := Files{}
@@ -67,7 +67,7 @@ func TestManager(t *testing.T){
 }
 
 func TestGroupByDate(t *testing.T){
-	fm := NewFoldersManager("//","","")
+	fm := NewFoldersManager("//","","","")
 	filesRoot := Files{}
 	filesRoot["f1"] = &Node{Name:"f1",IsFolder:false,Date:time.Date(2020,3,10,12,0,12,0,time.Local)}
 	filesRoot["f2"] = &Node{Name:"f2",IsFolder:false,Date:time.Date(2020,3,10,12,15,36,0,time.Local)}

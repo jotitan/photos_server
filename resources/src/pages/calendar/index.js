@@ -43,7 +43,7 @@ function dateCellRender(value,dates){
     let count = days != null ? days.filter(day=>day.date === fullKey).reduce((somme,d)=>somme+d.nb,0) : 0;
     return count > 0 ?(
         <div className="notes-month">
-            <Badge count={1000} overflowCount={999} style={{ backgroundColor: '#002d4b' }}/>
+            <Badge count={count} overflowCount={999} style={{ backgroundColor: '#002d4b' }}/>
         </div>
     ):null;
 }
@@ -109,13 +109,13 @@ function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
     }
 }
 
-export default function MyCalendar({setUrlFolder,setTitleGallery}) {
+export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
     const [dates,setDates] = useState(DatesGrouped);
     const [mode,setMode] = useState('year');
 
     useEffect(()=>{
         getAllDates(setDates);
-    },[setDates])
+    },[setDates,update]);
     return (
         <Calendar headerRender={infos=>header(infos,mode,setMode)}
                   dateCellRender={value=>dateCellRender(value,dates)}

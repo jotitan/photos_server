@@ -6,6 +6,7 @@ import (
 	"github.com/jotitan/photos_server/logger"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,9 +21,9 @@ type Server struct {
 	maskForAdmin string
 }
 
-func NewPhotosServer(cache,resources,garbage,maskForAdmin string)Server{
+func NewPhotosServer(cache,resources,garbage,maskForAdmin,uploadedFolder string)Server{
 	return Server{
-		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin),
+		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin,uploadedFolder),
 		resources:resources,
 		maskForAdmin:maskForAdmin,
 	}
@@ -192,6 +193,44 @@ func (s Server)update(w http.ResponseWriter,r * http.Request){
 }
 
 // Update a specific folder, faster than all folders
+func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
+	if !s.canAccessAdmin(r) {
+		s.error403(w,r)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin","*")
+
+	pathFolder := r.FormValue("path")
+	files,names := extractFiles(r)
+	logger.GetLogger2().Info("Launch upload folder :",pathFolder)
+	if strings.EqualFold("",pathFolder) {
+		w.Write([]byte("Empty"))
+		return
+	}
+	if err := s.foldersManager.UploadFolder(pathFolder,files,names) ; err != nil {
+		http.Error(w,"Bad request " + err.Error(),400)
+		logger.GetLogger2().Error("Impossible to upload folder : ",err.Error())
+	}else{
+		w.Write([]byte("success"))
+	}
+}
+
+func extractFiles(r *http.Request)([]multipart.File,[]string){
+	files := make([]multipart.File,0,len(r.MultipartForm.File))
+	names := make([]string,0,len(r.MultipartForm.File))
+	for _,headers := range r.MultipartForm.File {
+		if len(headers) > 0 {
+			header := headers[0]
+			if file,err := header.Open() ; err == nil {
+				files = append(files, file)
+				names = append(names,filepath.Base(header.Filename))
+			}
+		}
+	}
+	return files,names
+}
+
+// Update a specific folder, faster than all folders
 func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	if !s.canAccessAdmin(r) {
 		s.error403(w,r)
@@ -315,6 +354,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/rootFolders",s.getRootFolders)
 	server.HandleFunc("/update",s.update)
 	server.HandleFunc("/updateFolder",s.updateFolder)
+	server.HandleFunc("/uploadFolder",s.uploadFolder)
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canDelete",s.canDelete)
 	// By date
