@@ -21,9 +21,9 @@ type Server struct {
 	maskForAdmin string
 }
 
-func NewPhotosServer(cache,resources,garbage,maskForAdmin,uploadedFolder string)Server{
+func NewPhotosServer(cache,resources,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder string)Server{
 	return Server{
-		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin,uploadedFolder),
+		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder),
 		resources:resources,
 		maskForAdmin:maskForAdmin,
 	}
@@ -117,26 +117,6 @@ func (s Server)analyse(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
-	switch {
-	case strings.Index(r.URL.Path,"/browserf") == 0:
-		s.browseRestful(w,r)
-		break
-	case strings.Index(r.URL.Path,"/browse") == 0:
-		s.browse(w,r)
-		break
-	case strings.Index(r.URL.Path,"/imagehd") == 0:
-		s.imageHD(w,r)
-		break
-	case strings.Index(r.URL.Path,"/image") == 0:
-		s.image(w,r)
-		break
-	default:
-		logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
-		http.ServeFile(w,r,filepath.Join(s.resources,r.RequestURI[1:]))
-	}
-}
-
 func (s Server)image(w http.ResponseWriter,r * http.Request){
 	path := r.URL.Path[7:]
 	s.writeImage(w,filepath.Join(s.foldersManager.reducer.cache,path))
@@ -154,16 +134,23 @@ func (s Server)writeImage(w http.ResponseWriter,path string){
 	}
 }
 
+func (s Server)removeNode(w http.ResponseWriter,r * http.Request) {
+	path := r.URL.Path[12:]
+	if err := s.foldersManager.RemoveNode(path) ; err != nil {
+		http.Error(w,err.Error(),400)
+	}else{
+		w.Write([]byte("success"))
+	}
+}
+
 // Return original image
 func (s Server)imageHD(w http.ResponseWriter,r * http.Request){
 	path := r.URL.Path[9:]
 	// Find absolute path based on first folder
-	baseDir := strings.Split(path,"/")[0]
-	if folder,exist := s.foldersManager.Folders[baseDir] ; !exist {
-		http.Error(w,"Image folder hd not found",404)
+	if node,_,err := s.foldersManager.FindNode(path) ; err != nil {
+		http.Error(w,"Impossible to find image",404)
 	}else{
-		imgPath :=filepath.Join(folder.AbsolutePath,filepath.Join(strings.Split(path,"/")[1:]...))
-		s.writeImage(w,imgPath)
+		s.writeImage(w,node.AbsolutePath)
 	}
 }
 
@@ -345,8 +332,30 @@ func (s Server)convertSubFolders(node *Node,folder *folderRestFul){
 	folder.HasImages = hasImages
 }
 
+func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
+	switch {
+	case strings.Index(r.URL.Path,"/browserf") == 0:
+		s.browseRestful(w,r)
+		break
+	case strings.Index(r.URL.Path,"/browse") == 0:
+		s.browse(w,r)
+		break
+	case strings.Index(r.URL.Path,"/imagehd") == 0:
+		s.imageHD(w,r)
+		break
+	case strings.Index(r.URL.Path,"/image") == 0:
+		s.image(w,r)
+		break
+	case strings.Index(r.URL.Path,"/removeNode") == 0:
+		s.removeNode(w,r)
+		break
+	default:
+		logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
+		http.ServeFile(w,r,filepath.Join(s.resources,r.RequestURI[1:]))
+	}
+}
+
 func (s Server)Launch(port string){
-	//test()
 	server := http.ServeMux{}
 	server.HandleFunc("/analyse",s.analyse)
 	server.HandleFunc("/delete",s.delete)

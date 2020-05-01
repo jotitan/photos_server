@@ -67,10 +67,13 @@ type foldersManager struct{
 	reducer Reducer
 	// Path of folder where to upload files
 	UploadedFolder string
+	// When upload file, override first folder in tree (to force to be in a specific one)
+	overrideUploadFolder string
 }
 
-func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder string)*foldersManager{
-	fm := &foldersManager{Folders:make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),UploadedFolder:uploadedFolder}
+func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUploadFolder string)*foldersManager{
+	fm := &foldersManager{Folders:make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),
+			UploadedFolder:uploadedFolder,overrideUploadFolder:overrideUploadFolder}
 	fm.load()
 	fm.garbageManager = NewGarbageManager(garbageFolder,maskAdmin,fm)
 	return fm
@@ -192,7 +195,7 @@ func (fm * foldersManager)compareAndCleanFolder(files Files,newFolders map[strin
 		for _, node := range delta {
 			logger.GetLogger2().Info("Launch update image resize", node.AbsolutePath)
 			waiter.Add(1)
-			fm.reducer.AddImage(node.AbsolutePath, node.RelativePath, node, waiter,make(map[string]struct{}),false)
+			fm.reducer.AddImage(node.AbsolutePath, node.RelativePath, "",node, waiter,make(map[string]struct{}),false)
 		}
 		waiter.Wait()
 		logger.GetLogger2().Info("All pictures have been resized")
@@ -245,6 +248,16 @@ func (fm * foldersManager)Update()error{
 	}
 }
 
+// Only remove the node in tree, not the file
+func (fm * foldersManager)RemoveNode(path string)error{
+	if node, parent, err := fm.FindNode(path) ; err != nil {
+		return err
+	}else{
+		delete(parent,node.Name)
+	}
+	return nil
+}
+
 func (fm foldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 	current := fm.Folders
 	nbSub := strings.Count(path,"/")
@@ -252,11 +265,17 @@ func (fm foldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 		if node,ok := fm.Folders[path] ; ok {
 			return node,fm.Folders,nil
 		}
-		return nil,nil,errors.New("Impossible to found node " + path)
+		return nil,nil,errors.New("Impossible to find node " + path)
 	}
 	for pos,sub := range strings.Split(path,"/") {
 		node := current[sub]
+		if node == nil {
+			return nil,nil,errors.New("Impossible to find node " + path)
+		}
 		if node.IsFolder {
+			if pos == nbSub {
+				return node,current,nil
+			}
 			current = current[sub].Files
 		}else{
 			// If not last element
@@ -268,6 +287,9 @@ func (fm foldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 				return nil,nil,errors.New("Impossible to found node " + path)
 			}
 		}
+	}
+	if current != nil {
+
 	}
 	return nil,nil,errors.New("Bad path " + path)
 }
@@ -292,7 +314,8 @@ func (fm foldersManager)removeFile(path string)error{
 }
 
 // used when upload
-func (fm * foldersManager)AddFolderToNode(folderPath,relativePath string,forceRotate bool)error{
+// @overrideOutput override default output folder by adding inside a path folder
+func (fm * foldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput string,forceRotate bool)error{
 	// Compute relative path
 	rootFolder := filepath.Dir(relativePath)
 	if strings.EqualFold("",rootFolder) || strings.EqualFold(".",rootFolder) {
@@ -302,19 +325,19 @@ func (fm * foldersManager)AddFolderToNode(folderPath,relativePath string,forceRo
 	}
 	// Find the node of root folder
 	if node,_,err := fm.FindNode(rootFolder) ; err == nil {
-		fm.AddFolderWithNode(node.Files,fm.UploadedFolder,folderPath,forceRotate)
+		fm.AddFolderWithNode(node.Files,fm.UploadedFolder,folderPath,overrideOutput,forceRotate)
 	}else{
 		// Add the parent folder (which is recursive)
-		return fm.AddFolderToNode(filepath.Dir(folderPath),rootFolder,forceRotate)
+		return fm.AddFolderToNode(filepath.Dir(folderPath),rootFolder,overrideOutput,forceRotate)
 	}
 	return nil
 }
 
 func (fm * foldersManager)AddFolder(folderPath string,forceRotate bool){
-	fm.AddFolderWithNode(fm.Folders,"",folderPath,forceRotate)
+	fm.AddFolderWithNode(fm.Folders,"",folderPath,"",forceRotate)
 }
 
-func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath string,forceRotate bool){
+func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,overrideOutput string,forceRotate bool){
 	if strings.EqualFold("",rootFolder) {
 		rootFolder = filepath.Dir(folderPath)
 	}
@@ -326,7 +349,7 @@ func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath st
 	globalWaiter := sync.WaitGroup{}
 	for name,folder := range node{
 		files[name] = folder
-		fm.launchImageResize(folder,strings.Replace(folderPath,name,"",-1),&globalWaiter,existings,forceRotate)
+		fm.launchImageResize(folder,strings.Replace(folderPath,name,"",-1),overrideOutput,&globalWaiter,existings,forceRotate)
 	}
 	globalWaiter.Wait()
 	fm.save()
@@ -404,9 +427,10 @@ func (fm * foldersManager)UploadFolder(folder string, files []multipart.File,nam
 			return err
 		}
 	}
+	// Use default source to add folder in a specific folder by default, not in root. Resize will be in default-source and path also
 	logger.GetLogger2().Info("Folder",folder,"well uploaded with",len(files),"files")
-	// Launch add folder
-	return fm.AddFolderToNode(outputFolder,folder,false)
+	// Launch add folder with input folder, node path
+	return fm.AddFolderToNode(outputFolder,filepath.Join(fm.overrideUploadFolder,folder),fm.overrideUploadFolder,false)
 }
 
 func createFolderIfExistOfFail(path string)error {
@@ -429,12 +453,15 @@ func (fm * foldersManager)save(){
 	}
 }
 
-func (fm * foldersManager)launchImageResize(folder *Node, rootFolder string,globalWaiter * sync.WaitGroup, existings map[string]struct{},forceRotate bool){
+func (fm * foldersManager)launchImageResize(folder *Node, rootFolder,overrideOutput string,globalWaiter * sync.WaitGroup, existings map[string]struct{},forceRotate bool){
 	globalWaiter.Add(1)
 	waiter := &sync.WaitGroup{}
+	folder.RelativePath = filepath.Join(overrideOutput,folder.RelativePath)
 	folder.applyOnEach(rootFolder,func(path,relativePath string,node * Node){
 		waiter.Add(1)
-		fm.reducer.AddImage(path,relativePath,node,waiter,existings,forceRotate)
+		// Override relative path to include override output
+		node.RelativePath = filepath.Join(overrideOutput,node.RelativePath)
+		fm.reducer.AddImage(path,relativePath,overrideOutput,node,waiter,existings,forceRotate)
 	})
 	go func(w *sync.WaitGroup,node *Node){
 		w.Wait()

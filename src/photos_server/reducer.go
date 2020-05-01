@@ -41,6 +41,8 @@ func NewReducer(folder string, sizes []uint)Reducer{
 type ImageToResize struct{
 	path         string
 	relativePath string
+	// Override cache resize folder by adding the folder
+	overrideOutput string
 	node         * Node
 	waiter       * sync.WaitGroup
 	forceRotate  bool
@@ -82,8 +84,8 @@ func (itr ImageToResize)update(h,w uint, datePhoto time.Time, orientation int, c
 	itr.waiter.Done()
 }
 
-func (r Reducer)AddImage(path,relativePath string,node * Node,waiter * sync.WaitGroup, existings map[string]struct{}, forceRotate bool){
-	r.imagesToResize <- ImageToResize{path,relativePath,node,waiter,forceRotate,existings}
+func (r Reducer)AddImage(path,relativePath,overrideOutput string,node * Node,waiter * sync.WaitGroup, existings map[string]struct{}, forceRotate bool){
+	r.imagesToResize <- ImageToResize{path,relativePath,overrideOutput,node,waiter,forceRotate,existings}
 }
 
 // Return number of images wating to reduce and number of images reduced
@@ -97,7 +99,7 @@ func (r * Reducer)listenAndResize(){
 			imageToResize := <-r.imagesToResize
 			r.totalCount++
 			targetFolder := filepath.Dir(imageToResize.relativePath)
-			folder := filepath.Join(r.cache, targetFolder)
+			folder := filepath.Join(r.cache, imageToResize.overrideOutput,targetFolder)
 			if r.createPathInCache(folder) == nil {
 				r.resizeMultiformat(imageToResize,folder)
 			}

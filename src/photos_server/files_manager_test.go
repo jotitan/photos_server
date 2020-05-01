@@ -48,7 +48,14 @@ func TestCompare(t *testing.T){
 }
 
 func TestManager(t *testing.T){
-	fm := NewFoldersManager("//","","","")
+	fm := createStructure()
+	if node,_,err := fm.FindNode("root/folder1/folder2/leaf2.jpg") ; err != nil || node == nil {
+		t.Error("Impossible to find node")
+	}
+}
+
+func createStructure()*foldersManager{
+	fm := NewFoldersManager("//","","","","")
 	leaf1 := NewImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg")
 	leaf2 := NewImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg")
 	filesSub2 := Files{}
@@ -61,13 +68,11 @@ func TestManager(t *testing.T){
 	filesRoot := Files{}
 	filesRoot["folder1"] = sub1
 	fm.Folders["root"] = NewFolder("/home","/home/folder1","folder1",filesRoot,false)
-	if node,_,err := fm.FindNode("root/folder1/folder2/leaf2.jpg") ; err != nil || node == nil {
-		t.Error("Impossible to find node")
-	}
+	return fm
 }
 
 func TestGroupByDate(t *testing.T){
-	fm := NewFoldersManager("//","","","")
+	fm := NewFoldersManager("//","","","","")
 	filesRoot := Files{}
 	filesRoot["f1"] = &Node{Name:"f1",IsFolder:false,Date:time.Date(2020,3,10,12,0,12,0,time.Local)}
 	filesRoot["f2"] = &Node{Name:"f2",IsFolder:false,Date:time.Date(2020,3,10,12,15,36,0,time.Local)}
@@ -84,7 +89,30 @@ func TestGroupByDate(t *testing.T){
 	if list,exist := byDate[time.Date(2020,3,10,0,0,0,0,time.UTC)] ; !exist || len(list) != 2 {
 		t.Error("Must find 2 photos for 20200310")
 	}
+}
 
+func TestFindNode(t *testing.T) {
+	fm := createStructure()
+	if node, _, err := fm.FindNode("root/folder1/folder2"); node == nil || err != nil {
+		t.Error("Must find the node")
+	}else{
+		if !strings.EqualFold("folder2",node.Name) {
+			t.Error("Node must be called folder2 but found",node.Name)
+		}
+	}
+}
+
+func TestRemoveNode(t *testing.T){
+	fm := createStructure()
+	if node,_,err :=  fm.FindNode("root/folder1/folder2/leaf1.jpg") ; node == nil || err != nil {
+		t.Error("Must find the node")
+	}
+	if fm.RemoveNode("root/folder1/folder2/leaf1.jpg") != nil {
+		t.Error("Delete must success")
+	}
+	if node,_,err :=  fm.FindNode("root/folder1/folder2/leaf1.jpg") ; node != nil || err == nil {
+		t.Error("Must not find the node")
+	}
 }
 
 func TestConvertDateToMidnight(t *testing.T){

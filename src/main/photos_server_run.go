@@ -11,8 +11,9 @@ func main(){
 	webResources := args.GetMandatoryString("resources","Argument -resources is mandatory to specify where web resources are")
 	port := args.GetStringDefault("port","9006")
 	garbage := args.GetString("garbage")
-	uploadedFolder := args.GetString("upload_folder")
+	uploadedFolder := args.GetString("upload-folder")
+	overrideUploadFolder := args.GetString("override-upload")
 	maskForAdmin:= args.GetString("mask-admin")
-	server := photos_server.NewPhotosServer(cacheFolder,webResources,garbage,maskForAdmin,uploadedFolder)
+	server := photos_server.NewPhotosServer(cacheFolder,webResources,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder)
 	server.Launch(port)
 }
