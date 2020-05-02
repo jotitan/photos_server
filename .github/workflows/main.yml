@@ -44,8 +44,6 @@ jobs:
         npm run-script build
         tar -cvzf build.tar.gz build
         mv build.tar.gz ../artifacts
-      env:
-        CI: false
 
     # Upload artifact
     - uses: actions/upload-artifact@v1

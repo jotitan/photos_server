@@ -10,7 +10,7 @@
     "antd": "^4.1.0",
     "axios": "^0.19.2",
     "history": "^4.10.1",
-    "moment": "latest",
+    "moment": "2.24.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-grid-gallery": "^0.5.5",
