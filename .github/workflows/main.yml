@@ -41,8 +41,7 @@ jobs:
         echo Install and build app,
         cd resources
         npm install
-        ls -l /home/runner/work/photos_server/photos_server/resources/node_modules/moment/src/lib
-        ls /home/runner/work/photos_server/photos_server/resources/node_modules/moment/lib/locale
+        ls -l /home/runner/work/photos_server/photos_server/resources/node_modules/moment/src/lib/locale
         npm run-script build
         tar -cvzf build.tar.gz build
         mv build.tar.gz ../artifacts
