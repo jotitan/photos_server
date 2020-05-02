@@ -254,6 +254,7 @@ func (fm * foldersManager)RemoveNode(path string)error{
 		return err
 	}else{
 		delete(parent,node.Name)
+		fm.save()
 	}
 	return nil
 }
