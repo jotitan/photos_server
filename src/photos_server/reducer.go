@@ -116,7 +116,17 @@ func GetExif(path string)(time.Time,int){
 			return getExifDate(infos,path),getExifOrientation(infos)
 		}
 	}
-	return time.Now(),0
+	return getModificationDate(path),0
+}
+
+func getModificationDate(path string)time.Time{
+	if f,err := os.Open(path) ; err == nil {
+		defer f.Close()
+		if s,err := f.Stat();err == nil {
+			return s.ModTime()
+		}
+	}
+	return time.Now()
 }
 
 func getExifDate(infos *exif.Exif,path string)time.Time{
@@ -124,12 +134,7 @@ func getExifDate(infos *exif.Exif,path string)time.Time{
 	if strings.EqualFold("",date){
 		if date = getExifValue(infos,exif.DateTimeDigitized) ; strings.EqualFold("",date) {
 			// If no exif date, use modification date
-			if f,err := os.Open(path) ; err == nil {
-				defer f.Close()
-				if s,err := f.Stat();err == nil {
-					return s.ModTime()
-				}
-			}
+			return getModificationDate(path)
 		}
 	}
 
