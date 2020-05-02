@@ -97,6 +97,30 @@ func (fm * foldersManager)resetPhotosByDate(){
 	fm.PhotosByDate = nil
 }
 
+
+// Update exif of all photos of a specific date
+func (fm * foldersManager)updateExifOfDate(date string)(int,error){
+	if parseDate,err := time.Parse("20060102",date) ; err != nil {
+		return 0,err
+	}else {
+		midnightDate := getMidnightDate(parseDate)
+		nodes,exist := fm.GetPhotosByDate()[midnightDate]
+		logger.GetLogger2().Info("Found",len(nodes),"to update exif for",midnightDate)
+		if !exist {
+			return 0,errors.New("impossible to find images for this date")
+		}
+		for _,node := range nodes {
+			// extract again exif date and update node
+			node.Date,_ = GetExif(node.AbsolutePath)
+			logger.GetLogger2().Info("Found date",node.Date,"for path",node.AbsolutePath)
+		}
+		fm.save()
+		return len(nodes),nil
+	}
+}
+
+
+
 func (fm * foldersManager)GetPhotosByDate()map[time.Time][]*Node{
 	if fm.PhotosByDate == nil {
 		fm.PhotosByDate = fm.computePhotosByDate(fm.Folders)

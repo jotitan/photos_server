@@ -29,9 +29,7 @@ const getAllDates = (setDates)=> {
     axios({
         method:'GET',
         url:baseUrl+'/allDates',
-    }).then(d=>{
-        setDates(DatesGrouped.init(d.data));
-    });
+    }).then(d=>setDates(DatesGrouped.init(d.data)));
 };
 
 function dateCellRender(value,dates){
@@ -112,8 +110,8 @@ function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
 export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
     const [dates,setDates] = useState(DatesGrouped);
     const [mode,setMode] = useState('year');
-
     useEffect(()=>{
+        setDates([]);
         getAllDates(setDates);
     },[setDates,update]);
     return (
@@ -122,5 +120,5 @@ export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
                   locale={fr}
                   monthCellRender={value=>monthCellRender(value,dates)} mode={mode}
                   onSelect={value=>onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery)}/>
-    )
+                  )
 }

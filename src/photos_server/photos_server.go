@@ -35,6 +35,14 @@ func (s Server)canAccessAdmin(r * http.Request)bool{
 			strings.Contains(r.RemoteAddr,s.maskForAdmin))
 }
 
+func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
+	if updates,err := s.foldersManager.updateExifOfDate(r.FormValue("date")) ; err != nil {
+		http.Error(w,err.Error(),400)
+	}else{
+		w.Write([]byte(fmt.Sprintf("Update %d exif dates",updates)))
+	}
+}
+
 func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	w.Header().Set("Content-type","application/json")
@@ -366,6 +374,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/uploadFolder",s.uploadFolder)
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canDelete",s.canDelete)
+	server.HandleFunc("/updateExifOfDate",s.updateExifOfDate)
 	// By date
 	server.HandleFunc("/allDates",s.getAllDates)
 	server.HandleFunc("/getByDate",s.getPhotosByDate)

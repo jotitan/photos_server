@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -112,14 +113,26 @@ func GetExif(path string)(time.Time,int){
 	if f,err := os.Open(path) ; err == nil {
 		defer f.Close()
 		if infos,err := exif.Decode(f) ; err == nil {
-			return getExifDate(infos),getExifOrientation(infos)
+			return getExifDate(infos,path),getExifOrientation(infos)
 		}
 	}
 	return time.Now(),0
 }
 
-func getExifDate(infos *exif.Exif)time.Time{
+func getExifDate(infos *exif.Exif,path string)time.Time{
 	date := getExifValue(infos,exif.DateTime)
+	if strings.EqualFold("",date){
+		if date = getExifValue(infos,exif.DateTimeDigitized) ; strings.EqualFold("",date) {
+			// If no exif date, use modification date
+			if f,err := os.Open(path) ; err == nil {
+				defer f.Close()
+				if s,err := f.Stat();err == nil {
+					return s.ModTime()
+				}
+			}
+		}
+	}
+
 	if d,err := time.Parse("\"2006:01:02 15:04:05\"",date) ; err == nil {
 		return d
 	}
