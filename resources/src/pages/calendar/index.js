@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import moment from 'moment';
-import 'moment/locale/fr';
-import fr from 'antd/lib/calendar/locale/fr_FR';
+//import 'moment/locale/fr';
+//import fr from 'antd/lib/calendar/locale/fr_FR';
 import {Badge, Calendar} from 'antd';
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
@@ -119,7 +119,7 @@ export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
     return (
         <Calendar headerRender={infos=>header(infos,mode,setMode)}
                   dateCellRender={value=>dateCellRender(value,dates)}
-                  locale={fr}
+                  //locale={fr}
                   monthCellRender={value=>monthCellRender(value,dates)} mode={mode}
                   onSelect={value=>onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery)}/>
     )
