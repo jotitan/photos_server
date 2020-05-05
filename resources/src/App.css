@@ -154,3 +154,7 @@ body {
   background-color: #a2cdff;
   color:#0034ad;
 }
+
+.ant-tree-list-holder-inner {
+  margin-bottom:92px;
+}
