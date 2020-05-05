@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 )
 
-const bufferSize = 10
+const bufferSize = 100
 
 type Tag struct {
 	Value string

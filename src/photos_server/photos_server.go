@@ -370,7 +370,7 @@ func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 		}else{
 			folder := folderRestFul{Name:node.Name,
 				Link:filepath.ToSlash(filepath.Join("/browserf",node.RelativePath)),
-				LinkTags:filepath.ToSlash(filepath.Join("/TagsByFolder",node.RelativePath)),
+				LinkTags:filepath.ToSlash(filepath.Join("/tagsByFolder",node.RelativePath)),
 			}
 			if onlyFolders {
 				s.convertSubFolders(node,&folder)
@@ -412,10 +412,10 @@ func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
 	case strings.Index(r.URL.Path,"/removeNode") == 0:
 		s.removeNode(w,r)
 		break
-	case strings.Index(r.URL.Path,"/TagsByFolder") == 0:
+	case strings.Index(r.URL.Path,"/tagsByFolder") == 0:
 		s.updateTagsByFolder(w,r)
 		break
-	case strings.Index(r.URL.Path,"/TagsByDate") == 0:
+	case strings.Index(r.URL.Path,"/tagsByDate") == 0:
 		s.updateTagsByDate(w,r)
 		break
 	default:
