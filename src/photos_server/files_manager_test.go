@@ -54,16 +54,24 @@ func TestManager(t *testing.T){
 	}
 }
 
+func newImage(folder,path,name,date string)*Node{
+	img := NewImage(folder,path,name)
+	d,_ :=time.Parse("20060102",date)
+	img.Date = d
+	return img
+}
+
 func createStructure()*foldersManager{
 	fm := NewFoldersManager("//","","","","")
-	leaf1 := NewImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg")
-	leaf2 := NewImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg")
 	filesSub2 := Files{}
-	filesSub2["leaf1.jpg"] = leaf1
-	filesSub2["leaf2.jpg"] = leaf2
+	filesSub2["leaf1.jpg"] = newImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg","20200502")
+	filesSub2["leaf2.jpg"] = newImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg","20200502")
+	filesSub2["leaf3.jpg"] = newImage("/home","/home/folder1/folder2/leaf3.jpg","leaf3.jpg","20200506")
+	filesSub2["leaf4.jpg"] = newImage("/home","/home/folder1/folder2/leaf4.jpg","leaf4.jpg","20200506")
 	sub2 := NewFolder("/home","/home/folder1/folder2","folder2",filesSub2,false)
 	filesSub1 := Files{}
 	filesSub1["folder2"] = sub2
+	filesSub1["leaf5.jpg"] = newImage("/home","/home/folder1/leaf5.jpg","leaf5.jpg","20200507")
 	sub1 := NewFolder("/home","/home/folder1","folder1",filesSub1,false)
 	filesRoot := Files{}
 	filesRoot["folder1"] = sub1
@@ -100,6 +108,48 @@ func TestFindNode(t *testing.T) {
 			t.Error("Node must be called folder2 but found",node.Name)
 		}
 	}
+}
+
+func TestTagManager(t *testing.T){
+	testDate := "20200502"
+	fm := createStructure()
+	tagManager := NewTagManager(fm)
+
+	if tagManager.AddTagByFolder("root/ploup","vacances","green") == nil {
+		t.Error("Must return an error")
+	}
+	if len(tagManager.GetTagsByFolder("root/ploup")) != 0 {
+		t.Error("Must return 0 tag")
+	}
+	if err := tagManager.AddTagByFolder("root/folder1/folder2","vacances","green") ;err!= nil {
+		t.Error("Must not return an error",err)
+	}
+	if len(tagManager.GetTagsByFolder("root/folder1/folder2")) != 1 {
+		t.Error("Must return 1 tag")
+	}
+	if err := tagManager.AddTagByFolder("root/folder1/folder2","eliott","red") ;err!= nil {
+		t.Error("Must not return an error",err)
+	}
+	if len(tagManager.GetTagsByFolder("root/folder1/folder2")) != 2 {
+		t.Error("Must return 2 tag")
+	}
+	if len(tagManager.GetTagsByDate(testDate)) != 2 {
+		t.Error("Must return 2 tag")
+	}
+	// CHange color
+	if err := tagManager.AddTagByFolder("root/folder1/folder2","eliott","green") ;err!= nil {
+		t.Error("Must not return an error",err)
+	}
+	if l := len(tagManager.GetTagsByFolder("root/folder1/folder2")) ; l != 2 {
+		t.Error("Must return 2 tag but found",l)
+	}
+	if list := tagManager.GetTagsByFolder("root/folder1/folder2") ; !strings.EqualFold("green",list[0].Color) || !strings.EqualFold("green",list[1].Color){
+		t.Error("Must return color green")
+	}
+	if l := len(tagManager.GetTagsByDate(testDate)) ; l!= 2 {
+		t.Error("Must return 2 tag but fount",l)
+	}
+
 }
 
 func TestRemoveNode(t *testing.T){

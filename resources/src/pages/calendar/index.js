@@ -103,7 +103,7 @@ function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
         // Check if photos exist for this date
         setTitleGallery(value.format('DD/MM/YYYY') + " - ");
         // Load gallery with date and url
-        setUrlFolder(`${getBaseUrl()}/getByDate?date=${value.format('YYYYMMDD')}`);
+        setUrlFolder({load:`${getBaseUrl()}/getByDate?date=${value.format('YYYYMMDD')}`,tags:`${getBaseUrl()}/tagsByDate/${value.format('YYYYMMDD')}`});
     }
 }
 

@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, Input, Modal, Upload, Spin, Row, Col, Switch} from 'antd';
+import {Button, Input, Modal, Upload, Spin, Row, Col, Switch, notification} from 'antd';
 import {UploadOutlined} from "@ant-design/icons";
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
@@ -50,16 +50,20 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             data:data
         }).then(d=>{
             // Loaded
-            uploadDone()
+            uploadDone(path)
+        }).catch((error,b)=>{
+            notification["error"]({message:"Echec de la sauvegarde",description:`Erreur du serveur ${error}`});
+            setWaitUpload(false);
         });
     };
 
-    const uploadDone = ()=> {
+    const uploadDone = path=> {
         setUpdate(u=>!u);
         setIsAddPanelVisible(false);
         setWaitUpload(false);
         setImages([]);
         setPath("");
+        notification["success"]({message:'Transfert effectué',description:`Les photos ont été sauvegardées sur le serveur dans ${path}`,duration:0});
     };
 
     const changePath = field=>setPath(field.target.value);
@@ -80,7 +84,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
                 <Spin spinning={waitUpload}>
                     <Row>
                         <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Chemin : </Col>
-                        <Col><Input onChange={changePath} value={path} placeholder={"Ex : 2019/current"}/></Col>
+                        <Col><Input onChange={changePath} style={{minWidth:350+'px'}} value={path} placeholder={"Ex : 2019/current"}/></Col>
                     </Row>
                     <Row style={{padding:5+'px'}}>
                         <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode photos</Col>

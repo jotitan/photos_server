@@ -53,10 +53,53 @@ func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
 	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
 		if photos,exist := s.foldersManager.GetPhotosByDate()[date] ; exist {
 			converts := s.convertPaths(photos,false)
+			response := imagesResponse{Files:converts,Tags:s.foldersManager.tagManger.GetTagsByDate(r.FormValue("date"))}
 			w.Header().Set("Access-Control-Allow-Origin","*")
 			w.Header().Set("Content-type","application/json")
-			if data,err := json.Marshal(converts) ; err == nil {
+			if data,err := json.Marshal(response) ; err == nil {
 				w.Write(data)
+			}
+		}
+	}
+}
+
+type tagDto struct{
+	Value string
+	Color string
+	ToRemove bool
+}
+
+func (s Server)updateTagsByFolder(w http.ResponseWriter,r * http.Request){
+	if r.Method != "POST"{
+		http.Error(w,"Only post is allowed",405)
+		return
+	}
+	s.updateTag(w,r,r.URL.Path[14:],s.foldersManager.tagManger.AddTagByFolder,s.foldersManager.tagManger.RemoveByFolder)
+}
+
+func (s Server)updateTagsByDate(w http.ResponseWriter,r * http.Request){
+	if r.Method != "POST"{
+		http.Error(w,"Only post is allowed",405)
+		return
+	}
+	s.updateTag(w,r,r.URL.Path[12:],s.foldersManager.tagManger.AddTagByDate,s.foldersManager.tagManger.RemoveByDate)
+}
+
+func (s Server)updateTag(w http.ResponseWriter,r * http.Request,key string,updateTag func(string,string,string)error,removeTag func(string,string,string)){
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	if r.Method != "POST"{
+		http.Error(w,"Only post is allowed",405)
+		return
+	}
+	if data,err := ioutil.ReadAll(r.Body) ; err == nil {
+		tag := tagDto{}
+		if json.Unmarshal(data,&tag) == nil {
+			if tag.ToRemove {
+				removeTag(key,tag.Value,tag.Color)
+			}else {
+				if err := updateTag(key, tag.Value, tag.Color); err != nil {
+					http.Error(w, err.Error(), 400)
+				}
 			}
 		}
 	}
@@ -196,10 +239,15 @@ func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 
 	pathFolder := r.FormValue("path")
+	if r.MultipartForm == nil {
+		logger.GetLogger2().Error("impossible to upload photos in "+ pathFolder)
+		http.Error(w,"impossible to upload photos in "+ pathFolder,400)
+		return
+	}
 	files,names := extractFiles(r)
 	logger.GetLogger2().Info("Launch upload folder :",pathFolder)
 	if strings.EqualFold("",pathFolder) {
-		w.Write([]byte("Empty"))
+		http.Error(w,"need to specify a path",400)
 		return
 	}
 	if err := s.foldersManager.UploadFolder(pathFolder,files,names) ; err != nil {
@@ -263,7 +311,8 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 	logger.GetLogger2().Info("Browse restfull receive request",path)
 	if files,err := s.foldersManager.Browse(path) ; err == nil {
 		formatedFiles := s.convertPaths(files,false)
-		imgResponse := imagesResponse{Files:formatedFiles,UpdateUrl:"/updateFolder?folder=" + path[1:]}
+		tags :=s.foldersManager.tagManger.GetTagsByFolder(path[1:])
+		imgResponse := imagesResponse{Files:formatedFiles,UpdateUrl:"/updateFolder?folder=" + path[1:],Tags:tags}
 		if data,err := json.Marshal(imgResponse) ; err == nil {
 			w.Header().Set("Content-type","application/json")
 			w.Write(data)
@@ -277,6 +326,7 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 type imagesResponse struct {
 	Files []interface{}
 	UpdateUrl string
+	Tags []*Tag
 }
 
 // Restful representation : real link instead real path
@@ -294,6 +344,8 @@ type imageRestFul struct{
 type folderRestFul struct{
 	Name string
 	Link string
+	// Link to update tags
+	LinkTags string
 	// Means that folder also have images to display
 	HasImages bool
 	Children []interface{}
@@ -316,7 +368,10 @@ func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 				files = append(files, s.newImageRestful(node))
 			}
 		}else{
-			folder := folderRestFul{Name:node.Name,Link:filepath.ToSlash(filepath.Join("/browserf",node.RelativePath))}
+			folder := folderRestFul{Name:node.Name,
+				Link:filepath.ToSlash(filepath.Join("/browserf",node.RelativePath)),
+				LinkTags:filepath.ToSlash(filepath.Join("/tagsByFolder",node.RelativePath)),
+			}
 			if onlyFolders {
 				s.convertSubFolders(node,&folder)
 			}
@@ -356,6 +411,12 @@ func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
 		break
 	case strings.Index(r.URL.Path,"/removeNode") == 0:
 		s.removeNode(w,r)
+		break
+	case strings.Index(r.URL.Path,"/tagsByFolder") == 0:
+		s.updateTagsByFolder(w,r)
+		break
+	case strings.Index(r.URL.Path,"/tagsByDate") == 0:
+		s.updateTagsByDate(w,r)
 		break
 	default:
 		logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)

@@ -19,7 +19,7 @@ export const getBaseUrl = (defaultValue=window.location.origin)=>{
 const sortByName = (a,b)=>a.Name === b.name ? 0:a.Name < b.Name ? -1:1;
 
 const adapt = node => {
-    let data = {title:node.Name.replace(/_/g," "),key:getBaseUrl() + node.Link}
+    let data = {title:node.Name.replace(/_/g," "),key:getBaseUrl() + node.Link,tags:getBaseUrl() + node.LinkTags}
     data.hasImages = node.HasImages;
 
     if(node.Children != null && node.Children.length > 0){
@@ -47,11 +47,11 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const onSelect = (e,f)=>{
         setTitleGallery('');
         if(f.node.children == null || f.node.children.length === 0) {
-            setUrlFolder(e[0])
+            setUrlFolder({load:e[0],tags:f.node.tags})
         }else{
             // Case when folder has sub folders but also images
             if(f.node.hasImages){
-                setUrlFolder(e[0])
+                setUrlFolder({load:e[0],tags:f.node.tags})
             }
         }
     };

@@ -69,6 +69,7 @@ type foldersManager struct{
 	UploadedFolder string
 	// When upload file, override first folder in tree (to force to be in a specific one)
 	overrideUploadFolder string
+	tagManger * TagManager
 }
 
 func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUploadFolder string)*foldersManager{
@@ -76,6 +77,7 @@ func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUpl
 			UploadedFolder:uploadedFolder,overrideUploadFolder:overrideUploadFolder}
 	fm.load()
 	fm.garbageManager = NewGarbageManager(garbageFolder,maskAdmin,fm)
+	fm.tagManger = NewTagManager(fm)
 	return fm
 }
 

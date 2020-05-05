@@ -23,7 +23,7 @@ function App() {
     const toggleCollapsed = () => {
         setCollapsed(!collapsed);
     };
-    const [urlFolder,setUrlFolder] = useState('');
+    const [urlFolder,setUrlFolder] = useState({load:'',tags:''});
     const [update,setUpdate] = useState(false);
     const [titleGallery,setTitleGallery] = useState('');
     const [canDelete,setCanDelete] = useState(false);

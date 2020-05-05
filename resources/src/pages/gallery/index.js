@@ -1,9 +1,11 @@
 import React, {useEffect, useState, useCallback} from 'react'
-import {Col, Popconfirm, Row, Tooltip} from 'antd'
+import {Col, Input, Popconfirm, Row, Tag, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
-import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined,DeleteTwoTone} from "@ant-design/icons";
+import { CirclePicker } from 'react-color';
+
+import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined,DeleteTwoTone,PlusOutlined} from "@ant-design/icons";
 
 export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
     const [images,setImages] = useState([]);
@@ -16,6 +18,11 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
     const [comp,setComp] = useState(null);
     let baseUrl = getBaseUrl();
     let baseUrlHref = getBaseUrlHref();
+
+    // Gestion du tag
+    const [showInputTag,setShowInputTag] = useState(false);
+    const [tags,setTags] = useState([]);
+    const [nextTagValue,setNextTagValue] = useState('');
 
     useEffect(()=>{
         if(comp!=null){
@@ -42,15 +49,24 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
         }
     },[currentImage,key,lightboxVisible,images]);
 
+    const saveTag = tag => {
+        axios({
+            method:'POST',
+            url:urlFolder.tags,
+            data:JSON.stringify(tag),
+        });
+    }
+
     const memLoadImages = useCallback(()=> {
-        if(urlFolder === ''){return;}
+        if(urlFolder === '' || urlFolder.load === ''){return;}
         axios({
             method:'GET',
-            url:urlFolder,
+            url:urlFolder.load,
         }).then(d=>{
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl);
             let photos = d.data.Files != null ? d.data.Files:d.data;
+            setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
             setImages(photos
                 .filter(file=>file.ImageLink != null)
                 .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
@@ -114,7 +130,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
             <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ces photos"}
                         onConfirm={deleteSelection} okText="Oui" cancelText="Non">
                 <Tooltip key={"image-info"} placement="top" title={"Supprimer la sélection"} overlayStyle={{zIndex:20000}}>
-                    <DeleteFilled style={{cursor:'pointer'}}/>
+                    <DeleteFilled className={"button"}/>
                 </Tooltip>
                 <span style={{marginLeft:10+'px'}}>{selected}</span>
             </Popconfirm>
@@ -122,16 +138,40 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
     };
 
     const showUpdateLink = ()=> {
-        return !canDelete || updateUrl === '' ? <></> :
+        return !canDelete || updateUrl === '' || updateUrl ==null ? <></> :
             <>
                 <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
                             onConfirm={updateFolder} okText="Oui" cancelText="Non">
                     <Tooltip key={"image-info"} placement="top" title={"Mettre à jour le répertoire"}>
-                        <ReloadOutlined spin={updateRunning} />
+                        <ReloadOutlined spin={updateRunning} className={"button"}/>
                     </Tooltip>
                 </Popconfirm>
             </>;
     }
+
+    const updateText = value=>{
+        switch(value.key){
+            case 'Enter':
+                let tag = {value:nextTagValue,color:'green'};
+                setShowInputTag(false);
+                setTags(list=>[...list,tag]);
+                setNextTagValue('');
+                saveTag(tag);
+                break;
+            default:
+                setNextTagValue(value.target.value);
+        }
+    }
+
+    const updateColor = (color,tag)=>{
+        let newTag = {value:tag.value,color:color.hex};
+        setTags(tags=>[...tags.filter(n=>n.value !== tag.value),newTag]);
+        saveTag(newTag)
+    };
+
+    const removeTag = (tag)=>{
+        saveTag({Value:tag.value,Color:tag.color,ToRemove:true});
+    };
 
     // Add behaviour when show image in lightbox
     const getCustomActions = ()=> {
@@ -147,7 +187,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                 </Tooltip>
                 <span style={{color:'white',paddingLeft:20+'px'}}>
                    {images!=null && currentImage!==-1 ? images[currentImage].Date:''}
-                   {images!=null && currentImage!==-1 ? ' - ' + images[currentImage].folder:''}
+                    {images!=null && currentImage!==-1 ? ' - ' + images[currentImage].folder:''}
                </span>
             </div>
         ]
@@ -155,20 +195,32 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
     return (
         <>
             <Row className={"options"}>
-                <Col span={8}>
+                <Col flex={"200px"}>
                     {titleGallery}
                     {images.length} <PictureOutlined />
                 </Col>
-                <Col span={8}>
+                <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-
-                <Col span={8}>
+                <Col flex={"50px"}>
                     {showUpdateLink()}
+                </Col>
+                <Col flex={"auto"}>
+                    {
+                        tags
+                        .sort((a,b)=>a.value < b.value ? -1:1)
+                        .map(t=>
+                        <Tooltip key={`tp${t.value}`} trigger={"click"} title={
+                            <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
+                        }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
+                        </Tooltip>
+                    )}
+                    {!showInputTag && urlFolder.load !== ''?<Tag color="gray" onClick={()=>setShowInputTag(true)}><PlusOutlined /> tag</Tag>:<></>}
+                    {showInputTag ? <Input size={"small"} style={{width:78+'px'}} onKeyUp={updateText} autoFocus={true} />:<></>}
                 </Col>
             </Row>
             <Row className={"gallery"}>
-                <Col span={24} style={{marginTop:30+'px'}}>
+                <Col span={24} style={{marginTop:36+'px'}}>
                     <Gallery ref={node=>{setComp(node);window.t = node}}
                              images={images}
                              imageCountSeparator={" / "}
