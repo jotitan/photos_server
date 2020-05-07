@@ -27,6 +27,7 @@ function App() {
     const [update,setUpdate] = useState(false);
     const [titleGallery,setTitleGallery] = useState('');
     const [canDelete,setCanDelete] = useState(false);
+    const [nbPhotos,setNbPhotos] = useState(0);
 
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
 
@@ -34,7 +35,12 @@ function App() {
         axios({
             method: 'GET',
             url: getBaseUrl() + '/canDelete',
-        }).then(d => setCanDelete(d.data.can))
+        }).then(d => setCanDelete(d.data.can));
+        axios({
+            method: 'GET',
+            url: getBaseUrl() + '/count',
+        }).then(d => setNbPhotos(d.data));
+
     },[]);
 
     return (
@@ -43,7 +49,7 @@ function App() {
                 <Content style={{height:100+'%'}}>
                     <Menu theme={"dark"}>
                         <Menu.Item className={"logo"}>
-                            <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos</span>
+                            <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos}</span>
                         </Menu.Item>
                         {canDelete ?
                         <Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>

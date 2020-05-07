@@ -608,13 +608,20 @@ func (fm *foldersManager) computePhotosByDate(files Files) map[time.Time][]*Node
 	return byDate
 }
 
+func (fm *foldersManager) Count() int{
+	count := 0
+	for _,nodes := range fm.GetPhotosByDate() {
+		count+=len(nodes)
+	}
+	return count
+}
+
 func addInTimeMap(byDate map[time.Time][]*Node,date time.Time,nodes []*Node){
 	if list,exist := byDate[date] ; !exist {
 		byDate[date] = nodes
 	}else{
 		byDate[date] = append(list,nodes...)
 	}
-
 }
 
 func getMidnightDate(date time.Time)time.Time {

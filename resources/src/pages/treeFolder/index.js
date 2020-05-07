@@ -33,7 +33,7 @@ const adapt = node => {
 export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const [tree,setTree] = useState([]);
     const { DirectoryTree } = Tree;
-    const [height,setHeight] = useState(window.innerHeight-95);
+    const [height,setHeight] = useState(window.innerHeight-185);
     const [expandables,setExpandables] = useLocalStorage("expandables",[])
     useEffect(()=>{
         axios({
@@ -56,12 +56,12 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
         }
     };
 
-    window.addEventListener('resize', ()=>setHeight(window.innerHeight-95));
+    window.addEventListener('resize', ()=>setHeight(window.innerHeight-185));
     const onExpand = values=>{
         setExpandables(values)
     }
     return(
-        tree.length === 0 ? '' :
+        tree.length === 0 ? <></> :
             <DirectoryTree
                 onSelect={onSelect}
                 treeData={tree}

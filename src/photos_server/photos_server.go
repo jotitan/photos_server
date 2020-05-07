@@ -19,14 +19,17 @@ type Server struct {
 	foldersManager *foldersManager
 	resources string
 	maskForAdmin string
+	pathRoutes map[string]func(w http.ResponseWriter,r *http.Request)
 }
 
 func NewPhotosServer(cache,resources,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder string)Server{
-	return Server{
+	s := Server{
 		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder),
 		resources:resources,
 		maskForAdmin:maskForAdmin,
 	}
+	s.loadPathRoutes()
+	return s
 }
 
 func (s Server)canAccessAdmin(r * http.Request)bool{
@@ -47,6 +50,10 @@ func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	w.Header().Set("Content-type","application/json")
 	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.foldersManager.garbageManager!=nil && s.canAccessAdmin(r))))
+}
+
+func (s Server)flushTags(w http.ResponseWriter,r * http.Request){
+	s.foldersManager.tagManger.flush()
 }
 
 func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
@@ -112,6 +119,11 @@ func (s Server)getAllDates(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	w.Header().Set("Content-type","application/json")
 	w.Write(data)
+}
+
+func (s Server)count(w http.ResponseWriter,r * http.Request){
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	w.Write([]byte(fmt.Sprintf("%d",s.foldersManager.Count())))
 }
 
 func (s Server)listFolders(w http.ResponseWriter,r * http.Request){
@@ -395,32 +407,27 @@ func (s Server)convertSubFolders(node *Node,folder *folderRestFul){
 	folder.HasImages = hasImages
 }
 
+
+
+func (s * Server)loadPathRoutes(){
+	s.pathRoutes= map[string]func(w http.ResponseWriter,r * http.Request){
+		"/browserf":s.browseRestful,
+		"/browse":s.browse,
+		"/imagehd":s.imageHD,
+		"/image":s.image,
+		"/removeNode":s.removeNode,
+		"/tagsByFolder":s.updateTagsByFolder,
+		"/tagsByDate":s.updateTagsByDate,
+	}
+}
+
 func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
-	switch {
-	case strings.Index(r.URL.Path,"/browserf") == 0:
-		s.browseRestful(w,r)
-		break
-	case strings.Index(r.URL.Path,"/browse") == 0:
-		s.browse(w,r)
-		break
-	case strings.Index(r.URL.Path,"/imagehd") == 0:
-		s.imageHD(w,r)
-		break
-	case strings.Index(r.URL.Path,"/image") == 0:
-		s.image(w,r)
-		break
-	case strings.Index(r.URL.Path,"/removeNode") == 0:
-		s.removeNode(w,r)
-		break
-	case strings.Index(r.URL.Path,"/tagsByFolder") == 0:
-		s.updateTagsByFolder(w,r)
-		break
-	case strings.Index(r.URL.Path,"/tagsByDate") == 0:
-		s.updateTagsByDate(w,r)
-		break
-	default:
+	path := r.URL.Path[:strings.Index(r.URL.Path[1:],"/")+1]
+	if fct,exist := s.pathRoutes[path] ; exist {
+		fct(w,r)
+	}else {
 		logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
-		http.ServeFile(w,r,filepath.Join(s.resources,r.RequestURI[1:]))
+		http.ServeFile(w, r, filepath.Join(s.resources, r.RequestURI[1:]))
 	}
 }
 
@@ -436,9 +443,11 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canDelete",s.canDelete)
 	server.HandleFunc("/updateExifOfDate",s.updateExifOfDate)
+	server.HandleFunc("/count",s.count)
 	// By date
 	server.HandleFunc("/allDates",s.getAllDates)
 	server.HandleFunc("/getByDate",s.getPhotosByDate)
+	server.HandleFunc("/flushTags",s.flushTags)
 	server.HandleFunc("/",s.defaultHandle)
 
 	logger.GetLogger2().Info("Start server on port " + port)

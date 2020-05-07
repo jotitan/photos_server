@@ -1,5 +1,5 @@
 import React, {useEffect, useState, useCallback} from 'react'
-import {Col, Input, Popconfirm, Row, Tag, Tooltip} from 'antd'
+import {Col, Input, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
@@ -49,12 +49,12 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
         }
     },[currentImage,key,lightboxVisible,images]);
 
-    const saveTag = tag => {
+    const saveTag = (tag,callback) => {
         axios({
             method:'POST',
             url:urlFolder.tags,
             data:JSON.stringify(tag),
-        });
+        }).then(callback);
     }
 
     const memLoadImages = useCallback(()=> {
@@ -104,7 +104,9 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
             data:JSON.stringify(images.filter(i=>i.isSelected).map(i=>i.path))
         }).then(r=>{
             if(r.data.errors === 0) {
+                let count = images.filter(i => i.isSelected);
                 setImages(images.filter(i => !i.isSelected));
+                notification["success"]({message:"Succès",description:`${count} images ont été bien supprimées`});
             }
         });
     };
@@ -154,9 +156,8 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
             case 'Enter':
                 let tag = {value:nextTagValue,color:'green'};
                 setShowInputTag(false);
-                setTags(list=>[...list,tag]);
                 setNextTagValue('');
-                saveTag(tag);
+                saveTag(tag,()=>setTags(list=>[...list,tag]));
                 break;
             default:
                 setNextTagValue(value.target.value);
@@ -165,8 +166,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
 
     const updateColor = (color,tag)=>{
         let newTag = {value:tag.value,color:color.hex};
-        setTags(tags=>[...tags.filter(n=>n.value !== tag.value),newTag]);
-        saveTag(newTag)
+        saveTag(newTag,()=>setTags(tags=>[...tags.filter(n=>n.value !== tag.value),newTag]))
     };
 
     const removeTag = (tag)=>{

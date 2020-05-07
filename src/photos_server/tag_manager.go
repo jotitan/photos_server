@@ -71,7 +71,6 @@ func (tm *TagManager)countOperation(){
 	atomic.AddInt32(&tm.counter,1)
 	if tm.counter >= bufferSize {
 		tm.flush()
-		atomic.StoreInt32(&tm.counter,0)
 	}
 }
 
@@ -91,7 +90,7 @@ func (tm * TagManager)load(){
 func (tm *TagManager)flush(){
 	tm.locker.Lock()
 	defer tm.locker.Unlock()
-
+	atomic.StoreInt32(&tm.counter,0)
 	if file,err := os.OpenFile("tag_database.json",os.O_RDWR|os.O_CREATE|os.O_TRUNC,os.ModePerm) ; err == nil {
 		defer file.Close()
 		if data,err := json.Marshal(tm) ; err == nil {
