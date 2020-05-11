@@ -51,7 +51,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
 
 
     const hasName = (value,node,root,paths)=>{
-        if(node.title.toLowerCase().indexOf(value) !== -1 || paths.includes(root)){
+        if(node.title.toLowerCase().indexOf(value) !== -1 || paths[root] != null){
             return node;
         }
         if(node.children == null || node.children.length === 0){
@@ -64,20 +64,20 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
             }
             return null;
         }
-    }
+    };
 
     const filter = value => {
         // ask server
         axios({
             url:getBaseUrl() + `/filterTagsFolder?value=${value}`
         }).then(d=>{
+            // Create map
+            let map = {};
+            d.data.forEach(d=>map[d.replace(/_/g," ")]=true);
             // Keep values from server and from name
-            console.log(d.data)
-            let values = originalTree.map(n=>hasName(value.toLowerCase(),n,n.title,d.data)).filter(n=>n!=null);
+            let values = originalTree.map(n=>hasName(value.toLowerCase(),n,n.title,map)).filter(n=>n!=null);
             setTree(values);
-
         })
-
     };
 
     const filterTree = event => {
@@ -105,10 +105,9 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const { Search } = Input;
 
     return(
-        tree.length === 0 ? <></> :
             <>
-                <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',marginRight:10+'px'}}/>
-                <DirectoryTree
+                <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',width:280+'px',marginRight:10+'px'}}/>
+                {tree.length > 0 ? <DirectoryTree
                     onSelect={onSelect}
                     treeData={tree}
                     height={height}
@@ -123,6 +122,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
                         backgroundColor: '#001529',
                         color: '#999'
                     }}
-                /></>
+                />:''}
+                </>
     )
 }
