@@ -56,6 +56,15 @@ func (s Server)flushTags(w http.ResponseWriter,r * http.Request){
 	s.foldersManager.tagManger.flush()
 }
 
+func (s Server)filterTagsFolder(w http.ResponseWriter,r * http.Request){
+	folders := s.foldersManager.tagManger.FilterFolder(r.FormValue("value"))
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	w.Header().Set("Content-type","application/json")
+	if data,err := json.Marshal(folders) ; err == nil {
+		w.Write(data)
+	}
+}
+
 func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
 	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
 		if photos,exist := s.foldersManager.GetPhotosByDate()[date] ; exist {
@@ -448,6 +457,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/allDates",s.getAllDates)
 	server.HandleFunc("/getByDate",s.getPhotosByDate)
 	server.HandleFunc("/flushTags",s.flushTags)
+	server.HandleFunc("/filterTagsFolder",s.filterTagsFolder)
 	server.HandleFunc("/",s.defaultHandle)
 
 	logger.GetLogger2().Info("Start server on port " + port)

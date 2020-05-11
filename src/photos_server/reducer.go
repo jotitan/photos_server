@@ -130,9 +130,9 @@ func getModificationDate(path string)time.Time{
 }
 
 func getExifDate(infos *exif.Exif,path string)time.Time{
-	date := getExifValue(infos,exif.DateTime)
+	date := getExifValue(infos,exif.DateTimeDigitized)
 	if strings.EqualFold("",date){
-		if date = getExifValue(infos,exif.DateTimeDigitized) ; strings.EqualFold("",date) {
+		if date = getExifValue(infos,exif.DateTime) ; strings.EqualFold("",date) {
 			// If no exif date, use modification date
 			return getModificationDate(path)
 		}

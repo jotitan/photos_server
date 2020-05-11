@@ -104,7 +104,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
             data:JSON.stringify(images.filter(i=>i.isSelected).map(i=>i.path))
         }).then(r=>{
             if(r.data.errors === 0) {
-                let count = images.filter(i => i.isSelected);
+                let count = images.filter(i => i.isSelected).length;
                 setImages(images.filter(i => !i.isSelected));
                 notification["success"]({message:"Succès",description:`${count} images ont été bien supprimées`});
             }

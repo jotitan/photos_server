@@ -42,6 +42,20 @@ func NewTagManager(foldersManager *foldersManager)*TagManager{
 	return tm
 }
 
+func (tm TagManager)FilterFolder(searchTag string)[]string{
+	lower := strings.ToLower(searchTag)
+	paths := make([]string,0)
+	for path,tags := range tm.TagsByFolder {
+		for _,tag := range tags {
+			if strings.EqualFold(strings.ToLower(tag.Value),lower) {
+				paths = append(paths,path)
+				break
+			}
+		}
+	}
+	return paths
+}
+
 // Detect dates of nodes to improve by dates
 func (tm * TagManager)AddTagByFolder(path,value,color string)error{
 	if folder,_,err := tm.foldersManager.FindNode(path) ; err == nil && folder.IsFolder{
