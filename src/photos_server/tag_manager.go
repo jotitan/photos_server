@@ -42,10 +42,18 @@ func NewTagManager(foldersManager *foldersManager)*TagManager{
 	return tm
 }
 
+func (tm TagManager)FilterDate(searchTag string)[]string{
+	return tm.filterTags(searchTag,tm.TagsByDate)
+}
+
 func (tm TagManager)FilterFolder(searchTag string)[]string{
+	return tm.filterTags(searchTag,tm.TagsByFolder)
+}
+
+func (tm TagManager)filterTags(searchTag string,mapTags map[string][]*Tag)[]string{
 	lower := strings.ToLower(searchTag)
 	paths := make([]string,0)
-	for path,tags := range tm.TagsByFolder {
+	for path,tags := range mapTags {
 		for _,tag := range tags {
 			if strings.EqualFold(strings.ToLower(tag.Value),lower) {
 				paths = append(paths,path)

@@ -4,7 +4,8 @@ import {UploadOutlined} from "@ant-design/icons";
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
 
-export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelVisible}) {
+// singleFolderDisplay if true, only images selection and upload in a predefined folder
+export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelVisible,singleFolderDisplay=false,defaultPath='',callbackAfterUpload=()=>{}}) {
 
     const [path,setPath] = useState('');
     const [waitUpload,setWaitUpload] = useState(false);
@@ -25,7 +26,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const extractFolderName =  file => {
         let path = file.originFileObj.webkitRelativePath;
         if(path !== "" && path.indexOf("/") !== -1){
-             return path.slice(0,path.indexOf("/"));
+            return path.slice(0,path.indexOf("/"));
         }
         return "";
     };
@@ -42,7 +43,11 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const uploadPhotos = ()=>{
         setWaitUpload(true);
         let data = new FormData();
-        data.append("path",path)
+        data.append("path",singleFolderDisplay ? defaultPath:path);
+        // Mode to upload only few images in existing folder
+        if(singleFolderDisplay){
+            data.append("addToFolder","true");
+        }
         images.forEach((img,i)=>data.append(`file_${i}`,img.image));
         axios({
             method:'POST',
@@ -63,7 +68,13 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
         setWaitUpload(false);
         setImages([]);
         setPath("");
+        callbackAfterUpload();
         notification["success"]({message:'Transfert effectué',description:`Les photos ont été sauvegardées sur le serveur dans ${path}`,duration:0});
+    };
+
+    const cancelUpload = ()=> {
+        setIsAddPanelVisible(false);
+        setImages([]);
     };
 
     const changePath = field=>setPath(field.target.value);
@@ -76,21 +87,25 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             onOk={uploadPhotos}
             maskClosable={false}
             bodyStyle={{height:450 + 'px'}}
-            onCancel={()=>setIsAddPanelVisible(false)}
+            onCancel={cancelUpload}
             okText={"Envoyer"}
             cancelText={"Annuler"}
         >
             <div>
                 <Spin spinning={waitUpload}>
-                    <Row>
-                        <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Chemin : </Col>
-                        <Col><Input onChange={changePath} style={{minWidth:350+'px'}} value={path} placeholder={"Ex : 2019/current"}/></Col>
-                    </Row>
-                    <Row style={{padding:5+'px'}}>
-                        <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode photos</Col>
-                        <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}><Switch onChange={value=>setSelectDirectory(value)}/></Col>
-                        <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode répertoire</Col>
-                    </Row>
+                    {!singleFolderDisplay ?
+                        <>
+                            <Row>
+                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Chemin : </Col>
+                                <Col><Input onChange={changePath} style={{minWidth:350+'px'}} value={path} placeholder={"Ex : 2019/current"}/></Col>
+                            </Row>
+                            <Row style={{padding:5+'px'}}>
+                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode photos</Col>
+                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}><Switch onChange={value=>setSelectDirectory(value)}/></Col>
+                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode répertoire</Col>
+                            </Row>
+                        </>:<></>
+                    }
                     <Upload multiple
                             customRequest={stopRequest}
                             onChange={updateImages}

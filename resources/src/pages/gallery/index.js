@@ -1,14 +1,28 @@
 import React, {useEffect, useState, useCallback} from 'react'
-import {Col, Input, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
+import {Col, Input, Modal, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
+
+import {
+    DeleteFilled,
+    ReloadOutlined,
+    FileImageOutlined,
+    PictureOutlined,
+    DeleteTwoTone,
+    PlusOutlined,
+    PlusCircleOutlined
+} from "@ant-design/icons";
+import {TransformWrapper,TransformComponent} from "react-zoom-pan-pinch";
+
+
 import { CirclePicker } from 'react-color';
 
-import {DeleteFilled, ReloadOutlined,FileImageOutlined, PictureOutlined,DeleteTwoTone,PlusOutlined} from "@ant-design/icons";
-
-export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
+// setIsAddFolderPanelVisible to show folder to upload
+export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setIsAddFolderPanelVisible,setCurrentFolder,update}) {
     const [images,setImages] = useState([]);
+    const [imageToZoom,setImageToZoom] = useState('');
+    const [zoomEnable,setZoomEnable] = useState(false);
     const [updateUrl,setUpdateUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
     const [updateRunning,setUpdateRunning] = useState(false);
@@ -65,6 +79,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
         }).then(d=>{
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl);
+            setCurrentFolder(d.data.FolderPath);
             let photos = d.data.Files != null ? d.data.Files:d.data;
             setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
             setImages(photos
@@ -85,9 +100,9 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                     }
                 }));
         })
-    },[urlFolder,baseUrl,baseUrlHref]);
+    },[urlFolder,baseUrl,baseUrlHref,setCurrentFolder]);
 
-    useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages]);
+    useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages,update]);
 
     const selectImage = index=>{
         setImages(list=>{
@@ -139,6 +154,10 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
         </>:''
     };
 
+    const addPhotosToFolder = ()=> {
+        setIsAddFolderPanelVisible(true);
+    };
+
     const showUpdateLink = ()=> {
         return !canDelete || updateUrl === '' || updateUrl ==null ? <></> :
             <>
@@ -148,8 +167,11 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                         <ReloadOutlined spin={updateRunning} className={"button"}/>
                     </Tooltip>
                 </Popconfirm>
+                <Tooltip key={"image-info"} placement="top" title={"Ajouter des photos"}>
+                    <PlusCircleOutlined className={"button"} style={{marginLeft:10}} onClick={addPhotosToFolder}/>
+                </Tooltip>
             </>;
-    }
+    };
 
     const updateText = value=>{
         switch(value.key){
@@ -185,6 +207,9 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                         <FileImageOutlined style={{color:'white',fontSize:22+'px'}}/>
                     </a>
                 </Tooltip>
+                <Tooltip key={"image-info"} placement="top" title={"Zoom"} overlayStyle={{zIndex:20000}}>
+                    <PlusCircleOutlined style={{color:'white',fontSize:22+'px',marginLeft:5}} onClick={()=>setZoomEnable(true)}/>
+                </Tooltip>
                 <span style={{color:'white',paddingLeft:20+'px'}}>
                    {images!=null && currentImage!==-1 ? images[currentImage].Date:''}
                     {images!=null && currentImage!==-1 ? ' - ' + images[currentImage].folder:''}
@@ -202,19 +227,19 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                 <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-                <Col flex={"50px"}>
+                <Col flex={"65px"}>
                     {showUpdateLink()}
                 </Col>
                 <Col flex={"auto"}>
                     {
                         tags
-                        .sort((a,b)=>a.value < b.value ? -1:1)
-                        .map(t=>
-                        <Tooltip key={`tp${t.value}`} trigger={"click"} title={
-                            <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
-                        }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
-                        </Tooltip>
-                    )}
+                            .sort((a,b)=>a.value < b.value ? -1:1)
+                            .map(t=>
+                                <Tooltip key={`tp${t.value}`} trigger={"click"} title={
+                                    <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
+                                }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
+                                </Tooltip>
+                            )}
                     {!showInputTag && urlFolder.load !== ''?<Tag color="gray" onClick={()=>setShowInputTag(true)}><PlusOutlined /> tag</Tag>:<></>}
                     {showInputTag ? <Input size={"small"} style={{width:78+'px'}} onKeyUp={updateText} autoFocus={true} />:<></>}
                 </Col>
@@ -223,17 +248,32 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete}) {
                 <Col span={24} style={{marginTop:36+'px'}}>
                     <Gallery ref={node=>{setComp(node);window.t = node}}
                              images={images}
-                             imageCountSeparator={" / "}
+                        //imageCountSeparator={" / "}
                              showImageCount={false}
                              lightboxWillClose={()=>setLightboxVisible(false)}
                              lightboxWillOpen={()=>setLightboxVisible(true)}
                              onSelectImage={selectImage}
                              enableImageSelection={canDelete===true}
-                             currentImageWillChange={indexImage=>setCurrentImage(indexImage)}
+                             currentImageWillChange={indexImage=>{
+                                 setCurrentImage(indexImage)
+                                 setImageToZoom(images[indexImage].hdLink)
+                             }}
                              customControls={getCustomActions()}
                              showLightboxThumbnails={showThumbnails}
                              backdropClosesModal={true} lightboxWidth={2000}/>
                 </Col>
+                <Modal visible={zoomEnable}
+                       onCancel={()=>setZoomEnable(false)}
+                       width={90+'%'}
+                       style={{top:20}}
+                       footer={[]}
+                        wrapClassName={"modal-zoom"}>
+                    <TransformWrapper>
+                        <TransformComponent>
+                            <img src={imageToZoom} alt="test"/>
+                        </TransformComponent>
+                    </TransformWrapper>
+                </Modal>
             </Row>
         </>
     )

@@ -15,7 +15,8 @@
     "react-color": "^2.18.1",
     "react-dom": "^16.13.1",
     "react-grid-gallery": "^0.5.5",
-    "react-scripts": "3.4.1"
+    "react-scripts": "3.4.1",
+    "react-zoom-pan-pinch": "^1.6.1"
   },
   "scripts": {
     "start": "react-scripts start",

@@ -47,8 +47,7 @@ func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
-	w.Header().Set("Access-Control-Allow-Origin","*")
-	w.Header().Set("Content-type","application/json")
+	header(w)
 	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.foldersManager.garbageManager!=nil && s.canAccessAdmin(r))))
 }
 
@@ -56,10 +55,22 @@ func (s Server)flushTags(w http.ResponseWriter,r * http.Request){
 	s.foldersManager.tagManger.flush()
 }
 
-func (s Server)filterTagsFolder(w http.ResponseWriter,r * http.Request){
-	folders := s.foldersManager.tagManger.FilterFolder(r.FormValue("value"))
+func header(w http.ResponseWriter){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	w.Header().Set("Content-type","application/json")
+}
+
+func (s Server)filterTagsFolder(w http.ResponseWriter,r * http.Request){
+	folders := s.foldersManager.tagManger.FilterFolder(r.FormValue("value"))
+	header(w)
+	if data,err := json.Marshal(folders) ; err == nil {
+		w.Write(data)
+	}
+}
+
+func (s Server)filterTagsDate(w http.ResponseWriter,r * http.Request){
+	folders := s.foldersManager.tagManger.FilterDate(r.FormValue("value"))
+	header(w)
 	if data,err := json.Marshal(folders) ; err == nil {
 		w.Write(data)
 	}
@@ -70,8 +81,7 @@ func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
 		if photos,exist := s.foldersManager.GetPhotosByDate()[date] ; exist {
 			converts := s.convertPaths(photos,false)
 			response := imagesResponse{Files:converts,Tags:s.foldersManager.tagManger.GetTagsByDate(r.FormValue("date"))}
-			w.Header().Set("Access-Control-Allow-Origin","*")
-			w.Header().Set("Content-type","application/json")
+			header(w)
 			if data,err := json.Marshal(response) ; err == nil {
 				w.Write(data)
 			}
@@ -125,8 +135,7 @@ func (s Server)updateTag(w http.ResponseWriter,r * http.Request,key string,updat
 func (s Server)getAllDates(w http.ResponseWriter,r * http.Request){
 	dates := s.foldersManager.GetAllDates()
 	data,_ := json.Marshal(dates)
-	w.Header().Set("Access-Control-Allow-Origin","*")
-	w.Header().Set("Content-type","application/json")
+	header(w)
 	w.Write(data)
 }
 
@@ -141,7 +150,7 @@ func (s Server)listFolders(w http.ResponseWriter,r * http.Request){
 		names = append(names,name)
 	}
 	if data,err := json.Marshal(names) ; err == nil{
-		w.Header().Set("Content-type","application/json")
+		header(w)
 		w.Write(data)
 	}
 }
@@ -163,7 +172,7 @@ func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)delete(w http.ResponseWriter,r * http.Request){
-	w.Header().Set("Access-Control-Allow-Origin","*")
+	header(w)
 	if !s.canAccessAdmin(r) && s.foldersManager.garbageManager != nil{
 		s.error403(w,r)
 		return
@@ -251,6 +260,7 @@ func (s Server)update(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+
 // Update a specific folder, faster than all folders
 func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 	if !s.canAccessAdmin(r) {
@@ -260,6 +270,7 @@ func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 
 	pathFolder := r.FormValue("path")
+	addToFolder := strings.EqualFold(r.FormValue("addToFolder"),"true")
 	if r.MultipartForm == nil {
 		logger.GetLogger2().Error("impossible to upload photos in "+ pathFolder)
 		http.Error(w,"impossible to upload photos in "+ pathFolder,400)
@@ -271,7 +282,7 @@ func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 		http.Error(w,"need to specify a path",400)
 		return
 	}
-	if err := s.foldersManager.UploadFolder(pathFolder,files,names) ; err != nil {
+	if err := s.foldersManager.UploadFolder(pathFolder,files,names,addToFolder) ; err != nil {
 		http.Error(w,"Bad request " + err.Error(),400)
 		logger.GetLogger2().Error("Impossible to upload folder : ",err.Error())
 	}else{
@@ -311,31 +322,47 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+// Index an existing  folder
+func (s Server)indexFolder(w http.ResponseWriter,r * http.Request){
+	if !s.canAccessAdmin(r) {
+		s.error403(w,r)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	path := r.FormValue("path")
+	folder := r.FormValue("folder")
+	logger.GetLogger2().Info("Index :",folder,"with path",path)
+	if err := s.foldersManager.IndexFolder(path,folder) ; err != nil {
+		logger.GetLogger2().Error(err.Error())
+	}else{
+		logger.GetLogger2().Info("End update folder",folder)
+		w.Write([]byte("success"))
+	}
+}
+
 func (s Server)getRootFolders(w http.ResponseWriter,r * http.Request){
 	logger.GetLogger2().Info("Get root folders")
-	w.Header().Set("Access-Control-Allow-Origin","*")
+	header(w)
 	nodes := make([]*Node,0,len(s.foldersManager.Folders))
 	for _,node := range s.foldersManager.Folders {
 		nodes = append(nodes,node)
 	}
 	root := folderRestFul{Name:"Racine",Link:"",Children:s.convertPaths(nodes,true)}
 	if data,err := json.Marshal(root) ; err == nil {
-		w.Header().Set("Content-type","application/json")
 		w.Write(data)
 	}
 }
 
 func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 	// Extract folder
-	w.Header().Set("Access-Control-Allow-Origin","*")
+	header(w)
 	path := r.URL.Path[9:]
 	logger.GetLogger2().Info("Browse restfull receive request",path)
 	if files,err := s.foldersManager.Browse(path) ; err == nil {
 		formatedFiles := s.convertPaths(files,false)
 		tags :=s.foldersManager.tagManger.GetTagsByFolder(path[1:])
-		imgResponse := imagesResponse{Files:formatedFiles,UpdateUrl:"/updateFolder?folder=" + path[1:],Tags:tags}
+		imgResponse := imagesResponse{Files:formatedFiles,UpdateUrl:"/updateFolder?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
 		if data,err := json.Marshal(imgResponse) ; err == nil {
-			w.Header().Set("Content-type","application/json")
 			w.Write(data)
 		}
 	}else{
@@ -347,6 +374,7 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 type imagesResponse struct {
 	Files []interface{}
 	UpdateUrl string
+	FolderPath string
 	Tags []*Tag
 }
 
@@ -416,8 +444,6 @@ func (s Server)convertSubFolders(node *Node,folder *folderRestFul){
 	folder.HasImages = hasImages
 }
 
-
-
 func (s * Server)loadPathRoutes(){
 	s.pathRoutes= map[string]func(w http.ResponseWriter,r * http.Request){
 		"/browserf":s.browseRestful,
@@ -448,6 +474,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/rootFolders",s.getRootFolders)
 	server.HandleFunc("/update",s.update)
 	server.HandleFunc("/updateFolder",s.updateFolder)
+	server.HandleFunc("/indexFolder",s.indexFolder)
 	server.HandleFunc("/uploadFolder",s.uploadFolder)
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canDelete",s.canDelete)
@@ -458,6 +485,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/getByDate",s.getPhotosByDate)
 	server.HandleFunc("/flushTags",s.flushTags)
 	server.HandleFunc("/filterTagsFolder",s.filterTagsFolder)
+	server.HandleFunc("/filterTagsDate",s.filterTagsDate)
 	server.HandleFunc("/",s.defaultHandle)
 
 	logger.GetLogger2().Info("Start server on port " + port)

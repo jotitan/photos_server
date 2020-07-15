@@ -25,11 +25,13 @@ function App() {
     };
     const [urlFolder,setUrlFolder] = useState({load:'',tags:''});
     const [update,setUpdate] = useState(false);
+    const [currentFolder,setCurrentFolder] = useState('');
     const [titleGallery,setTitleGallery] = useState('');
     const [canDelete,setCanDelete] = useState(false);
     const [nbPhotos,setNbPhotos] = useState(0);
 
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
+    const [isAddFolderPanelVisible,setIsAddFolderPanelVisible] = useState(false);
 
     useEffect(()=> {
         axios({
@@ -52,9 +54,9 @@ function App() {
                             <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos}</span>
                         </Menu.Item>
                         {canDelete ?
-                        <Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>
-                            <PlusCircleOutlined /> <span>Ajouter des photos</span>
-                        </Menu.Item>:<></>}
+                            <Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>
+                                <PlusCircleOutlined /> <span>Ajouter des photos</span>
+                            </Menu.Item>:<></>}
                     </Menu>
                     {!collapsed ?
                         <div style={{color:'white',padding:10+'px'}}>
@@ -72,8 +74,23 @@ function App() {
                 </Content>
             </Sider>
             <Layout>
-                <MyGallery urlFolder={urlFolder} refresh={collapsed} titleGallery={titleGallery} canDelete={canDelete}/>
-                <UploadFolder setUpdate={setUpdate} isAddPanelVisible={isAddPanelVisible} setIsAddPanelVisible={setIsAddPanelVisible}/>
+                <MyGallery urlFolder={urlFolder} refresh={collapsed}
+                           titleGallery={titleGallery}
+                           canDelete={canDelete}
+                           setCurrentFolder={setCurrentFolder}
+                           update={update}
+                           setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
+                <UploadFolder setUpdate={setUpdate}
+                              isAddPanelVisible={isAddPanelVisible}
+                              setIsAddPanelVisible={setIsAddPanelVisible}/>
+                {/*Panel to upload in a specific folder*/}
+
+                <UploadFolder setUpdate={setUpdate}
+                              isAddPanelVisible={isAddFolderPanelVisible}
+                              setIsAddPanelVisible={setIsAddFolderPanelVisible}
+                              defaultPath={currentFolder}
+                              singleFolderDisplay={true}
+                />
             </Layout>
         </Layout>
     );

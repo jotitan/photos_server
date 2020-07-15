@@ -154,3 +154,31 @@ body {
   background-color: #a2cdff;
   color:#0034ad;
 }
+
+#lightboxBackdrop {
+  z-index:100;
+}
+
+.modal-zoom .ant-modal-footer {
+  display:none;
+}
+
+.modal-zoom .ant-modal-body {
+  padding:4px;
+  /*background-color: #00163e;*/
+  background-color: black;
+  z-index:10000000;
+}
+
+.modal-zoom .ant-modal-body > div{
+  margin:auto;
+}
+
+.modal-zoom > .ant-modal {
+  height:500px;
+}
+
+.modal-zoom > .ant-modal img {
+  max-height:calc(100vh - 30px);
+  max-width:100%;
+}
