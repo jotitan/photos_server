@@ -11,7 +11,8 @@ import {
     PictureOutlined,
     DeleteTwoTone,
     PlusOutlined,
-    PlusCircleOutlined
+    PlusCircleOutlined,
+    CloseOutlined
 } from "@ant-design/icons";
 import {TransformWrapper,TransformComponent} from "react-zoom-pan-pinch";
 
@@ -217,6 +218,10 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
             </div>
         ]
     };
+
+    const [scale,setScale] = useState(1);
+    const [posX,setPosX] = useState(1);
+    const [posY,setPosY] = useState(1);
     return (
         <>
             <Row className={"options"}>
@@ -256,21 +261,26 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
                              enableImageSelection={canDelete===true}
                              currentImageWillChange={indexImage=>{
                                  setCurrentImage(indexImage)
-                                 setImageToZoom(images[indexImage].hdLink)
+                                 setImageToZoom(images[indexImage].hdLink);
                              }}
                              customControls={getCustomActions()}
                              showLightboxThumbnails={showThumbnails}
                              backdropClosesModal={true} lightboxWidth={2000}/>
                 </Col>
                 <Modal visible={zoomEnable}
-                       onCancel={()=>setZoomEnable(false)}
+                       onCancel={()=>{
+                           setScale(1);
+                           setPosX(0);
+                           setPosY(0);
+                           setZoomEnable(false)}}
                        width={90+'%'}
                        style={{top:20}}
                        footer={[]}
-                        wrapClassName={"modal-zoom"}>
-                    <TransformWrapper>
+                       closeIcon={<CloseOutlined style={{color:'white',fontSize:20}}/>}
+                       wrapClassName={"modal-zoom"}>
+                    <TransformWrapper scale={scale} positionX={posX} positionY={posY}>
                         <TransformComponent>
-                            <img src={imageToZoom} alt="test"/>
+                            <img src={imageToZoom} alt="Zoomed panel"/>
                         </TransformComponent>
                     </TransformWrapper>
                 </Modal>
