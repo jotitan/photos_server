@@ -305,6 +305,22 @@ func extractFiles(r *http.Request)([]multipart.File,[]string){
 	return files,names
 }
 
+func (s Server)updateExifFolder(w http.ResponseWriter,r * http.Request){
+	if !s.canAccessAdmin(r) {
+		s.error403(w,r)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin","*")
+	folder := r.FormValue("folder")
+	logger.GetLogger2().Info("Launch update exif folder :",folder)
+	if err := s.foldersManager.UpdateExif(folder) ; err != nil {
+		logger.GetLogger2().Error(err.Error())
+	}else{
+		logger.GetLogger2().Info("End update folder",folder)
+		w.Write([]byte("success"))
+	}
+}
+
 // Update a specific folder, faster than all folders
 func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	if !s.canAccessAdmin(r) {
@@ -361,7 +377,7 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 	if files,err := s.foldersManager.Browse(path) ; err == nil {
 		formatedFiles := s.convertPaths(files,false)
 		tags :=s.foldersManager.tagManger.GetTagsByFolder(path[1:])
-		imgResponse := imagesResponse{Files:formatedFiles,UpdateUrl:"/updateFolder?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
+		imgResponse := imagesResponse{Files:formatedFiles,UpdateExifUrl:"/updateExifFolder?folder=" + path[1:],UpdateUrl:"/updateFolder?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
 		if data,err := json.Marshal(imgResponse) ; err == nil {
 			w.Write(data)
 		}
@@ -374,6 +390,7 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 type imagesResponse struct {
 	Files []interface{}
 	UpdateUrl string
+	UpdateExifUrl string
 	FolderPath string
 	Tags []*Tag
 }
@@ -474,6 +491,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/rootFolders",s.getRootFolders)
 	server.HandleFunc("/update",s.update)
 	server.HandleFunc("/updateFolder",s.updateFolder)
+	server.HandleFunc("/updateExifFolder",s.updateExifFolder)
 	server.HandleFunc("/indexFolder",s.indexFolder)
 	server.HandleFunc("/uploadFolder",s.uploadFolder)
 	server.HandleFunc("/listFolders",s.listFolders)

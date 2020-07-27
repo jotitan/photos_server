@@ -214,7 +214,7 @@ func (r Reducer)treatAlreadyExist(conversions []resize.ImageToResize,datePhoto t
 		}
 		orientation = 1
 	}
-	imageToResize.update(h,w,datePhoto,orientation,conversions,imageToResize.forceRotate)
+	imageToResize.update(h,w,datePhoto,orientation,conversions,true)
 }
 
 func (r Reducer)rotateImage(path string,orientation int){

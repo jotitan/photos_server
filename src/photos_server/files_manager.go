@@ -143,8 +143,10 @@ var extensions = []string{"jpg","jpeg","png"}
 // Compare old and new version of folder
 // For each files in new version : search if old version exist, if true, keep information, otherwise, store new node in separate list
 // To detect deletion, create a copy at beginning and remove element at each turn
-func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node){
+func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node,[]*Node){
 	newNodes := make([]*Node,0)
+	// Nodes without changes
+	noChangesNodes := make([]*Node,0)
 	nodesToDelete := make(map[string]*Node,0)
 	// First recopy old version
 	deletionMap := make(map[string]*Node,len(previousFiles))
@@ -159,14 +161,18 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node){
 				file.Height = oldValue.Height
 				file.Width = oldValue.Width
 				file.ImagesResized = oldValue.ImagesResized
+				noChangesNodes = append(noChangesNodes,oldValue)
 			}else{
 				// Relaunch on folder
-				delta,deletions := file.Files.Compare(oldValue.Files)
+				delta,deletions,noChanges := file.Files.Compare(oldValue.Files)
 				for _,node := range delta {
 					newNodes = append(newNodes,node)
 				}
 				for name,node := range deletions {
 					nodesToDelete[name] = node
+				}
+				for _,node := range noChanges {
+					noChangesNodes = append(noChangesNodes,node)
 				}
 
 			}
@@ -175,12 +181,15 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node){
 			if !file.IsFolder {
 				newNodes = append(newNodes,file)
 			}else{
-				delta,deletions := file.Files.Compare(Files{})
+				delta,deletions,noChanges := file.Files.Compare(Files{})
 				for _,node := range delta {
 					newNodes = append(newNodes,node)
 				}
 				for name,node := range deletions {
 					nodesToDelete[name] = node
+				}
+				for _,node := range noChanges {
+					noChangesNodes = append(noChangesNodes,node)
 				}
 			}
 		}
@@ -189,7 +198,7 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node){
 	for name,node := range deletionMap {
 		nodesToDelete[name] = node
 	}
-	return newNodes,nodesToDelete
+	return newNodes,nodesToDelete,noChangesNodes
 }
 
 // Add a locker to check if an update is running
@@ -211,6 +220,37 @@ func (fm * foldersManager)UpdateFolder(path string)error{
 	}
 }
 
+func getOnlyElementFromMap(files Files)*Node{
+	if len(files) != 1 {
+		return nil
+	}
+	for _,n := range files {
+		return n
+	}
+	return nil
+}
+
+func (fm * foldersManager)UpdateExif(path string)error {
+	if node,_,err := fm.FindNode(path) ; err != nil {
+		return err
+	}else {
+		rootFolder := node.AbsolutePath[:len(node.AbsolutePath)-len(node.RelativePath)]
+		files := fm.Analyse(rootFolder, node.AbsolutePath)
+		// Is first node is a folder, get files inside
+		if folderNode := getOnlyElementFromMap(files) ; folderNode != nil && folderNode.IsFolder {
+			_,_, noChanges := folderNode.Files.Compare(node.Files)
+			for _,file := range noChanges {
+				datePhoto,_ := GetExif(file.AbsolutePath)
+				file.Date = datePhoto
+			}
+			fm.save()
+			return nil
+		}else{
+			return errors.New("impossible to update exif")
+		}
+	}
+}
+
 // If folderpath not empty, compare only in this folder
 func (fm * foldersManager)compareAndCleanFolder(files Files,folderPath string,newFolders map[string]*Node){
 
@@ -221,8 +261,8 @@ func (fm * foldersManager)compareAndCleanFolder(files Files,folderPath string,ne
 			folders = node.Files
 		}
 	}
-	delta, deletions := files.Compare(folders)
-	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove")
+	delta, deletions,noChanges := files.Compare(folders)
+	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove and no changes",len(noChanges))
 	// Launch indexation of new images,
 	if len(delta) > 0 {
 		waiter := &sync.WaitGroup{}

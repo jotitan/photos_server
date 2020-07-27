@@ -12,7 +12,8 @@ import {
     DeleteTwoTone,
     PlusOutlined,
     PlusCircleOutlined,
-    CloseOutlined
+    CloseOutlined,
+    ChromeOutlined
 } from "@ant-design/icons";
 import {TransformWrapper,TransformComponent} from "react-zoom-pan-pinch";
 
@@ -25,8 +26,10 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     const [imageToZoom,setImageToZoom] = useState('');
     const [zoomEnable,setZoomEnable] = useState(false);
     const [updateUrl,setUpdateUrl] = useState('');
+    const [updateExifUrl,setUpdateExifUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
     const [updateRunning,setUpdateRunning] = useState(false);
+    const [updateExifRunning,setUpdateExifRunning] = useState(false);
     const [key,setKey] = useState(-1);
     const [lightboxVisible,setLightboxVisible] = useState(false);
     const [showThumbnails,setShowThumbnails] = useState(false);
@@ -80,6 +83,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
         }).then(d=>{
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl);
+            setUpdateExifUrl(d.data.UpdateExifUrl);
             setCurrentFolder(d.data.FolderPath);
             let photos = d.data.Files != null ? d.data.Files:d.data;
             setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
@@ -141,6 +145,20 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
         }
     };
 
+    const updateExifFolder = ()=> {
+        if(canDelete && updateExifUrl !==""){
+            setUpdateExifRunning(true);
+            axios({
+                method:'GET',
+                url:baseUrl + updateExifUrl,
+            }).then(()=>{
+                // Reload folder
+                memLoadImages(urlFolder);
+                setUpdateExifRunning(false);
+            })
+        }
+    };
+
     // Show informations about selected images
     const showSelected = ()=>{
         const selected = images.filter(i=>i.isSelected).length;
@@ -162,10 +180,16 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     const showUpdateLink = ()=> {
         return !canDelete || updateUrl === '' || updateUrl ==null ? <></> :
             <>
+                <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
+                            onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
+                    <Tooltip key={"image-info"} placement="top" title={"Mettre à jour les Exifs"}>
+                        <ChromeOutlined spin={updateExifRunning} className={"button"}/>
+                    </Tooltip>
+                </Popconfirm>
                 <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
                             onConfirm={updateFolder} okText="Oui" cancelText="Non">
                     <Tooltip key={"image-info"} placement="top" title={"Mettre à jour le répertoire"}>
-                        <ReloadOutlined spin={updateRunning} className={"button"}/>
+                        <ReloadOutlined style={{marginLeft:10}} spin={updateRunning} className={"button"}/>
                     </Tooltip>
                 </Popconfirm>
                 <Tooltip key={"image-info"} placement="top" title={"Ajouter des photos"}>
@@ -232,7 +256,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
                 <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-                <Col flex={"65px"}>
+                <Col flex={"100px"}>
                     {showUpdateLink()}
                 </Col>
                 <Col flex={"auto"}>
