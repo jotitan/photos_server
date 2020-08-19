@@ -3,6 +3,8 @@ package photos_server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"io"
 	"io/ioutil"
@@ -14,28 +16,130 @@ import (
 	"time"
 )
 
+type SecurityAccess struct {
+	maskForAdmin string
+	// true only if username and password exist
+	userAccessEnable bool
+	username string
+	password string
+	hs256SecretKey []byte
+}
+
+func NewSecurityAccess(maskForAdmin,username,password string,hs256SecretKey []byte)*SecurityAccess{
+	sa := SecurityAccess{maskForAdmin:maskForAdmin,userAccessEnable:false}
+	if !strings.EqualFold("",username) && !strings.EqualFold("",password) && len(hs256SecretKey) > 0{
+		sa.userAccessEnable = true
+		sa.username = username
+		sa.password = password
+		sa.hs256SecretKey = hs256SecretKey
+		logger.GetLogger2().Info("Use basic with JWT security mode")
+	}else{
+		logger.GetLogger2().Info("Use simple security mode")
+	}
+	return &sa
+}
+
+func (sa SecurityAccess)checkMaskAccess(r * http.Request)bool{
+	return !strings.EqualFold("",sa.maskForAdmin) && (
+		strings.Contains(r.Referer(),sa.maskForAdmin) ||
+			strings.Contains(r.RemoteAddr,sa.maskForAdmin))
+}
+
+func (sa SecurityAccess)getJWTCookie(r * http.Request)*http.Cookie{
+	for _,c := range r.Cookies() {
+		if strings.EqualFold("token",c.Name) {
+			return c
+		}
+	}
+	return nil
+}
+
+func (sa SecurityAccess)checkAccess(r * http.Request)bool{
+	// Two cases : on local network or with basic authent
+	if sa.checkMaskAccess(r) {
+		return true
+	}
+	// Check authorisation
+	if sa.userAccessEnable {
+		if username, password, ok := r.BasicAuth(); ok && !strings.EqualFold("", username) {
+			success :=  strings.EqualFold(username, sa.username) && strings.EqualFold(password, sa.password)
+			if success {
+				logger.GetLogger2().Info(fmt.Sprintf("User %s connected",username))
+			}else{
+				logger.GetLogger2().Error(fmt.Sprintf("User %s try to connect but fail",username))
+			}
+			return success
+		}
+	}
+	return false
+}
+
+func (sa SecurityAccess)checkJWTToken(r * http.Request)bool{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if token := sa.getJWTCookie(r); token != nil {
+		if jwtToken,err :=jwt.Parse(token.Value,func(token *jwt.Token) (interface{}, error) {return sa.hs256SecretKey,nil});err == nil {
+			if strings.EqualFold(sa.username,jwtToken.Claims.(jwt.MapClaims)["username"].(string)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+
+func (sa SecurityAccess)setJWTToken(username string,w http.ResponseWriter){
+	// No expiracy
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,jwt.MapClaims{"username":username})
+	if sToken,err := token.SignedString(sa.hs256SecretKey); err == nil {
+		cookie := http.Cookie{}
+		cookie.Name="token"
+		cookie.Path="/"
+		cookie.Value=sToken
+		cookie.HttpOnly=true
+		cookie.SameSite=http.SameSiteLaxMode
+		http.SetCookie(w,&cookie)
+	}
+}
+
+func (sa SecurityAccess) CheckAdmin(w http.ResponseWriter,r * http.Request)bool{
+	// Check if jwt token exist and valid. Create by server during first connexion
+	if sa.checkJWTToken(r){
+		// If jwt already exist, don't create a new
+		return true
+	}
+	if sa.checkAccess(r) {
+		sa.setJWTToken(sa.username,w)
+		return true
+	}
+	return false
+}
 
 type Server struct {
 	foldersManager *foldersManager
 	resources string
-	maskForAdmin string
+	// Exist only if garbage exist
+	securityAccess *SecurityAccess
 	pathRoutes map[string]func(w http.ResponseWriter,r *http.Request)
 }
 
-func NewPhotosServer(cache,resources,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder string)Server{
-	s := Server{
-		foldersManager:NewFoldersManager(cache,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder),
-		resources:resources,
-		maskForAdmin:maskForAdmin,
+func (s *Server)setSecurityAccess(conf *config.Config){
+	if s.foldersManager.garbageManager != nil {
+		s.securityAccess = NewSecurityAccess(conf.Security.MaskForAdmin,conf.Security.Username,conf.Security.Password,[]byte(conf.Security.HS256SecretKey))
 	}
+}
+
+func NewPhotosServerFromConfig(conf *config.Config)Server{
+	s := Server{
+		foldersManager:NewFoldersManager(conf.CacheFolder,conf.Garbage,conf.Security.MaskForAdmin,conf.UploadedFolder,conf.OverrideUploadFolder),
+		resources:conf.WebResources,
+	}
+	s.setSecurityAccess(conf)
 	s.loadPathRoutes()
 	return s
 }
 
-func (s Server)canAccessAdmin(r * http.Request)bool{
-	return !strings.EqualFold("",s.maskForAdmin) && (
-		strings.Contains(r.Referer(),s.maskForAdmin) ||
-			strings.Contains(r.RemoteAddr,s.maskForAdmin))
+func (s Server)canAccessAdmin(w http.ResponseWriter,r * http.Request)bool{
+	return s.securityAccess!= nil && s.securityAccess.CheckAdmin(w,r)
 }
 
 func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
@@ -46,9 +150,9 @@ func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-func (s Server)canDelete(w http.ResponseWriter,r * http.Request){
+func (s Server)canAdmin(w http.ResponseWriter,r * http.Request){
 	header(w)
-	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.foldersManager.garbageManager!=nil && s.canAccessAdmin(r))))
+	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.canAccessAdmin(w,r))))
 }
 
 func (s Server)flushTags(w http.ResponseWriter,r * http.Request){
@@ -161,7 +265,7 @@ func (s Server)error403(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -173,7 +277,7 @@ func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
 
 func (s Server)delete(w http.ResponseWriter,r * http.Request){
 	header(w)
-	if !s.canAccessAdmin(r) && s.foldersManager.garbageManager != nil{
+	if !s.canAccessAdmin(w,r) && s.foldersManager.garbageManager != nil{
 		s.error403(w,r)
 		return
 	}
@@ -250,7 +354,7 @@ func (s Server)browse(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)update(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -263,7 +367,7 @@ func (s Server)update(w http.ResponseWriter,r * http.Request){
 
 // Update a specific folder, faster than all folders
 func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -306,7 +410,7 @@ func extractFiles(r *http.Request)([]multipart.File,[]string){
 }
 
 func (s Server)updateExifFolder(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -323,7 +427,7 @@ func (s Server)updateExifFolder(w http.ResponseWriter,r * http.Request){
 
 // Update a specific folder, faster than all folders
 func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -340,7 +444,7 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 
 // Index an existing  folder
 func (s Server)indexFolder(w http.ResponseWriter,r * http.Request){
-	if !s.canAccessAdmin(r) {
+	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
 		return
 	}
@@ -483,7 +587,7 @@ func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-func (s Server)Launch(port string){
+func (s Server)Launch(conf *config.Config){
 	server := http.ServeMux{}
 	server.HandleFunc("/analyse",s.analyse)
 	server.HandleFunc("/delete",s.delete)
@@ -495,7 +599,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/indexFolder",s.indexFolder)
 	server.HandleFunc("/uploadFolder",s.uploadFolder)
 	server.HandleFunc("/listFolders",s.listFolders)
-	server.HandleFunc("/canDelete",s.canDelete)
+	server.HandleFunc("/canAdmin",s.canAdmin)
 	server.HandleFunc("/updateExifOfDate",s.updateExifOfDate)
 	server.HandleFunc("/count",s.count)
 	// By date
@@ -506,7 +610,7 @@ func (s Server)Launch(port string){
 	server.HandleFunc("/filterTagsDate",s.filterTagsDate)
 	server.HandleFunc("/",s.defaultHandle)
 
-	logger.GetLogger2().Info("Start server on port " + port)
-	err := http.ListenAndServe(":" + port,&server)
+	logger.GetLogger2().Info("Start server on port " + conf.Port)
+	err := http.ListenAndServe(":" + conf.Port,&server)
 	logger.GetLogger2().Error("Server stopped cause",err)
 }

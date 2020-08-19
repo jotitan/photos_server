@@ -3,16 +3,39 @@ import './App.css';
 import 'antd/dist/antd.css';
 import MyGallery from "./pages/gallery";
 import MyCalendar from "./pages/calendar";
-import TreeFolder,{getBaseUrl} from "./pages/treeFolder";
+import TreeFolder, {getBaseUrl} from "./pages/treeFolder";
 import UploadFolder from "./pages/upload";
 import {Layout, Menu, Switch} from 'antd';
-import {HddFilled,PlusCircleOutlined} from "@ant-design/icons";
+import {HddFilled, PlusCircleOutlined} from "@ant-design/icons";
 import {createBrowserHistory} from 'history';
 import axios from "axios";
+import Login from "./pages/login";
 
 export const history = createBrowserHistory({
     basename: process.env.PUBLIC_URL
 });
+
+function checkAdminAccess(setCanAdmin,setShowPanel,askAuth = false,auth = {}){
+    return axios({
+        method: 'GET',
+        url: getBaseUrl() + '/canAdmin',
+        auth:auth
+    }).then(d => {
+        // If no access, ask again with basic auth
+        if(!d.data.can && !askAuth) {
+            setShowPanel(true)
+        }else {
+            setCanAdmin(d.data.can);
+            return new Promise((ok,fail)=>{
+                if(!d.data.can){
+                    fail();
+                }else{
+                    ok();
+                }
+            })
+        }
+    });
+}
 
 function App() {
     const { Sider,Content } = Layout;
@@ -27,17 +50,15 @@ function App() {
     const [update,setUpdate] = useState(false);
     const [currentFolder,setCurrentFolder] = useState('');
     const [titleGallery,setTitleGallery] = useState('');
-    const [canDelete,setCanDelete] = useState(false);
+    const [canAdmin,setCanAdmin] = useState(false);
     const [nbPhotos,setNbPhotos] = useState(0);
+    const [showPanelLogin,setShowPanelLogin] = useState(false);
 
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
     const [isAddFolderPanelVisible,setIsAddFolderPanelVisible] = useState(false);
 
     useEffect(()=> {
-        axios({
-            method: 'GET',
-            url: getBaseUrl() + '/canDelete',
-        }).then(d => setCanDelete(d.data.can));
+        checkAdminAccess(setCanAdmin,setShowPanelLogin);
         axios({
             method: 'GET',
             url: getBaseUrl() + '/count',
@@ -53,7 +74,7 @@ function App() {
                         <Menu.Item className={"logo"}>
                             <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos}</span>
                         </Menu.Item>
-                        {canDelete ?
+                        {canAdmin?
                             <Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>
                                 <PlusCircleOutlined /> <span>Ajouter des photos</span>
                             </Menu.Item>:<></>}
@@ -76,7 +97,7 @@ function App() {
             <Layout>
                 <MyGallery urlFolder={urlFolder} refresh={collapsed}
                            titleGallery={titleGallery}
-                           canDelete={canDelete}
+                           canAdmin={canAdmin}
                            setCurrentFolder={setCurrentFolder}
                            update={update}
                            setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
@@ -92,6 +113,7 @@ function App() {
                               singleFolderDisplay={true}
                 />
             </Layout>
+            <Login checkAdminAccess={checkAdminAccess} setCanAdmin={setCanAdmin} setShowPanelLogin={setShowPanelLogin} showPanelLogin={showPanelLogin}/>
         </Layout>
     );
 }

@@ -2,18 +2,19 @@ package main
 
 import (
 	"github.com/jotitan/photos_server/arguments"
+	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/photos_server"
 )
 
 func main(){
 	args := arguments.NewArguments()
-	cacheFolder := args.GetMandatoryString("cache","Argument -cache is mandatory to specify where pictures are resized")
-	webResources := args.GetMandatoryString("resources","Argument -resources is mandatory to specify where web resources are")
-	port := args.GetStringDefault("port","9006")
-	garbage := args.GetString("garbage")
-	uploadedFolder := args.GetString("upload-folder")
-	overrideUploadFolder := args.GetString("override-upload")
-	maskForAdmin:= args.GetString("mask-admin")
-	server := photos_server.NewPhotosServer(cacheFolder,webResources,garbage,maskForAdmin,uploadedFolder,overrideUploadFolder)
-	server.Launch(port)
+	pathConfig := args.GetMandatoryString("config","Argument -config is mandatory to specify path of YAML config")
+
+	if conf,errConfig := config.ReadConfig(pathConfig) ; errConfig == nil {
+		server := photos_server.NewPhotosServerFromConfig(conf)
+		server.Launch(conf)
+	}else{
+		logger.GetLogger2().Error(errConfig.Error())
+	}
 }

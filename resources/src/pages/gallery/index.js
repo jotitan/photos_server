@@ -21,7 +21,7 @@ import {TransformWrapper,TransformComponent} from "react-zoom-pan-pinch";
 import { CirclePicker } from 'react-color';
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setIsAddFolderPanelVisible,setCurrentFolder,update}) {
+export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIsAddFolderPanelVisible,setCurrentFolder,update}) {
     const [images,setImages] = useState([]);
     const [imageToZoom,setImageToZoom] = useState('');
     const [zoomEnable,setZoomEnable] = useState(false);
@@ -49,7 +49,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     },[refresh,comp])
 
     useEffect(()=>{
-        if(canDelete){
+        if(canAdmin){
             window.addEventListener('keydown',e=>{
                 if(e.key === "t"){
                     // Switch thumbnail
@@ -58,7 +58,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
                 setKey(e.key)
             });
         }
-    },[canDelete,setShowThumbnails]);
+    },[canAdmin,setShowThumbnails]);
 
     useEffect(()=>{
         if(lightboxVisible && key === "Delete"){
@@ -132,7 +132,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     };
 
     const updateFolder = ()=> {
-        if(canDelete && updateUrl !==""){
+        if(canAdmin && updateUrl !==""){
             setUpdateRunning(true);
             axios({
                 method:'GET',
@@ -146,7 +146,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     };
 
     const updateExifFolder = ()=> {
-        if(canDelete && updateExifUrl !==""){
+        if(canAdmin && updateExifUrl !==""){
             setUpdateExifRunning(true);
             axios({
                 method:'GET',
@@ -178,7 +178,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
     };
 
     const showUpdateLink = ()=> {
-        return !canDelete || updateUrl === '' || updateUrl ==null ? <></> :
+        return !canAdmin || updateUrl === '' || updateUrl ==null ? <></> :
             <>
                 <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
                             onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
@@ -282,7 +282,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canDelete,setI
                              lightboxWillClose={()=>setLightboxVisible(false)}
                              lightboxWillOpen={()=>setLightboxVisible(true)}
                              onSelectImage={selectImage}
-                             enableImageSelection={canDelete===true}
+                             enableImageSelection={canAdmin===true}
                              currentImageWillChange={indexImage=>{
                                  setCurrentImage(indexImage)
                                  setImageToZoom(images[indexImage].hdLink);
