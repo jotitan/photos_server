@@ -117,7 +117,7 @@ func (tm *TagManager)flush(){
 		defer file.Close()
 		if data,err := json.Marshal(tm) ; err == nil {
 			if _,err := file.Write(data) ; err== nil {
-				logger.GetLogger2().Info("Save in file tag_database well done")
+				logger.GetLogger2().Info("Save in file tag_database well Done")
 			}else{
 				logger.GetLogger2().Error("Impossible to save tag database",err)
 			}

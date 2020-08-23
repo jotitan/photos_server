@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, Input, Modal, Upload, Spin, Row, Col, Switch, notification} from 'antd';
+import {Button, Input, Modal, Upload, Spin, Row, Col, Switch, notification, Progress} from 'antd';
 import {UploadOutlined} from "@ant-design/icons";
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
@@ -9,6 +9,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
 
     const [path,setPath] = useState('');
     const [waitUpload,setWaitUpload] = useState(false);
+    const [progress,setProgress] = useState(0);
     const [selectDirectory,setSelectDirectory] = useState(false);
     let limitImages = 10;
     const stopRequest = ({ file, onSuccess }) => {
@@ -49,16 +50,45 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             data.append("addToFolder","true");
         }
         images.forEach((img,i)=>data.append(`file_${i}`,img.image));
+        // Open notification
+
         axios({
             method:'POST',
             url:getBaseUrl()+'/uploadFolder',
-            data:data
+            data:data,
+            onUploadProgress:info=>{
+                // Progress count for 25%
+                let progressUpload = Math.round((info.loaded / info.total)*25);
+                setProgress(progressUpload);
+            }
         }).then(d=>{
-            // Loaded
-            uploadDone(path)
+            // Request sended, get upload progress id and check updates
+            if(d.data.status === "running") {
+                monitorUpdateProgress(d.data.id, path);
+            }else{
+                notification["error"]({message:"Echec de la sauvegarde",description:`Erreur du serveur`});
+            }
         }).catch((error,b)=>{
             notification["error"]({message:"Echec de la sauvegarde",description:`Erreur du serveur ${error}`});
             setWaitUpload(false);
+        });
+    };
+
+    const monitorUpdateProgress = (id,path)=> {
+        let es = new EventSource(`/statUploadRT?id=${id}`);
+        es.addEventListener("stat", mess => {
+            let stat = JSON.parse(mess.data);
+            let percent = 25 + Math.round((stat.done/stat.total)*75);
+            setProgress(percent);
+        });
+        es.addEventListener("end", mess => {
+            if(JSON.parse(mess.data).end === true){
+                uploadDone(path);
+            }
+        });
+        es.addEventListener("error", mess => {
+            let message = JSON.parse(mess.data).error;
+            notification["error"]({message:"Echec de la sauvegarde",description:`${message}`});
         });
     };
 
@@ -92,6 +122,15 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             cancelText={"Annuler"}
         >
             <div>
+                <Progress
+                    strokeColor={{
+                        from: '#e99200',
+                        to: '#0094d0',
+                    }}
+                    percent={progress}
+                    status="active"
+                    style={{display:waitUpload?'block':'none'}}
+                />
                 <Spin spinning={waitUpload}>
                     {!singleFolderDisplay ?
                         <>

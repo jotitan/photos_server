@@ -272,7 +272,8 @@ func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
 	folder := r.FormValue("folder")
 	forceRotate := r.FormValue("forceRotate") == "true"
 	logger.GetLogger2().Info("Add folder",folder,"and forceRotate :",forceRotate)
-	s.foldersManager.AddFolder(folder,forceRotate)
+	p := s.foldersManager.uploadProgressManager.addUploader(0)
+	s.foldersManager.AddFolder(folder,forceRotate,p)
 }
 
 func (s Server)delete(w http.ResponseWriter,r * http.Request){
@@ -366,6 +367,7 @@ func (s Server)update(w http.ResponseWriter,r * http.Request){
 
 
 // Update a specific folder, faster than all folders
+// Return an id to monitor upload
 func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
@@ -386,11 +388,38 @@ func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 		http.Error(w,"need to specify a path",400)
 		return
 	}
-	if err := s.foldersManager.UploadFolder(pathFolder,files,names,addToFolder) ; err != nil {
+	if progresser,err := s.foldersManager.UploadFolder(pathFolder,files,names,addToFolder) ; err != nil {
 		http.Error(w,"Bad request " + err.Error(),400)
 		logger.GetLogger2().Error("Impossible to upload folder : ",err.Error())
 	}else{
-		w.Write([]byte("success"))
+		w.Write([]byte(fmt.Sprintf("{\"status\":\"running\",\"id\":\"%s\"}",progresser.id)))
+	}
+}
+
+func (s Server)statUploadRT(w http.ResponseWriter,r * http.Request){
+	if !s.canAccessAdmin(w,r) {
+		s.error403(w,r)
+		return
+	}
+	id := r.FormValue("id")
+	if sse,err := s.foldersManager.uploadProgressManager.addSSE(id,w,r) ; err == nil {
+		// Block to write messages
+		sse.watch()
+	}else{
+		http.Error(w,err.Error(),404)
+	}
+}
+
+func (s Server)statUpload(w http.ResponseWriter,r * http.Request){
+	if !s.canAccessAdmin(w,r) {
+		s.error403(w,r)
+		return
+	}
+	id := r.FormValue("id")
+	if stat,err := s.foldersManager.uploadProgressManager.getStatUpload(id) ; err == nil {
+		w.Write([]byte(fmt.Sprintf("{\"Done\":%d,\"total\":%d}",stat.done,stat.total)))
+	}else{
+		http.Error(w,err.Error(),404)
 	}
 }
 
@@ -434,7 +463,8 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	folder := r.FormValue("folder")
 	logger.GetLogger2().Info("Launch update folder :",folder)
-	if err := s.foldersManager.UpdateFolder(folder) ; err != nil {
+	up := s.foldersManager.uploadProgressManager.addUploader(0)
+	if err := s.foldersManager.UpdateFolder(folder,up) ; err != nil {
 		logger.GetLogger2().Error(err.Error())
 	}else{
 		logger.GetLogger2().Info("End update folder",folder)
@@ -442,7 +472,7 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-// Index an existing  folder
+// Index an existing folder
 func (s Server)indexFolder(w http.ResponseWriter,r * http.Request){
 	if !s.canAccessAdmin(w,r) {
 		s.error403(w,r)
@@ -596,8 +626,10 @@ func (s Server)Launch(conf *config.Config){
 	server.HandleFunc("/update",s.update)
 	server.HandleFunc("/updateFolder",s.updateFolder)
 	server.HandleFunc("/updateExifFolder",s.updateExifFolder)
-	server.HandleFunc("/indexFolder",s.indexFolder)
+	//server.HandleFunc("/indexFolder",s.indexFolder)
 	server.HandleFunc("/uploadFolder",s.uploadFolder)
+	server.HandleFunc("/statUpload",s.statUpload)
+	server.HandleFunc("/statUploadRT",s.statUploadRT)
 	server.HandleFunc("/listFolders",s.listFolders)
 	server.HandleFunc("/canAdmin",s.canAdmin)
 	server.HandleFunc("/updateExifOfDate",s.updateExifOfDate)

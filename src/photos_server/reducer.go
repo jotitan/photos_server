@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -45,7 +44,7 @@ type ImageToResize struct{
 	// Override cache resize folder by adding the folder
 	overrideOutput string
 	node         * Node
-	waiter       * sync.WaitGroup
+	waiter       * uploadProgress
 	forceRotate  bool
 	existings    map[string]struct{}
 }
@@ -85,8 +84,8 @@ func (itr ImageToResize)update(h,w uint, datePhoto time.Time, orientation int, c
 	itr.waiter.Done()
 }
 
-func (r Reducer)AddImage(path,relativePath,overrideOutput string,node * Node,waiter * sync.WaitGroup, existings map[string]struct{}, forceRotate bool){
-	r.imagesToResize <- ImageToResize{path,relativePath,overrideOutput,node,waiter,forceRotate,existings}
+func (r Reducer)AddImage(path,relativePath,overrideOutput string,node * Node,progress * uploadProgress, existings map[string]struct{}, forceRotate bool){
+	r.imagesToResize <- ImageToResize{path,relativePath,overrideOutput,node,progress,forceRotate,existings}
 }
 
 // Return number of images wating to reduce and number of images reduced

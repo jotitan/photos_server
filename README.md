@@ -42,15 +42,23 @@ Build : go build main/photos_server_run.go
 
 ## Run
 
-To run server, used those options : 
-* **-cache** : specify where reduced images must be saved
-* **-resources** : folder where build front resources are
-* -garbage : optional, folder where to move deleted files
-* -mask-admin : mandatory to use garbage, mask on referer. Used to protect admin operation to be launch only at home on personal network
-
-_Ex : ./photos_server_run -cache /data/cache -resources /appli/photos_resources -garbage /data/garbage -mask-admin localhost_
-
+To run server, specify yaml configuration file with -config option.
+Configuration Yaml File :  
+```yaml
+cache: <specify where reduced images must be saved (mandatory)>
+resources: <folder where build front resources are (mandatory)>
+port: <to ovveride default port (9006)>
+garbage: <folder where to move deleted files>
+upload-folder: <folder where to upload pictures>
+security:    
+  mask-admin: <mandatory to use garbage, mask on referer. Used to protect admin operation to be launch only at home on personal network>
+  username: <username to get admin access outside>
+  password: <password linked to user>
+  secret: <key used to sign jwt Token (HS256) (https://mkjwk.org/ > oct / HS256)>
+```
 **Server run on port 9006**
+
+Https is not enaled cause I'm using secured proxy in front.
 
 At home, server run on Raspberry Pi 2 with an old SAN.
 Indexation is quite slow but after that, displaying is very fast.
