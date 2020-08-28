@@ -59,6 +59,14 @@ func (g GarbageManager)Remove(files []string)int{
 func (g GarbageManager)moveOriginalFile(node *Node)bool{
 
 	moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
+	// Check if copy in garbage already exist and source already missing
+	if move,err := os.Open(moveName);err == nil {
+		move.Close()
+		if _,err := os.Open(node.AbsolutePath) ; err != nil {
+			logger.GetLogger2().Info("Image " + node.AbsolutePath + " is already in garbage")
+			return true
+		}
+	}
 	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
 		defer move.Close()
 		if from,err := os.Open(node.AbsolutePath) ; err == nil {
@@ -75,6 +83,7 @@ func (g GarbageManager)moveOriginalFile(node *Node)bool{
 			}
 		}
 	}
+
 	logger.GetLogger2().Error("Impossible to move",node.AbsolutePath,"in garbage")
 	return false
 }

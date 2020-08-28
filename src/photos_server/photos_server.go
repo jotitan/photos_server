@@ -321,10 +321,16 @@ func (s Server)writeImage(w http.ResponseWriter,path string){
 }
 
 func (s Server)removeNode(w http.ResponseWriter,r * http.Request) {
+	header(w)
+	if !s.canAccessAdmin(w,r) && s.foldersManager.garbageManager != nil{
+		s.error403(w,r)
+		return
+	}
 	path := r.URL.Path[12:]
 	if err := s.foldersManager.RemoveNode(path) ; err != nil {
 		http.Error(w,err.Error(),400)
 	}else{
+		logger.GetLogger2().Info("Remove node",path)
 		w.Write([]byte("success"))
 	}
 }
@@ -405,6 +411,7 @@ func (s Server)statUploadRT(w http.ResponseWriter,r * http.Request){
 	if sse,err := s.foldersManager.uploadProgressManager.addSSE(id,w,r) ; err == nil {
 		// Block to write messages
 		sse.watch()
+		logger.GetLogger2().Info("End watch")
 	}else{
 		http.Error(w,err.Error(),404)
 	}
@@ -512,6 +519,9 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 		formatedFiles := s.convertPaths(files,false)
 		tags :=s.foldersManager.tagManger.GetTagsByFolder(path[1:])
 		imgResponse := imagesResponse{Files:formatedFiles,UpdateExifUrl:"/updateExifFolder?folder=" + path[1:],UpdateUrl:"/updateFolder?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
+		if s.canAccessAdmin(w,r){
+			imgResponse.RemoveFolderUrl="/removeNode" + path
+		}
 		if data,err := json.Marshal(imgResponse) ; err == nil {
 			w.Write(data)
 		}
@@ -525,6 +535,8 @@ type imagesResponse struct {
 	Files []interface{}
 	UpdateUrl string
 	UpdateExifUrl string
+	// Only if rights for user and folder empty
+	RemoveFolderUrl string
 	FolderPath string
 	Tags []*Tag
 }
@@ -612,7 +624,7 @@ func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
 	if fct,exist := s.pathRoutes[path] ; exist {
 		fct(w,r)
 	}else {
-		logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
+		//logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
 		http.ServeFile(w, r, filepath.Join(s.resources, r.RequestURI[1:]))
 	}
 }

@@ -85,6 +85,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             if(JSON.parse(mess.data).end === true){
                 uploadDone(path);
             }
+            es.close();
         });
         es.addEventListener("error", mess => {
             let message = JSON.parse(mess.data).error;

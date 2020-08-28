@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jotitan/photos_server/logger"
 	"net/http"
+	"time"
 )
 
 type sse struct {
@@ -27,7 +28,7 @@ func newSse(w http.ResponseWriter, r *http.Request)*sse{
 
 	// If connexion stop, close chanel
 	s := &sse{chanel:chanelEvent,w:w}
-	watchEndSSE(r,chanelEvent)
+	//watchEndSSE(r,chanelEvent)
 	return s
 }
 
@@ -36,7 +37,9 @@ func (s * sse)done(st stat){
 }
 
 func (s * sse)end(){
+	logger.GetLogger2().Info("Write end")
 	writeEnd(s.w)
+	close(s.chanel)
 }
 
 func (s * sse)watch(){
@@ -44,6 +47,8 @@ func (s * sse)watch(){
 		if st, more  := <- s.chanel ; more {
 			writeEvent(s.w,st)
 		}else{
+			logger.GetLogger2().Error("No more event")
+			time.Sleep(time.Second)
 			break
 		}
 	}
@@ -72,7 +77,7 @@ func writeError(w http.ResponseWriter,err error){
 }
 
 func watchEndSSE(r * http.Request, chanelEvent chan stat){
-	go func(){
+   	go func(){
 		<- r.Context().Done()
 		logger.GetLogger2().Info("Stop connexion")
 		close(chanelEvent)

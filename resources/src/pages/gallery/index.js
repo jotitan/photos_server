@@ -1,32 +1,33 @@
-import React, {useEffect, useState, useCallback} from 'react'
-import {Col, Input, Modal, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
+import React, {useCallback, useEffect, useState} from 'react'
+import {Col, Empty, Input, Modal, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
-import {getBaseUrl,getBaseUrlHref} from "../treeFolder";
+import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
 
 import {
+    ChromeOutlined,
+    CloseOutlined,
     DeleteFilled,
-    ReloadOutlined,
+    DeleteTwoTone,
     FileImageOutlined,
     PictureOutlined,
-    DeleteTwoTone,
-    PlusOutlined,
     PlusCircleOutlined,
-    CloseOutlined,
-    ChromeOutlined
+    PlusOutlined,
+    ReloadOutlined
 } from "@ant-design/icons";
-import {TransformWrapper,TransformComponent} from "react-zoom-pan-pinch";
+import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
 
-import { CirclePicker } from 'react-color';
+import {CirclePicker} from 'react-color';
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIsAddFolderPanelVisible,setCurrentFolder,update}) {
+export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,canAdmin,setIsAddFolderPanelVisible,setCurrentFolder,update,setUpdate}) {
     const [images,setImages] = useState([]);
     const [imageToZoom,setImageToZoom] = useState('');
     const [zoomEnable,setZoomEnable] = useState(false);
     const [updateUrl,setUpdateUrl] = useState('');
     const [updateExifUrl,setUpdateExifUrl] = useState('');
+    const [removeFolderUrl,setRemoveFolderUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
     const [updateRunning,setUpdateRunning] = useState(false);
     const [updateExifRunning,setUpdateExifRunning] = useState(false);
@@ -84,6 +85,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl);
             setUpdateExifUrl(d.data.UpdateExifUrl);
+            setRemoveFolderUrl(d.data.RemoveFolderUrl);
             setCurrentFolder(d.data.FolderPath);
             let photos = d.data.Files != null ? d.data.Files:d.data;
             setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
@@ -114,6 +116,20 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
             let copy = list.slice();
             copy[index].isSelected = list[index].isSelected != null ? !list[index].isSelected : true;
             return copy;
+        });
+    };
+
+    const removeFolder = ()=> {
+        axios({
+            method:'DELETE',
+            url:baseUrl + removeFolderUrl
+        }).then(r=>{
+            if(r.data === 'success') {
+                notification["success"]({message:"Succès",description:`Le répertoire a été bien supprimé`});
+                setUpdateUrl('');
+                setUrlFolder({load:'',tags:''});
+                setUpdate(!update);
+            }
         });
     };
 
@@ -180,10 +196,16 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
     const showUpdateLink = ()=> {
         return !canAdmin || updateUrl === '' || updateUrl ==null ? <></> :
             <>
+                {isFolderEmpty() ? <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
+                            onConfirm={removeFolder} okText="Oui" cancelText="Non">
+                    <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
+                        <DeleteTwoTone style={{cursor:'pointer',padding:'4px',backgroundColor:'#ff8181'}} twoToneColor={"#b32727"}/>
+                    </Tooltip>
+                </Popconfirm>:<></>}
                 <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
                             onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
                     <Tooltip key={"image-info"} placement="top" title={"Mettre à jour les Exifs"}>
-                        <ChromeOutlined spin={updateExifRunning} className={"button"}/>
+                        <ChromeOutlined style={{marginLeft:10}} spin={updateExifRunning} className={"button"}/>
                     </Tooltip>
                 </Popconfirm>
                 <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
@@ -243,6 +265,36 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
         ]
     };
 
+    const showGallery = ()=> {
+        return (
+            <Gallery ref={node=>{setComp(node);window.t = node}}
+                     images={images}
+                     showImageCount={false}
+                     lightboxWillClose={()=>setLightboxVisible(false)}
+                     lightboxWillOpen={()=>setLightboxVisible(true)}
+                     onSelectImage={selectImage}
+                     enableImageSelection={canAdmin===true}
+                     currentImageWillChange={indexImage=>{
+                         setCurrentImage(indexImage)
+                         setImageToZoom(images[indexImage].hdLink);
+                     }}
+                     customControls={getCustomActions()}
+                     showLightboxThumbnails={showThumbnails}
+                     backdropClosesModal={true} lightboxWidth={2000}/>
+        );
+    };
+
+    const isFolderEmpty = ()=>{
+        return urlFolder !=="" && urlFolder.load !== "" && images.length === 0;
+    }
+
+    const showEmptyMessage = ()=> {
+        return (
+            urlFolder === '' || urlFolder.load === '' ? <></>:
+                <Empty style={{marginTop:'40vh'}} description={<span style={{color:'white',fontWeight:'bold'}}>Pas de photos</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        );
+    };
+
     const [scale,setScale] = useState(1);
     const [posX,setPosX] = useState(1);
     const [posY,setPosY] = useState(1);
@@ -256,7 +308,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
                 <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-                <Col flex={"100px"}>
+                <Col flex={"135px"}>
                     {showUpdateLink()}
                 </Col>
                 <Col flex={"auto"}>
@@ -275,21 +327,7 @@ export default function MyGallery({urlFolder,refresh,titleGallery,canAdmin,setIs
             </Row>
             <Row className={"gallery"}>
                 <Col span={24} style={{marginTop:36+'px'}}>
-                    <Gallery ref={node=>{setComp(node);window.t = node}}
-                             images={images}
-                        //imageCountSeparator={" / "}
-                             showImageCount={false}
-                             lightboxWillClose={()=>setLightboxVisible(false)}
-                             lightboxWillOpen={()=>setLightboxVisible(true)}
-                             onSelectImage={selectImage}
-                             enableImageSelection={canAdmin===true}
-                             currentImageWillChange={indexImage=>{
-                                 setCurrentImage(indexImage)
-                                 setImageToZoom(images[indexImage].hdLink);
-                             }}
-                             customControls={getCustomActions()}
-                             showLightboxThumbnails={showThumbnails}
-                             backdropClosesModal={true} lightboxWidth={2000}/>
+                    {images.length === 0 ? showEmptyMessage():showGallery()}
                 </Col>
                 <Modal visible={zoomEnable}
                        onCancel={()=>{

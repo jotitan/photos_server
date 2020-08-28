@@ -47,6 +47,7 @@ function App() {
         setCollapsed(!collapsed);
     };
     const [urlFolder,setUrlFolder] = useState({load:'',tags:''});
+    // Used to refresh tree folder list
     const [update,setUpdate] = useState(false);
     const [currentFolder,setCurrentFolder] = useState('');
     const [titleGallery,setTitleGallery] = useState('');
@@ -100,6 +101,8 @@ function App() {
                            canAdmin={canAdmin}
                            setCurrentFolder={setCurrentFolder}
                            update={update}
+                           setUpdate={setUpdate}
+                           setUrlFolder={setUrlFolder}
                            setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
                 <UploadFolder setUpdate={setUpdate}
                               isAddPanelVisible={isAddPanelVisible}

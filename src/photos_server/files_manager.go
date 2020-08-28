@@ -332,6 +332,10 @@ func (fm * foldersManager)RemoveNode(path string)error{
 	if node, parent, err := fm.FindNode(path) ; err != nil {
 		return err
 	}else{
+		// Remove only if folder is empty
+		if len(node.Files) > 0{
+			return errors.New("impossible to remove not empty folder")
+		}
 		delete(parent,node.Name)
 		fm.save()
 	}
@@ -533,6 +537,7 @@ func (up * uploadProgress)run(){
 				}
 			}else{
 				// close chanel, send end message to all
+				logger.GetLogger2().Info("Close chanel")
 				for _, s := range up.sses {
 					s.end()
 				}

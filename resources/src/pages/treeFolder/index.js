@@ -28,7 +28,7 @@ const adapt = node => {
         data.isLeaf=true
     }
     return data;
-}
+};
 
 export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const [tree,setTree] = useState([]);
