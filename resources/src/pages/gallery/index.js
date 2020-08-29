@@ -89,25 +89,29 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
             setCurrentFolder(d.data.FolderPath);
             let photos = d.data.Files != null ? d.data.Files:d.data;
             setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
-            setImages(photos
-                .filter(file=>file.ImageLink != null)
-                .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
-                .map(img=>{
-                    let d = new Date(img.Date).toLocaleString();
-                    let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
-                    return {
-                        hdLink:baseUrlHref + img.HdLink,
-                        path:img.HdLink,
-                        folder:folder,
-                        Date:d,
-                        caption:"",thumbnail:baseUrl + img.ThumbnailLink,src:baseUrl + img.ImageLink,
-                        customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
-                        thumbnailWidth:img.Width,
-                        thumbnailHeight:img.Height
-                    }
-                }));
+            setImages(adaptImages(photos));
         })
     },[urlFolder,baseUrl,baseUrlHref,setCurrentFolder]);
+
+    const adaptImages = photos=> {
+        return photos
+            .filter(file=>file.ImageLink != null)
+            .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
+            .map(img=>{
+                let d = new Date(img.Date).toLocaleString();
+                let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
+                return {
+                    hdLink:baseUrlHref + img.HdLink,
+                    path:img.HdLink,
+                    folder:folder,
+                    Date:d,
+                    caption:"",thumbnail:baseUrl + img.ThumbnailLink,src:baseUrl + img.ImageLink,
+                    customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
+                    thumbnailWidth:img.Width,
+                    thumbnailHeight:img.Height
+                }
+            });
+    }
 
     useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages,update]);
 

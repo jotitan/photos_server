@@ -2,6 +2,13 @@ package config
 
 import "strings"
 
+type SecurityConfig struct {
+	MaskForAdmin   string `yaml:"mask-admin"`
+	Username       string `yaml:"username"`
+	Password       string `yaml:"password"`
+	HS256SecretKey string `yaml:"secret"`
+}
+
 type Config struct {
 	CacheFolder string	`yaml:"cache"` // mandatory to specify where pictures are resized
 	WebResources string	`yaml:"resources"`	//mandatory to specify where web resources are
@@ -9,12 +16,7 @@ type Config struct {
 	Garbage string	`yaml:"garbage"`
 	UploadedFolder string `yaml:"upload-folder"`
 	OverrideUploadFolder string  `yaml:"override-upload"`
-	Security struct {
-		MaskForAdmin   string `yaml:"mask-admin"`
-		Username       string `yaml:"username"`
-		Password       string `yaml:"password"`
-		HS256SecretKey string `yaml:"secret"`
-	}
+	Security SecurityConfig `yaml:"security"`
 }
 
 //Check if the config is complete

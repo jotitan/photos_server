@@ -56,22 +56,28 @@ func (g GarbageManager)Remove(files []string)int{
 	return success
 }
 
-func (g GarbageManager)moveOriginalFile(node *Node)bool{
-
-	moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
-	// Check if copy in garbage already exist and source already missing
-	if move,err := os.Open(moveName);err == nil {
+func (g GarbageManager)alreadyMoved(node *Node,path string)bool{
+	if move,err := os.Open(path);err == nil {
 		move.Close()
 		if _,err := os.Open(node.AbsolutePath) ; err != nil {
 			logger.GetLogger2().Info("Image " + node.AbsolutePath + " is already in garbage")
 			return true
 		}
 	}
+	return false
+}
+
+func (g GarbageManager)moveOriginalFile(node *Node)bool{
+
+	moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
+	// Check if copy in garbage already exist and source already missing
+	if g.alreadyMoved(node,moveName){
+		return true
+	}
 	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
 		defer move.Close()
 		if from,err := os.Open(node.AbsolutePath) ; err == nil {
 			if _,err := io.Copy(move,from) ; err == nil {
-				move.Close()
 				from.Close()
 				logger.GetLogger2().Info("Move",node.AbsolutePath,"to garbage",moveName)
 				if err := os.Remove(node.AbsolutePath); err == nil {

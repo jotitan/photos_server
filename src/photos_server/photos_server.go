@@ -328,11 +328,11 @@ func (s Server)removeNode(w http.ResponseWriter,r * http.Request) {
 	}
 	path := r.URL.Path[12:]
 	if err := s.foldersManager.RemoveNode(path) ; err != nil {
-		http.Error(w,err.Error(),400)
-	}else{
-		logger.GetLogger2().Info("Remove node",path)
-		w.Write([]byte("success"))
+		http.Error(w, err.Error(), 400)
+		return
 	}
+	logger.GetLogger2().Info("Remove node",path)
+	w.Write([]byte("success"))
 }
 
 // Return original image
