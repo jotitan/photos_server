@@ -4,6 +4,24 @@ import {UploadOutlined} from "@ant-design/icons";
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
 
+const extractFolderName =  file => {
+    let path = file.originFileObj.webkitRelativePath;
+    if(path !== "" && path.indexOf("/") !== -1){
+        return path.slice(0,path.indexOf("/"));
+    }
+    return "";
+};
+
+function getBase64(img, callback) {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => callback(reader.result));
+    reader.readAsDataURL(img);
+}
+
+const stopRequest = ({ file, onSuccess }) => {
+    setTimeout(() => onSuccess("ok"), 0);
+};
+
 // singleFolderDisplay if true, only images selection and upload in a predefined folder
 export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelVisible,singleFolderDisplay=false,defaultPath='',callbackAfterUpload=()=>{}}) {
 
@@ -12,25 +30,8 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const [progress,setProgress] = useState(0);
     const [selectDirectory,setSelectDirectory] = useState(false);
     let limitImages = 10;
-    const stopRequest = ({ file, onSuccess }) => {
-        setTimeout(() => onSuccess("ok"), 0);
-    };
-
-    function getBase64(img, callback) {
-        const reader = new FileReader();
-        reader.addEventListener('load', () => callback(reader.result));
-        reader.readAsDataURL(img);
-    }
 
     const [images,setImages] = useState([]);
-
-    const extractFolderName =  file => {
-        let path = file.originFileObj.webkitRelativePath;
-        if(path !== "" && path.indexOf("/") !== -1){
-            return path.slice(0,path.indexOf("/"));
-        }
-        return "";
-    };
 
     const updateImages = ({fileList,file}) => {
         if(file != null && file.status === "done"){
@@ -56,11 +57,8 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             method:'POST',
             url:getBaseUrl()+'/uploadFolder',
             data:data,
-            onUploadProgress:info=>{
-                // Progress count for 25%
-                let progressUpload = Math.round((info.loaded / info.total)*25);
-                setProgress(progressUpload);
-            }
+            // Progress count for 25%
+            onUploadProgress:info=>setProgress(Math.round((info.loaded / info.total)*25))
         }).then(d=>{
             // Request sended, get upload progress id and check updates
             if(d.data.status === "running") {
@@ -68,7 +66,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             }else{
                 notification["error"]({message:"Echec de la sauvegarde",description:`Erreur du serveur`});
             }
-        }).catch((error,b)=>{
+        }).catch(error=>{
             notification["error"]({message:"Echec de la sauvegarde",description:`Erreur du serveur ${error}`});
             setWaitUpload(false);
         });

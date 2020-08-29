@@ -165,15 +165,15 @@ func header(w http.ResponseWriter){
 }
 
 func (s Server)filterTagsFolder(w http.ResponseWriter,r * http.Request){
-	folders := s.foldersManager.tagManger.FilterFolder(r.FormValue("value"))
-	header(w)
-	if data,err := json.Marshal(folders) ; err == nil {
-		w.Write(data)
-	}
+	s.filterByFct(w,r,s.foldersManager.tagManger.FilterFolder)
 }
 
 func (s Server)filterTagsDate(w http.ResponseWriter,r * http.Request){
-	folders := s.foldersManager.tagManger.FilterDate(r.FormValue("value"))
+	s.filterByFct(w,r,s.foldersManager.tagManger.FilterDate)
+}
+
+func (s Server)filterByFct(w http.ResponseWriter,r * http.Request,filter func(string)[]string){
+	folders := filter(r.FormValue("value"))
 	header(w)
 	if data,err := json.Marshal(folders) ; err == nil {
 		w.Write(data)

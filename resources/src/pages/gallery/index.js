@@ -20,6 +20,26 @@ import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
 import {CirclePicker} from 'react-color';
 
+const adaptImages = photos=> {
+    return photos
+        .filter(file=>file.ImageLink != null)
+        .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
+        .map(img=>{
+            let d = new Date(img.Date).toLocaleString();
+            let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
+            return {
+                hdLink:getBaseUrlHref() + img.HdLink,
+                path:img.HdLink,
+                folder:folder,
+                Date:d,
+                caption:"",thumbnail:getBaseUrl() + img.ThumbnailLink,src:getBaseUrl() + img.ImageLink,
+                customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
+                thumbnailWidth:img.Width,
+                thumbnailHeight:img.Height
+            }
+        });
+};
+
 // setIsAddFolderPanelVisible to show folder to upload
 export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,canAdmin,setIsAddFolderPanelVisible,setCurrentFolder,update,setUpdate}) {
     const [images,setImages] = useState([]);
@@ -36,7 +56,6 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
     const [showThumbnails,setShowThumbnails] = useState(false);
     const [comp,setComp] = useState(null);
     let baseUrl = getBaseUrl();
-    let baseUrlHref = getBaseUrlHref();
 
     // Gestion du tag
     const [showInputTag,setShowInputTag] = useState(false);
@@ -74,7 +93,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
             url:urlFolder.tags,
             data:JSON.stringify(tag),
         }).then(callback);
-    }
+    };
 
     const memLoadImages = useCallback(()=> {
         if(urlFolder === '' || urlFolder.load === ''){return;}
@@ -91,27 +110,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
             setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
             setImages(adaptImages(photos));
         })
-    },[urlFolder,baseUrl,baseUrlHref,setCurrentFolder]);
-
-    const adaptImages = photos=> {
-        return photos
-            .filter(file=>file.ImageLink != null)
-            .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
-            .map(img=>{
-                let d = new Date(img.Date).toLocaleString();
-                let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
-                return {
-                    hdLink:baseUrlHref + img.HdLink,
-                    path:img.HdLink,
-                    folder:folder,
-                    Date:d,
-                    caption:"",thumbnail:baseUrl + img.ThumbnailLink,src:baseUrl + img.ImageLink,
-                    customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
-                    thumbnailWidth:img.Width,
-                    thumbnailHeight:img.Height
-                }
-            });
-    }
+    },[urlFolder,setCurrentFolder]);
 
     useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages,update]);
 
@@ -235,7 +234,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
             default:
                 setNextTagValue(value.target.value);
         }
-    }
+    };
 
     const updateColor = (color,tag)=>{
         let newTag = {value:tag.value,color:color.hex};
@@ -290,7 +289,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
 
     const isFolderEmpty = ()=>{
         return urlFolder !=="" && urlFolder.load !== "" && images.length === 0;
-    }
+    };
 
     const showEmptyMessage = ()=> {
         return (
