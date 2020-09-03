@@ -77,6 +77,8 @@ function App() {
                 .then(()=>setCanAccess(true))
                 .finally(()=>{
                     setHideAll(false);
+                    console.log(window.location.href,window.location.search,window.location);
+                    console.log(window.location.href.replace(window.location.search,''));
                     history.push(window.location.href.replace(window.location.search,''));
                 }))
         }else {
