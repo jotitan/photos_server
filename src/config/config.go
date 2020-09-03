@@ -2,11 +2,27 @@ package config
 
 import "strings"
 
-type SecurityConfig struct {
-	MaskForAdmin   string `yaml:"mask-admin"`
+// Config of oauth2
+type OAuth2Config struct {
+	// Can only be google for now
+	Provider string `yaml:"provider"`
+	ClientID string	`yaml:"client_id"`
+	ClientSecret string	`yaml:"client_secret"`
+	RedirectUrl string `yaml:"redirect_url"`
+	AuthorizedEmails	[]string `yaml:"emails"`
+	AdminEmails		[]string `yaml:"admin_emails"`
+}
+
+type BasicConfig struct {
 	Username       string `yaml:"username"`
 	Password       string `yaml:"password"`
+}
+
+type SecurityConfig struct {
+	MaskForAdmin   string `yaml:"mask-admin"`
 	HS256SecretKey string `yaml:"secret"`
+	BasicConfig BasicConfig `yaml:"basic"`
+	OAuth2Config OAuth2Config `yaml:"oauth2"`
 }
 
 type Config struct {

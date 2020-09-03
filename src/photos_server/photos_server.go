@@ -6,6 +6,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/security"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -20,19 +21,16 @@ type SecurityAccess struct {
 	maskForAdmin string
 	// true only if username and password exist
 	userAccessEnable bool
-	username string
-	password string
-	hs256SecretKey []byte
+	// Used for jwt token
+	hs256SecretKey   []byte
+	accessProvider     security.AccessProvider
 }
 
-func NewSecurityAccess(maskForAdmin,username,password string,hs256SecretKey []byte)*SecurityAccess{
+func NewSecurityAccess(maskForAdmin string,hs256SecretKey []byte)*SecurityAccess{
 	sa := SecurityAccess{maskForAdmin:maskForAdmin,userAccessEnable:false}
-	if !strings.EqualFold("",username) && !strings.EqualFold("",password) && len(hs256SecretKey) > 0{
-		sa.userAccessEnable = true
-		sa.username = username
-		sa.password = password
+	if len(hs256SecretKey) > 0 {
 		sa.hs256SecretKey = hs256SecretKey
-		logger.GetLogger2().Info("Use basic with JWT security mode")
+		logger.GetLogger2().Info("Use JWT security mode")
 	}else{
 		logger.GetLogger2().Info("Use simple security mode")
 	}
@@ -59,37 +57,34 @@ func (sa SecurityAccess)checkAccess(r * http.Request)bool{
 	if sa.checkMaskAccess(r) {
 		return true
 	}
-	// Check authorisation
-	if sa.userAccessEnable {
-		if username, password, ok := r.BasicAuth(); ok && !strings.EqualFold("", username) {
-			success :=  strings.EqualFold(username, sa.username) && strings.EqualFold(password, sa.password)
-			if success {
-				logger.GetLogger2().Info(fmt.Sprintf("User %s connected",username))
-			}else{
-				logger.GetLogger2().Error(fmt.Sprintf("User %s try to connect but fail",username))
-			}
-			return success
-		}
-	}
 	return false
 }
 
-func (sa SecurityAccess)checkJWTToken(r * http.Request)bool{
+// Check read access
+func (sa SecurityAccess) checkJWTTokenAccess(r * http.Request)bool{
 	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
 	if token := sa.getJWTCookie(r); token != nil {
 		if jwtToken,err :=jwt.Parse(token.Value,func(token *jwt.Token) (interface{}, error) {return sa.hs256SecretKey,nil});err == nil {
-			if strings.EqualFold(sa.username,jwtToken.Claims.(jwt.MapClaims)["username"].(string)) {
-				return true
-			}
+			return sa.accessProvider.CheckReadAccess(jwtToken)
 		}
 	}
 	return false
 }
 
+// Check write access
+func (sa SecurityAccess) checkJWTTokenAdminAccess(r * http.Request)bool{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if token := sa.getJWTCookie(r); token != nil {
+		if jwtToken,err :=jwt.Parse(token.Value,func(token *jwt.Token) (interface{}, error) {return sa.hs256SecretKey,nil});err == nil {
+			return sa.accessProvider.CheckAdminAccess(jwtToken)
+		}
+	}
+	return false
+}
 
-func (sa SecurityAccess)setJWTToken(username string,w http.ResponseWriter){
+func (sa SecurityAccess)setJWTToken(extras map[string]interface{},w http.ResponseWriter){
 	// No expiracy
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256,jwt.MapClaims{"username":username})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,jwt.MapClaims(extras))
 	if sToken,err := token.SignedString(sa.hs256SecretKey); err == nil {
 		cookie := http.Cookie{}
 		cookie.Name="token"
@@ -101,14 +96,20 @@ func (sa SecurityAccess)setJWTToken(username string,w http.ResponseWriter){
 	}
 }
 
-func (sa SecurityAccess) CheckAdmin(w http.ResponseWriter,r * http.Request)bool{
+// Return security type with parameters
+func (sa SecurityAccess) GetTypeSecurity()string{
+	return sa.accessProvider.Info()
+}
+
+// Try connect by provider with parameters
+func (sa SecurityAccess) Connect(w http.ResponseWriter,r * http.Request)bool{
 	// Check if jwt token exist and valid. Create by server during first connexion
-	if sa.checkJWTToken(r){
+	if sa.getJWTCookie(r) != nil{
 		// If jwt already exist, don't create a new
 		return true
 	}
-	if sa.checkAccess(r) {
-		sa.setJWTToken(sa.username,w)
+	if success,extras := sa.accessProvider.Connect(r) ; success{
+		sa.setJWTToken(extras,w)
 		return true
 	}
 	return false
@@ -122,9 +123,20 @@ type Server struct {
 	pathRoutes map[string]func(w http.ResponseWriter,r *http.Request)
 }
 
-func (s *Server)setSecurityAccess(conf *config.Config){
+// Create security access from good provider
+func (s *Server)setSecurityAccess(conf *config.Config) {
 	if s.foldersManager.garbageManager != nil {
-		s.securityAccess = NewSecurityAccess(conf.Security.MaskForAdmin,conf.Security.Username,conf.Security.Password,[]byte(conf.Security.HS256SecretKey))
+		s.securityAccess = NewSecurityAccess(conf.Security.MaskForAdmin, []byte(conf.Security.HS256SecretKey))
+		// Check if basic or provider is enabled
+		if !strings.EqualFold("", conf.Security.BasicConfig.Username) {
+			s.securityAccess.accessProvider = security.NewBasicProvider(conf.Security.BasicConfig.Username, conf.Security.BasicConfig.Password)
+		} else {
+			if !strings.EqualFold("", conf.Security.OAuth2Config.Provider) {
+				if provider := security.NewProvider(conf.Security.OAuth2Config); provider != nil {
+					s.securityAccess.accessProvider = security.NewOAuth2AccessProvider(provider, conf.Security.OAuth2Config.AuthorizedEmails,conf.Security.OAuth2Config.AdminEmails)
+				}
+			}
+		}
 	}
 }
 
@@ -139,7 +151,7 @@ func NewPhotosServerFromConfig(conf *config.Config)Server{
 }
 
 func (s Server)canAccessAdmin(w http.ResponseWriter,r * http.Request)bool{
-	return s.securityAccess!= nil && s.securityAccess.CheckAdmin(w,r)
+	return s.securityAccess!= nil && s.securityAccess.checkJWTTokenAdminAccess(r)
 }
 
 func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
@@ -150,9 +162,35 @@ func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+func (s Server)getSecurityConfig(w http.ResponseWriter,r * http.Request){
+	if s.securityAccess != nil {
+		w.Write([]byte(s.securityAccess.GetTypeSecurity()))
+	}	else{
+		w.Write([]byte("{\"name\":\"none\"}"))
+	}
+}
+
+
 func (s Server)canAdmin(w http.ResponseWriter,r * http.Request){
 	header(w)
-	w.Write([]byte(fmt.Sprintf("{\"can\":%t}",s.canAccessAdmin(w,r))))
+	if !s.canAccessAdmin(w,r) {
+		http.Error(w, "acess denied, only admin", 403)
+	}
+}
+
+func (s Server)connect(w http.ResponseWriter,r * http.Request){
+	connected := s.securityAccess.Connect(w,r)
+	w.Write([]byte(fmt.Sprintf("{\"connect\":%t}",connected)))
+}
+
+// Can access is enable if oauth2 is configured, otherwise, only admin is checked
+func (s Server)canAccess(w http.ResponseWriter,r * http.Request){
+	header(w)
+	if s.securityAccess != nil{
+		if !s.securityAccess.checkJWTTokenAccess(r) {
+			http.Error(w,"access denied",401)
+		}
+	}
 }
 
 func (s Server)flushTags(w http.ResponseWriter,r * http.Request){
@@ -624,8 +662,12 @@ func (s Server)defaultHandle(w http.ResponseWriter,r * http.Request){
 	if fct,exist := s.pathRoutes[path] ; exist {
 		fct(w,r)
 	}else {
-		//logger.GetLogger2().Info("Receive request", r.URL, r.URL.Path)
-		http.ServeFile(w, r, filepath.Join(s.resources, r.RequestURI[1:]))
+		// If ? exist, cut before
+		pos := len(r.RequestURI)
+		if posQMark := strings.Index(r.RequestURI,"?");posQMark != -1 {
+			pos = posQMark
+		}
+		http.ServeFile(w, r, filepath.Join(s.resources, r.RequestURI[1:pos]))
 	}
 }
 
@@ -643,7 +685,6 @@ func (s Server)Launch(conf *config.Config){
 	server.HandleFunc("/statUpload",s.statUpload)
 	server.HandleFunc("/statUploadRT",s.statUploadRT)
 	server.HandleFunc("/listFolders",s.listFolders)
-	server.HandleFunc("/canAdmin",s.canAdmin)
 	server.HandleFunc("/updateExifOfDate",s.updateExifOfDate)
 	server.HandleFunc("/count",s.count)
 	// By date
@@ -652,6 +693,13 @@ func (s Server)Launch(conf *config.Config){
 	server.HandleFunc("/flushTags",s.flushTags)
 	server.HandleFunc("/filterTagsFolder",s.filterTagsFolder)
 	server.HandleFunc("/filterTagsDate",s.filterTagsDate)
+
+	// Security
+	server.HandleFunc("/canAdmin",s.canAdmin)
+	server.HandleFunc("/canAccess",s.canAccess)
+	server.HandleFunc("/connect",s.connect)
+	server.HandleFunc("/securityConfig",s.getSecurityConfig)
+
 	server.HandleFunc("/",s.defaultHandle)
 
 	logger.GetLogger2().Info("Start server on port " + conf.Port)
