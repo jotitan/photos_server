@@ -20,6 +20,7 @@ export default function ConnectPanel({setCanAccess}) {
                     // redirect
                     window.location.href=d.data.url;
                     break;
+                default:console.log("unknown case");
             }
         })
     },[]);
