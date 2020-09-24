@@ -52,9 +52,14 @@ garbage: <folder where to move deleted files>
 upload-folder: <folder where to upload pictures>
 security:    
   mask-admin: <mandatory to use garbage, mask on referer. Used to protect admin operation to be launch only at home on personal network>
-  username: <username to get admin access outside>
-  password: <password linked to user>
   secret: <key used to sign jwt Token (HS256) (https://mkjwk.org/ > oct / HS256)>
+  oauth2:
+    provider: <oauth2 provider. Only google at this time>
+    client_id: <client id on cloud provider>
+    client_secret: <client secret on cloud provider>
+    redirect_url: <url to redirect after authentication>
+    emails: <authorized email on cloud>
+    admin_emails: <emails which have admin status>
 ```
 **Server run on port 9006**
 

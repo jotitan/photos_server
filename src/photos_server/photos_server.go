@@ -436,6 +436,7 @@ func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 		http.Error(w,"Bad request " + err.Error(),400)
 		logger.GetLogger2().Error("Impossible to upload folder : ",err.Error())
 	}else{
+		logger.GetLogger2().Info("Return progresser for id",progresser.id)
 		w.Write([]byte(fmt.Sprintf("{\"status\":\"running\",\"id\":\"%s\"}",progresser.id)))
 	}
 }
@@ -451,6 +452,7 @@ func (s Server)statUploadRT(w http.ResponseWriter,r * http.Request){
 		sse.watch()
 		logger.GetLogger2().Info("End watch")
 	}else{
+		logger.GetLogger2().Info("Impossible to watch upload",err.Error())
 		http.Error(w,err.Error(),404)
 	}
 }

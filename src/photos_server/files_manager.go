@@ -595,7 +595,7 @@ func (upm * uploadProgressManager)addSSE(id string, w http.ResponseWriter,r * ht
 		up.sses = append(up.sses,sse)
 		return sse,nil
 	}
-	return nil,errors.New("unknown upload id")
+	return nil,errors.New("unknown upload id for SSE")
 }
 
 // return unique id representing upload
@@ -603,6 +603,7 @@ func (upm * uploadProgressManager)addUploader(total int)*uploadProgress{
 	id := upm.generateNewID()
 	uploader := &uploadProgress{chanel:make(chan struct{},10),total:total*2,id:id,manager:upm}
 	uploader.run()
+	logger.GetLogger2().Info("Create uploader",id)
 	upm.uploads[id] = uploader
 	return uploader
 }
@@ -616,6 +617,7 @@ func (upm * uploadProgressManager)generateNewID()string{
 }
 
 func (upm *uploadProgressManager) remove(id string) {
+	logger.GetLogger2().Info("Remove uploader",id)
 	delete(upm.uploads,id)
 }
 
