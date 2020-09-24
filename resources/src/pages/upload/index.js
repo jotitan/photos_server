@@ -73,7 +73,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     };
 
     const monitorUpdateProgress = (id,path)=> {
-        let es = new EventSource(`/statUploadRT?id=${id}`);
+        let es = new EventSource(`/statUploadRT?id=${encodeURIComponent(id)}`);
         es.addEventListener("stat", mess => {
             let stat = JSON.parse(mess.data);
             let percent = 25 + Math.round((stat.done/stat.total)*75);

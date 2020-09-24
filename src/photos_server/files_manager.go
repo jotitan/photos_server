@@ -617,7 +617,6 @@ func (upm * uploadProgressManager)generateNewID()string{
 }
 
 func (upm *uploadProgressManager) remove(id string) {
-	logger.GetLogger2().Info("Remove uploader",id)
 	delete(upm.uploads,id)
 }
 
