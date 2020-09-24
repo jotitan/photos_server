@@ -595,7 +595,7 @@ func (upm * uploadProgressManager)addSSE(id string, w http.ResponseWriter,r * ht
 		up.sses = append(up.sses,sse)
 		return sse,nil
 	}
-	return nil,errors.New("unknown upload id for SSE")
+	return nil,errors.New("unknown upload id " + id + " for SSE (" + fmt.Sprintf("%d",len(upm.uploads)))
 }
 
 // return unique id representing upload
