@@ -1,6 +1,15 @@
 package config
 
-import "strings"
+import (
+	"strings"
+)
+
+type CronTask struct {
+	Cron string `yaml:"cron"`
+	Run string `yaml:"run"`
+}
+
+type CronTasks [] CronTask
 
 // Config of oauth2
 type OAuth2Config struct {
@@ -33,6 +42,7 @@ type Config struct {
 	UploadedFolder string `yaml:"upload-folder"`
 	OverrideUploadFolder string  `yaml:"override-upload"`
 	Security SecurityConfig `yaml:"security"`
+	Tasks CronTasks `yaml:"tasks"`
 }
 
 //Check if the config is complete

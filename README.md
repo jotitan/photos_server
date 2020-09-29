@@ -60,6 +60,12 @@ security:
     redirect_url: <url to redirect after authentication>
     emails: <authorized email on cloud>
     admin_emails: <emails which have admin status>
+  basic:
+    username: <username for basic auth>
+    password: <password for basic auth>
+  tasks:  <tasks run with cron syntax (usefull to save json save file on other media>
+    - cron: <cron syntax to configure when task is lunched>
+      run: <command to run> 
 ```
 **Server run on port 9006**
 

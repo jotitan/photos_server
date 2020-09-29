@@ -15,8 +15,9 @@ func ReadConfig(path string)(*Config,error){
 				return conf,nil
 			}
 			return nil,errors.New("Mauvaise configuration")
+		}else{
+			return nil,err
 		}
-		return nil,err
 	}else{
 		return nil,err
 	}
