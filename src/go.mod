@@ -9,6 +9,8 @@ require (
 	github.com/dsoprea/go-jpeg-image-structure v0.0.0-20200419165912-75b7a4f392e6
 	github.com/go-errors/errors v1.0.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/robfig/cron v1.2.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/text v0.3.2
 	gopkg.in/yaml.v2 v2.2.7
