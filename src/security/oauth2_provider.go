@@ -23,6 +23,7 @@ type Provider interface{
 	GetTokenFromCode(code string)(string,error)
 	// Extract data from jwt token
 	CheckAndExtractData(token string)(map[string]interface{},error)
+	CheckEmail(email string) bool
 }
 
 func NewProvider(conf config.OAuth2Config)Provider{
@@ -48,6 +49,10 @@ func NewGoogleProvider(clientID,clientSecret,redirectUrl string)GoogleProvider{
 		urlGenerateCode:"https://accounts.google.com/o/oauth2/v2/auth",
 		urlToken:"https://oauth2.googleapis.com/token",
 	}
+}
+
+func (gp GoogleProvider) CheckEmail(email string) bool {
+	return strings.HasSuffix(email,"@gmail.com")
 }
 
 func (gp GoogleProvider) GenerateUrlConnection() string {

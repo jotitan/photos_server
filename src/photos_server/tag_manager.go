@@ -30,13 +30,13 @@ func (t Tag)Equals(tag Tag)bool {
 type TagManager struct {
 	TagsByDate     map[string][]*Tag
 	TagsByFolder   map[string][]*Tag
-	foldersManager * foldersManager
+	foldersManager *FoldersManager
 	counter        int32
 	// Used to synchronize write
 	locker sync.Mutex
 }
 
-func NewTagManager(foldersManager *foldersManager)*TagManager{
+func NewTagManager(foldersManager *FoldersManager)*TagManager{
 	tm := &TagManager{TagsByDate: make(map[string][]*Tag), TagsByFolder:make(map[string][]*Tag),foldersManager:foldersManager,counter:0,locker:sync.Mutex{}}
 	tm.load()
 	return tm

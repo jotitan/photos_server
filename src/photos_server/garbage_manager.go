@@ -12,10 +12,10 @@ import (
 type GarbageManager struct {
 	// Where images are moved
 	folder string
-	manager *foldersManager
+	manager *FoldersManager
 }
 
-func NewGarbageManager(folder,maskAdmin string,manager *foldersManager)*GarbageManager {
+func NewGarbageManager(folder,maskAdmin string,manager *FoldersManager)*GarbageManager {
 	// Test if folder exist
 	if strings.EqualFold("",maskAdmin) {
 		logger.GetLogger2().Error("Impossible to use garbage without a security mask")

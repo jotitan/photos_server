@@ -75,6 +75,7 @@ function App() {
                 data:params
             }).then(()=>checkReadAccess()
                 .then(()=>setCanAccess(true))
+                .catch(()=>setCanAccess(false))
                 .finally(()=>{
                     setHideAll(false);
                     history.push(window.location.href.replace(window.location.search,'').replace(window.location.origin,''));

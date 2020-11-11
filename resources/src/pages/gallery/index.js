@@ -3,8 +3,11 @@ import {Col, Empty, Input, Modal, notification, Popconfirm, Row, Tag, Tooltip} f
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
+import SharePanel from "../share"
+
 
 import {
+    UserAddOutlined,
     ChromeOutlined,
     CloseOutlined,
     DeleteFilled,
@@ -46,6 +49,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
     const [imageToZoom,setImageToZoom] = useState('');
     const [zoomEnable,setZoomEnable] = useState(false);
     const [updateUrl,setUpdateUrl] = useState('');
+    const [showSharePanel,setShowSharePanel] = useState(false);
     const [updateExifUrl,setUpdateExifUrl] = useState('');
     const [removeFolderUrl,setRemoveFolderUrl] = useState('');
     const [currentImage,setCurrentImage] = useState(-1);
@@ -199,6 +203,9 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
     const showUpdateLink = ()=> {
         return !canAdmin || updateUrl === '' || updateUrl ==null ? <></> :
             <>
+                <Tooltip key={"image-share"} placement="top" title={"Partager le répertoire"}>
+                    <UserAddOutlined onClick={()=>setShowSharePanel(true)} className={"button"}/>
+                </Tooltip>
                 {isFolderEmpty() ? <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
                             onConfirm={removeFolder} okText="Oui" cancelText="Non">
                     <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
@@ -349,6 +356,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
                         </TransformComponent>
                     </TransformWrapper>
                 </Modal>
+                <SharePanel showSharePanel={showSharePanel} hide={()=>setShowSharePanel(false)} path={urlFolder.path} />
             </Row>
         </>
     )

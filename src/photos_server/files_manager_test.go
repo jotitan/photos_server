@@ -61,7 +61,7 @@ func newImage(folder,path,name,date string)*Node{
 	return img
 }
 
-func createStructure()*foldersManager{
+func createStructure()*FoldersManager {
 	fm := NewFoldersManager("//","","","","")
 	filesSub2 := Files{}
 	filesSub2["leaf1.jpg"] = newImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg","20200502")

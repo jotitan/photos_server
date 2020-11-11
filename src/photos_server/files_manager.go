@@ -63,7 +63,7 @@ func NewFolder(rootFolder,path,name string,files Files, imageResized bool)*Node{
 }
 
 // Store many folders
-type foldersManager struct{
+type FoldersManager struct{
 	Folders map[string]*Node
 	PhotosByDate map[time.Time][]*Node
 	garbageManager * GarbageManager
@@ -76,8 +76,8 @@ type foldersManager struct{
 	uploadProgressManager *uploadProgressManager
 }
 
-func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUploadFolder string)*foldersManager{
-	fm := &foldersManager{Folders:make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),
+func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUploadFolder string)*FoldersManager {
+	fm := &FoldersManager{Folders: make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),
 		UploadedFolder:uploadedFolder,overrideUploadFolder:overrideUploadFolder,
 	uploadProgressManager:newUploadProgressManager()}
 	fm.load()
@@ -91,7 +91,7 @@ type photosByDate struct {
 	Nb int
 }
 
-func (fm * foldersManager)GetAllDates()[]photosByDate{
+func (fm *FoldersManager)GetAllDates()[]photosByDate{
 	byDate := fm.GetPhotosByDate()
 	dates := make([]photosByDate,0,len(byDate))
 	for date,nodes := range byDate {
@@ -100,12 +100,12 @@ func (fm * foldersManager)GetAllDates()[]photosByDate{
 	return dates
 }
 
-func (fm * foldersManager)resetPhotosByDate(){
+func (fm *FoldersManager)resetPhotosByDate(){
 	fm.PhotosByDate = nil
 }
 
 // Update exif of all photos of a specific date
-func (fm * foldersManager)updateExifOfDate(date string)(int,error){
+func (fm *FoldersManager)updateExifOfDate(date string)(int,error){
 	if parseDate,err := time.Parse("20060102",date) ; err != nil {
 		return 0,err
 	}else {
@@ -126,18 +126,18 @@ func (fm * foldersManager)updateExifOfDate(date string)(int,error){
 }
 
 
-func (fm * foldersManager)GetPhotosByDate()map[time.Time][]*Node{
+func (fm *FoldersManager)GetPhotosByDate()map[time.Time][]*Node{
 	if fm.PhotosByDate == nil {
 		fm.PhotosByDate = fm.computePhotosByDate(fm.Folders)
 	}
 	return fm.PhotosByDate
 }
 
-func (fm foldersManager) GetSmallImageName(node Node)string{
+func (fm FoldersManager) GetSmallImageName(node Node)string{
 	return fm.reducer.createJpegFile(filepath.Dir(node.RelativePath),node.RelativePath,fm.reducer.sizes[1])
 }
 
-func (fm foldersManager) GetMiddleImageName(node Node)string{
+func (fm FoldersManager) GetMiddleImageName(node Node)string{
 	return fm.reducer.createJpegFile(filepath.Dir(node.RelativePath),node.RelativePath,fm.reducer.sizes[0])
 }
 
@@ -208,7 +208,7 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node,[]*Node)
 var updateLocker = sync.Mutex{}
 
 // Only update one folder
-func (fm * foldersManager)UpdateFolder(path string,progress *uploadProgress)error{
+func (fm *FoldersManager)UpdateFolder(path string,progress *uploadProgress)error{
 	if node,_,err := fm.FindNode(path) ; err != nil {
 		return err
 	}else {
@@ -233,7 +233,7 @@ func getOnlyElementFromMap(files Files)*Node{
 	return nil
 }
 
-func (fm * foldersManager)UpdateExif(path string)error {
+func (fm *FoldersManager)UpdateExif(path string)error {
 	if node,_,err := fm.FindNode(path) ; err != nil {
 		return err
 	}else {
@@ -255,7 +255,7 @@ func (fm * foldersManager)UpdateExif(path string)error {
 }
 
 // If folderpath not empty, compare only in this folder
-func (fm * foldersManager)compareAndCleanFolder(files Files,folderPath string,newFolders map[string]*Node, progress *uploadProgress){
+func (fm *FoldersManager)compareAndCleanFolder(files Files,folderPath string,newFolders map[string]*Node, progress *uploadProgress){
 
 	// Include dry run and full (compare length a nodes or compare always everything)
 	folders := fm.Folders
@@ -287,7 +287,7 @@ func (fm * foldersManager)compareAndCleanFolder(files Files,folderPath string,ne
 }
 
 //Update : compare structure in memory and folder to detect changes
-func (fm * foldersManager)Update()error{
+func (fm *FoldersManager)Update()error{
 	// Have to block to avoid second update in same time
 	// A lock is blocking, so use a chanel tiomeout to check if locker is still block
 	updateWaiter := sync.WaitGroup{}
@@ -328,7 +328,7 @@ func (fm * foldersManager)Update()error{
 }
 
 // Only remove the node in tree, not the file
-func (fm * foldersManager)RemoveNode(path string)error{
+func (fm *FoldersManager)RemoveNode(path string)error{
 	if node, parent, err := fm.FindNode(path) ; err != nil {
 		return err
 	}else{
@@ -342,7 +342,7 @@ func (fm * foldersManager)RemoveNode(path string)error{
 	return nil
 }
 
-func (fm foldersManager)FindNode(path string)(*Node,map[string]*Node,error){
+func (fm FoldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 	current := fm.Folders
 	nbSub := strings.Count(path,"/")
 	if nbSub == 0{
@@ -378,13 +378,13 @@ func (fm foldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 	return nil,nil,errors.New("Bad path " + path)
 }
 
-func (fm foldersManager)removeFiles(files map[string]*Node){
+func (fm FoldersManager)removeFiles(files map[string]*Node){
 	for _,node := range files {
 		fm.removeFilesNode(node)
 	}
 }
 
-func (fm foldersManager)removeFilesNode( node * Node)error{
+func (fm FoldersManager)removeFilesNode( node * Node)error{
 	if err := fm.removeFile(filepath.Join(fm.reducer.cache,fm.GetSmallImageName(*node))) ; err == nil {
 		return fm.removeFile(filepath.Join(fm.reducer.cache,fm.GetMiddleImageName(*node)))
 	}else{
@@ -392,7 +392,7 @@ func (fm foldersManager)removeFilesNode( node * Node)error{
 	}
 }
 
-func (fm foldersManager)removeFile(path string)error{
+func (fm FoldersManager)removeFile(path string)error{
 	logger.GetLogger2().Info("Remove file",path)
 	return os.Remove(path)
 }
@@ -400,7 +400,7 @@ func (fm foldersManager)removeFile(path string)error{
 // used when upload
 // @overrideOutput override default output folder by adding inside a path folder
 // @forceRelativePath is true, use relativePath as real relative of new node
-func (fm * foldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput string,forceRotate,forceRelativePath bool,progress *uploadProgress)error{
+func (fm *FoldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput string,forceRotate,forceRelativePath bool,progress *uploadProgress)error{
 	// Compute relative path
 	rootFolder := filepath.Dir(relativePath)
 	if strings.EqualFold("",rootFolder) || strings.EqualFold(".",rootFolder) {
@@ -424,11 +424,11 @@ func (fm * foldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput
 	return nil
 }
 
-func (fm * foldersManager)AddFolder(folderPath string,forceRotate bool,progress *uploadProgress){
+func (fm *FoldersManager)AddFolder(folderPath string,forceRotate bool,progress *uploadProgress){
 	fm.AddFolderWithNode(fm.Folders,"",folderPath,"",forceRotate,progress)
 }
 
-func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,overrideOutput string,forceRotate bool,progress *uploadProgress){
+func (fm *FoldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,overrideOutput string,forceRotate bool,progress *uploadProgress){
 	if strings.EqualFold("",rootFolder) {
 		rootFolder = filepath.Dir(folderPath)
 	}
@@ -459,7 +459,7 @@ func (fm * foldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,ov
 }
 
 
-func (fm * foldersManager) searchExistingReducedImages(folderPath string)map[string]struct{}{
+func (fm *FoldersManager) searchExistingReducedImages(folderPath string)map[string]struct{}{
 	// Find the folder in cache
 	folder := filepath.Join(fm.reducer.cache,filepath.Base(folderPath))
 	tree := fm.Analyse(fm.reducer.cache,folder)
@@ -487,7 +487,7 @@ func extractImages(node *Node)map[string]struct{}{
 	return m
 }
 
-func (fm * foldersManager)load(){
+func (fm *FoldersManager)load(){
 	if f,err := os.Open(getSavePath()) ; err == nil {
 		defer f.Close()
 		data,_ := ioutil.ReadAll(f)
@@ -622,7 +622,7 @@ func (upm *uploadProgressManager) remove(id string) {
 
 // folder must be a relative path
 // addToFolder, if true, can add photos in existing folder
-func (fm * foldersManager)UploadFolder(folder string, files []multipart.File,names []string,addToFolder bool)(*uploadProgress,error){
+func (fm *FoldersManager)UploadFolder(folder string, files []multipart.File,names []string,addToFolder bool)(*uploadProgress,error){
 	if len(files) != len(names){
 		return nil,errors.New("error during upload")
 	}
@@ -653,7 +653,7 @@ func (fm * foldersManager)UploadFolder(folder string, files []multipart.File,nam
 	return progresser,nil
 }
 
-func (fm * foldersManager)doUploadFolder( folder,outputFolder string,names []string,files []multipart.File,addToFolder bool,progress *uploadProgress){
+func (fm *FoldersManager)doUploadFolder( folder,outputFolder string,names []string,files []multipart.File,addToFolder bool,progress *uploadProgress){
 	// Copy files on filer
 	for i,file := range files {
 		if imageFile,err := os.OpenFile(filepath.Join(outputFolder,names[i]),os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
@@ -691,7 +691,7 @@ func createFolderIfExistOrFail(path string)error {
 	return os.MkdirAll(path,os.ModePerm)
 }
 
-func (fm * foldersManager)save(){
+func (fm *FoldersManager)save(){
 	fm.resetPhotosByDate()
 	data,_ := json.Marshal(fm.Folders)
 	if f,err := os.OpenFile(getSavePath(),os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm) ; err == nil {
@@ -703,7 +703,7 @@ func (fm * foldersManager)save(){
 	}
 }
 
-func (fm * foldersManager)launchImageResize(folder *Node, rootFolder,overrideOutput string,progress *uploadProgress, existings map[string]struct{},forceRotate bool){
+func (fm *FoldersManager)launchImageResize(folder *Node, rootFolder,overrideOutput string,progress *uploadProgress, existings map[string]struct{},forceRotate bool){
 	folder.RelativePath = filepath.Join(overrideOutput,folder.RelativePath)
 	folder.applyOnEach(rootFolder,func(path,relativePath string,node * Node){
 		progress.Add(1)
@@ -718,7 +718,7 @@ func (fm * foldersManager)launchImageResize(folder *Node, rootFolder,overrideOut
 	}(folder)
 }
 
-func (fm foldersManager)AnalyseAsOne(rootFolder,path string)(string,*Node){
+func (fm FoldersManager)AnalyseAsOne(rootFolder,path string)(string,*Node){
 	files := fm.Analyse(rootFolder,path)
 	if len(files) == 1 {
 		for name,node := range files {
@@ -729,7 +729,7 @@ func (fm foldersManager)AnalyseAsOne(rootFolder,path string)(string,*Node){
 }
 
 //Analyse a cache and detect all files of types images
-func (fm foldersManager)Analyse(rootFolder,path string)Files{
+func (fm FoldersManager)Analyse(rootFolder,path string)Files{
 	if file,err := os.Open(path) ; err == nil{
 		defer file.Close()
 		// If cache, create cache and go deep
@@ -746,7 +746,7 @@ func (fm foldersManager)Analyse(rootFolder,path string)Files{
 	return Files{}
 }
 
-func (fm foldersManager)treatImage(rootFolder,path,name string)map[string]*Node{
+func (fm FoldersManager)treatImage(rootFolder,path,name string)map[string]*Node{
 	// Test if is image
 	if isImage(name){
 		return createSimpleMap(name,NewImage(rootFolder,path, name))
@@ -754,7 +754,7 @@ func (fm foldersManager)treatImage(rootFolder,path,name string)map[string]*Node{
 	return Files{}
 }
 
-func (fm foldersManager)treatFolder (rootFolder,path,name string,file *os.File)map[string]*Node{
+func (fm FoldersManager)treatFolder (rootFolder,path,name string,file *os.File)map[string]*Node{
 	files,_ := file.Readdirnames(-1)
 	nodes := make(map[string]*Node,0)
 	for _,file := range files {
@@ -773,7 +773,7 @@ func createSimpleMap(name string,node *Node)map[string]*Node{
 	return r
 }
 
-func (fm foldersManager)List()[]*Node{
+func (fm FoldersManager)List()[]*Node{
 	nodes := make([]*Node,0,len(fm.Folders))
 	for name,folder := range fm.Folders{
 		nodes = append(nodes,NewFolder("",name,name,nil,folder.ImagesResized))
@@ -781,7 +781,7 @@ func (fm foldersManager)List()[]*Node{
 	return nodes
 }
 
-func (fm *foldersManager) Browse(path string) ([]*Node,error){
+func (fm *FoldersManager) Browse(path string) ([]*Node,error){
 	if len(path) < 2 {
 		// Return list
 		return fm.List(),nil
@@ -800,7 +800,7 @@ func (fm *foldersManager) Browse(path string) ([]*Node,error){
 	}
 }
 
-func (fm * foldersManager)browsePaths(path string)(*Node,error){
+func (fm *FoldersManager)browsePaths(path string)(*Node,error){
 	var node *Node
 	var exist bool
 	// Browse path
@@ -821,7 +821,7 @@ func (fm * foldersManager)browsePaths(path string)(*Node,error){
 	return node,nil
 }
 
-func (fm *foldersManager) computePhotosByDate(files Files) map[time.Time][]*Node {
+func (fm *FoldersManager) computePhotosByDate(files Files) map[time.Time][]*Node {
 	byDate := make(map[time.Time][]*Node)
 	// Browse all pictures and group by date
 	for _,node := range files {
@@ -838,7 +838,7 @@ func (fm *foldersManager) computePhotosByDate(files Files) map[time.Time][]*Node
 	return byDate
 }
 
-func (fm *foldersManager) Count() int{
+func (fm *FoldersManager) Count() int{
 	count := 0
 	for _,nodes := range fm.GetPhotosByDate() {
 		count+=len(nodes)
@@ -846,7 +846,7 @@ func (fm *foldersManager) Count() int{
 	return count
 }
 
-func (fm *foldersManager) IndexFolder(path string, folder string) error {
+func (fm *FoldersManager) IndexFolder(path string, folder string) error {
 	if _,_,err := fm.FindNode(path) ; err == nil {
 		return errors.New("path already exist")
 	}

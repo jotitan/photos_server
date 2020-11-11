@@ -17,14 +17,13 @@ export default function Login({setCanAccess}) {
             auth:{username:username,password:password}
         }).then(d => {
             // If no access, ask again with basic auth
-            if(!d.data.connect) {
-                setMessage("Impossible de se connecter, mauvais login / mot de passe");
-            }else {
-                setMessage("");
-                setShowPanel(true);
-                setCanAccess(true);
-            }
-        }).catch(()=>setMessage("Une erreur est survenue"));
+            setMessage("");
+            setShowPanel(true);
+            setCanAccess(true);
+        }).catch(()=>{
+            setMessage("Impossible de se connecter, mauvais login / mot de passe");
+            setCanAccess(false);
+        });
     };
 
     return (

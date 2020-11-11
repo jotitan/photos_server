@@ -3,10 +3,7 @@ import {Input, Tree} from 'antd'
 import axios from "axios";
 import useLocalStorage from "../../services/local-storage.hook";
 
-
-export const getBaseUrlHref = ()=>{
-    return getBaseUrl(window.location.href)
-}
+export const getBaseUrlHref = ()=>getBaseUrl(window.location.href);
 
 export const getBaseUrl = (defaultValue=window.location.origin)=>{
     switch (window.location.hostname) {
@@ -16,14 +13,21 @@ export const getBaseUrl = (defaultValue=window.location.origin)=>{
     }
 }
 
+const { Search } = Input;
+
 const sortByName = (a,b)=>a.Name === b.name ? 0:a.Name < b.Name ? -1:1;
 
 const adapt = node => {
-    let data = {title:node.Name.replace(/_/g," "),key:getBaseUrl() + node.Link,tags:getBaseUrl() + node.LinkTags}
-    data.hasImages = node.HasImages;
+    let data = {
+        title:node.Name.replace(/_/g," "),
+        key:getBaseUrl() + node.Link,
+        path:node.Path,
+        tags:getBaseUrl() + node.LinkTags,
+        hasImages:node.HasImages
+    };
 
     if(node.Children != null && node.Children.length > 0){
-        data.children = node.Children.sort(sortByName).map(nc=>adapt(nc));
+        data.children = node.Children.sort(sortByName).map(adapt);
     }else{
         data.isLeaf=true
     }
@@ -48,7 +52,6 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
             }
         })
     },[update]);
-
 
     const hasName = (value,node,root,paths)=>{
         if(node.title.toLowerCase().indexOf(value) !== -1 || paths[root] != null){
@@ -89,20 +92,17 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
     const onSelect = (e,f)=>{
         setTitleGallery('');
         if(f.node.children == null || f.node.children.length === 0) {
-            setUrlFolder({load:e[0],tags:f.node.tags})
+            setUrlFolder({load:e[0],tags:f.node.tags,path:f.node.path})
         }else{
             // Case when folder has sub folders but also images
             if(f.node.hasImages){
-                setUrlFolder({load:e[0],tags:f.node.tags})
+                setUrlFolder({load:e[0],tags:f.node.tags,path:f.node.path})
             }
         }
     };
 
     window.addEventListener('resize', ()=>setHeight(window.innerHeight-185));
-    const onExpand = values=>{
-        setExpandables(values)
-    };
-    const { Search } = Input;
+
 
     return(
             <>
@@ -113,7 +113,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
                     height={height}
                     autoExpandParent={false}
                     expandedKeys={expandables}
-                    onExpand={onExpand}
+                    onExpand={setExpandables}
                     virtual={true}
                     style={{
                         fontSize: 12 + 'px',

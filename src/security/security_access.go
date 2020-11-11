@@ -1,146 +1,126 @@
 package security
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jotitan/photos_server/logger"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
 
-// Different security provider : basic, oauth2
-
-type AccessProvider interface{
-	// Connect with provider. Return success and if true, list of additional parameter (for jwt token)
-	Connect(r * http.Request)(bool,map[string]interface{})
-	CheckReadAccess(token *jwt.Token)bool
-	CheckAdminAccess(token *jwt.Token) bool
-	Info()string
+type SecurityAccess struct {
+	maskForAdmin string
+	// true only if username and password exist
+	userAccessEnable bool
+	// Used for jwt token
+	hs256SecretKey   []byte
+	accessProvider  AccessProvider
+	// Store shares with other people
+	ShareFolders * ShareFolders
 }
 
-type OAuth2AccessProvider struct {
-	provider Provider
-	// Authorized emails
-	authorizedEmails	map[string]struct{}
-	adminEmails	map[string]struct{}
-}
-
-func extractCode(r * http.Request)(string,error){
-	if d,err := ioutil.ReadAll(r.Body) ; err == nil {
-		params := make([]map[string]interface{},0)
-		if err := json.Unmarshal(d,&params) ; err != nil {
-			return "",err
-		}
-		for _,param := range params {
-			if strings.EqualFold("code",param["name"].(string)){
-				return param["value"].(string),nil
-			}
-		}
-		return "",errors.New("no code param")
+func NewSecurityAccess(maskForAdmin string,hs256SecretKey []byte)*SecurityAccess{
+	sa := SecurityAccess{maskForAdmin:maskForAdmin,userAccessEnable:false}
+	if len(hs256SecretKey) > 0 {
+		sa.hs256SecretKey = hs256SecretKey
+		logger.GetLogger2().Info("Use JWT security mode")
 	}else{
-		return "",err
+		logger.GetLogger2().Info("Use simple security mode")
 	}
-
+	sa.ShareFolders = NewShareFolders(&sa)
+	return &sa
 }
 
-func (oauth2ap OAuth2AccessProvider) Connect(r *http.Request) (bool, map[string]interface{}) {
-	// Extract parameter code
-	if code,err := extractCode(r) ; err == nil {
-		if token, err := oauth2ap.provider.GetTokenFromCode(code); err == nil {
-			if data, err := oauth2ap.provider.CheckAndExtractData(token); err == nil {
-				// Check if email exist in admin authorized list
-				if _, isAdmin := oauth2ap.adminEmails[data["email"].(string)]; isAdmin {
-					// Add is_admin
-					data["is_admin"] = true
-				}
-				return true, data
-			}
+func (sa SecurityAccess)checkMaskAccess(r * http.Request)bool{
+	return !strings.EqualFold("",sa.maskForAdmin) && (
+		strings.Contains(r.Referer(),sa.maskForAdmin) ||
+			strings.Contains(r.RemoteAddr,sa.maskForAdmin))
+}
+
+func (sa SecurityAccess)getJWTCookie(r * http.Request)*http.Cookie{
+	for _,c := range r.Cookies() {
+		if strings.EqualFold("token",c.Name) {
+			return c
 		}
-	}else{
-		return false,nil
 	}
-	return false,nil
+	return nil
 }
 
-func NewOAuth2AccessProvider(provider Provider,emails,emailsAdmin []string)OAuth2AccessProvider{
-	mapEmails := make(map[string]struct{},len(emails))
-	for _,email := range emails {
-		mapEmails[email] = struct{}{}
-	}
-	mapEmailsAdmin := make(map[string]struct{},len(emailsAdmin))
-	for _,email := range emailsAdmin {
-		mapEmailsAdmin[email] = struct{}{}
-	}
-	logger.GetLogger2().Info("Use oauth2 access provider")
-	return OAuth2AccessProvider{provider:provider,authorizedEmails:mapEmails,adminEmails:mapEmailsAdmin}
-}
-
-func (oauth2ap OAuth2AccessProvider) Info() string {
-	return fmt.Sprintf("{\"name\":\"oauth2\",\"url\":\"%s\"}",oauth2ap.provider.GenerateUrlConnection())
-}
-
-func (oauth2ap OAuth2AccessProvider) CheckAdminAccess(token *jwt.Token) bool {
-	if !oauth2ap.CheckReadAccess(token) {
-		return false
-	}
-	if isAdmin,exist := token.Claims.(jwt.MapClaims)["is_admin"] ; exist {
-		return isAdmin.(bool)
-	}
-	return false
-}
-
-func (oauth2ap OAuth2AccessProvider)CheckReadAccess(token * jwt.Token)bool{
-	email := token.Claims.(jwt.MapClaims)["email"].(string)
-	_,exist := oauth2ap.authorizedEmails[email]
-	return exist
-}
-
-type BasicProvider struct {
-	username string
-	password string
-}
-
-func (bp BasicProvider) Connect(r *http.Request) (bool, map[string]interface{}) {
-	if username, password, ok := r.BasicAuth(); ok && !strings.EqualFold("", username) {
-		success :=  strings.EqualFold(username, bp.username) && strings.EqualFold(password, bp.password)
-		extras := make(map[string]interface{})
-		if success {
-			logger.GetLogger2().Info(fmt.Sprintf("User %s connected",username))
-			extras["is_admin"] = true
-			extras["username"] = username
-		}else{
-			logger.GetLogger2().Error(fmt.Sprintf("User %s try to connect but fail",username))
-		}
-		return success,extras
-	}
-	return false,map[string]interface{}{}
-}
-
-func NewBasicProvider(username,password string)BasicProvider{
-	logger.GetLogger2().Info("Use basic access provider")
-	return BasicProvider{username,password}
-}
-
-func (bp BasicProvider) Info() string {
-	return "{\"name\":\"basic\"}"
-}
-
-func (bp BasicProvider) CheckAdminAccess(token *jwt.Token) bool {
-	if !bp.CheckReadAccess(token) {
-		return false
-	}
-	if isAdmin,exist := token.Claims.(jwt.MapClaims)["is_admin"] ; exist {
-		return isAdmin.(bool)
-	}
-	return false
-}
-
-func (bp BasicProvider)CheckReadAccess(token * jwt.Token)bool{
-	if strings.EqualFold(bp.username,token.Claims.(jwt.MapClaims)["username"].(string)) {
+func (sa SecurityAccess)checkAccess(r * http.Request)bool{
+	// Two cases : on local network or with basic authent
+	if sa.checkMaskAccess(r) {
 		return true
 	}
 	return false
+}
+
+func (sa SecurityAccess) getJWT(r * http.Request)(*jwt.Token,error){
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if token := sa.getJWTCookie(r); token != nil {
+		return jwt.Parse(token.Value,func(token *jwt.Token) (interface{}, error) {return sa.hs256SecretKey,nil})
+	}
+	return nil,errors.New("impossible to get jwt")
+}
+
+func (sa SecurityAccess) GetUserId(r * http.Request)string{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if jwtToken,err := sa.getJWT(r) ; err == nil{
+		return sa.accessProvider.GetId(jwtToken)
+	}
+	return ""
+}
+
+// Check read access
+func (sa SecurityAccess) CheckJWTTokenAccess(r * http.Request)bool{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if jwtToken,err := sa.getJWT(r) ; err == nil{
+		return sa.accessProvider.CheckReadAccess(jwtToken)
+	}
+	return false
+}
+
+// Check write access
+func (sa SecurityAccess) CheckJWTTokenAdminAccess(r * http.Request)bool{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if jwtToken,err := sa.getJWT(r) ; err == nil{
+		return sa.accessProvider.CheckAdminAccess(jwtToken)
+	}
+	return false
+}
+
+func (sa SecurityAccess)setJWTToken(extras map[string]interface{},w http.ResponseWriter){
+	// No expiracy
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,jwt.MapClaims(extras))
+	if sToken,err := token.SignedString(sa.hs256SecretKey); err == nil {
+		cookie := http.Cookie{}
+		cookie.Name="token"
+		cookie.Path="/"
+		cookie.Value=sToken
+		cookie.HttpOnly=true
+		cookie.SameSite=http.SameSiteLaxMode
+		http.SetCookie(w,&cookie)
+	}
+}
+
+// Return security type with parameters
+func (sa SecurityAccess) GetTypeSecurity()string{
+	return sa.accessProvider.Info()
+}
+
+// Try connect by provider with parameters
+func (sa SecurityAccess) Connect(w http.ResponseWriter,r * http.Request)bool{
+	// Check if jwt token exist and valid. Create by server during first connexion
+	if sa.getJWTCookie(r) != nil{
+		// If jwt already exist, don't create a new
+		return true
+	}
+	if success,extras := sa.accessProvider.Connect(r,sa.ShareFolders.Connect) ; success{
+		sa.setJWTToken(extras,w)
+		return true
+	}
+	return false
+}
+
+func (sa * SecurityAccess)SetAccessProvider(provider AccessProvider){
+	sa.accessProvider = provider
 }
