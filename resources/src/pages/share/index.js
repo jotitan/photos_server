@@ -18,7 +18,7 @@ export default function SharePanel({path,showSharePanel,hide}) {
                 method:'GET'
             }).then(data=>setUsers(data.data != null ? data.data : []));
         }
-    },[showSharePanel]);
+    },[showSharePanel,path,baseUrl]);
 
     const add = ()=> {
         axios({
