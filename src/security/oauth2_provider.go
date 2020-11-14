@@ -28,7 +28,7 @@ type Provider interface{
 
 func NewProvider(conf config.OAuth2Config)Provider{
 	switch conf.Provider {
-	case "google":return NewGoogleProvider(conf.ClientID,conf.ClientSecret,conf.RedirectUrl)
+	case "google":return NewGoogleProvider(conf.ClientID,conf.ClientSecret,conf.RedirectUrl, conf.SuffixEmailShare)
 	default:return nil
 	}
 }
@@ -39,20 +39,30 @@ type GoogleProvider struct{
 	urlGenerateCode string
 	redirectUrl string
 	urlToken string
+	suffixEmails []string
 }
 
-func NewGoogleProvider(clientID,clientSecret,redirectUrl string)GoogleProvider{
+func NewGoogleProvider(clientID,clientSecret,redirectUrl string, suffixEmails []string)GoogleProvider{
 	return GoogleProvider{
 		clientID:clientID,
 		clientSecret:clientSecret,
 		redirectUrl:redirectUrl,
 		urlGenerateCode:"https://accounts.google.com/o/oauth2/v2/auth",
 		urlToken:"https://oauth2.googleapis.com/token",
+		suffixEmails:suffixEmails,
 	}
 }
 
 func (gp GoogleProvider) CheckEmail(email string) bool {
-	return strings.HasSuffix(email,"@gmail.com")
+	if gp.suffixEmails == nil || len(gp.suffixEmails) == 0 {
+		return false
+	}
+	for _,suffix := range gp.suffixEmails {
+		if strings.HasSuffix(email, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func (gp GoogleProvider) GenerateUrlConnection() string {

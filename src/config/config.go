@@ -20,6 +20,7 @@ type OAuth2Config struct {
 	RedirectUrl string `yaml:"redirect_url"`
 	AuthorizedEmails	[]string `yaml:"emails"`
 	AdminEmails		[]string `yaml:"admin_emails"`
+	SuffixEmailShare []string `yaml:"suffix_email_share"`
 }
 
 type BasicConfig struct {

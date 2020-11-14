@@ -37,7 +37,10 @@ type ShareFolders struct {
 }
 
 func NewShareFolders(security * SecurityAccess)*ShareFolders{
-	shares := ShareFolders{pathsByUser:make(map[string]*ShareUser),security:security}
+	shares := ShareFolders{
+		pathsByUser:make(map[string]*ShareUser),
+		usersByPath:make(map[string]map[string]struct{}),
+		security:security}
 	if err := shares.load(); err != nil {
 		logger.GetLogger2().Error("Impossible to load shares",err.Error())
 		return nil
