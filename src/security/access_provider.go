@@ -21,7 +21,7 @@ type AccessProvider interface{
 	CheckAdminAccess(token *jwt.Token) bool
 	Info()string
 	// Check if a mail can be used for sharing
-	CheckShareMail(email string)bool
+	CheckShareMailValid(email string)bool
 }
 
 type OAuth2AccessProvider struct {
@@ -49,7 +49,7 @@ func extractCode(r * http.Request)(string,error){
 
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckShareMail(email string) bool {
+func (oauth2ap OAuth2AccessProvider) CheckShareMailValid(email string) bool {
 	return oauth2ap.provider.CheckEmail(email)
 }
 
@@ -111,8 +111,14 @@ func (oauth2ap OAuth2AccessProvider) CheckAdminAccess(token *jwt.Token) bool {
 
 func (oauth2ap OAuth2AccessProvider)CheckReadAccess(token * jwt.Token)bool{
 	email := token.Claims.(jwt.MapClaims)["email"].(string)
-	_,exist := oauth2ap.authorizedEmails[email]
-	return exist
+	if _,exist := oauth2ap.authorizedEmails[email] ; exist {
+		return true
+	}
+	// Check if a share exist
+	if isGuest,exist := token.Claims.(jwt.MapClaims)["guest"];exist {
+		return isGuest.(bool)
+	}
+	return false
 }
 
 func (oauth2ap OAuth2AccessProvider)GetId(token * jwt.Token)string{
@@ -124,7 +130,7 @@ type BasicProvider struct {
 	password string
 }
 
-func (bp BasicProvider) CheckShareMail(email string) bool {
+func (bp BasicProvider) CheckShareMailValid(email string) bool {
 	return true
 }
 

@@ -50,7 +50,7 @@ func NewShareFolders(security * SecurityAccess)*ShareFolders{
 }
 
 func (shares ShareFolders)checkUser(email string)bool{
-	return shares.security.accessProvider.CheckShareMail(email)
+	return shares.security.accessProvider.CheckShareMailValid(email)
 }
 
 func ( shares * ShareFolders)Add(user,path string,checkPathExist func(path string)bool)error{
