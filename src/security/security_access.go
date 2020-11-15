@@ -70,7 +70,7 @@ func (sa SecurityAccess) GetUserId(r * http.Request)string{
 	return ""
 }
 
-// Check read access
+// Check read access, for regular user or guest
 func (sa SecurityAccess) CheckJWTTokenAccess(r * http.Request)bool{
 	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
 	if jwtToken,err := sa.getJWT(r) ; err == nil{
@@ -105,6 +105,13 @@ func (sa SecurityAccess)setJWTToken(extras map[string]interface{},w http.Respons
 // Return security type with parameters
 func (sa SecurityAccess) GetTypeSecurity()string{
 	return sa.accessProvider.Info()
+}
+
+func (sa SecurityAccess) IsGuest(r *http.Request)bool{
+	if token,err := sa.getJWT(r) ; err == nil {
+		return sa.accessProvider.CheckGuestAccess(token)
+	}
+	return false
 }
 
 // Try connect by provider with parameters

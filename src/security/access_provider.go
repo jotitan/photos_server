@@ -17,6 +17,7 @@ type AccessProvider interface{
 	// Connect with provider. Return success and if true, list of additional parameter (for jwt token)
 	Connect(r * http.Request,isGuest func(user string)bool)(bool,map[string]interface{})
 	CheckReadAccess(token *jwt.Token)bool
+	CheckGuestAccess(token *jwt.Token)bool
 	GetId(token *jwt.Token)string
 	CheckAdminAccess(token *jwt.Token) bool
 	Info()string
@@ -114,6 +115,10 @@ func (oauth2ap OAuth2AccessProvider)CheckReadAccess(token * jwt.Token)bool{
 	if _,exist := oauth2ap.authorizedEmails[email] ; exist {
 		return true
 	}
+	return oauth2ap.CheckGuestAccess(token)
+}
+
+func (oauth2ap OAuth2AccessProvider)CheckGuestAccess(token * jwt.Token)bool{
 	// Check if a share exist
 	if isGuest,exist := token.Claims.(jwt.MapClaims)["guest"];exist {
 		return isGuest.(bool)
@@ -173,6 +178,10 @@ func (bp BasicProvider)CheckReadAccess(token * jwt.Token)bool{
 	if strings.EqualFold(bp.username,token.Claims.(jwt.MapClaims)["username"].(string)) {
 		return true
 	}
+	return false
+}
+
+func (bp BasicProvider)CheckGuestAccess(token * jwt.Token)bool {
 	return false
 }
 

@@ -427,10 +427,17 @@ func (s Server)getSharesFolder(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)getRootFolders(w http.ResponseWriter,r * http.Request){
+	// If no access, return error
 	if ! s.securityAccess.CheckJWTTokenAccess(r){
-	// If no access, try addShare
-	s.getSharesFolder(w,r)
-	return
+		// If no access, try addShare
+		s.error403(w,r)
+		return
+	}
+
+	// If guest, return share folder
+	if s.securityAccess.IsGuest(r){
+		s.getSharesFolder(w,r)
+		return
 	}
 
 	logger.GetLogger2().Info("Get root folders")
