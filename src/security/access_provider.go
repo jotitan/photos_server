@@ -17,6 +17,7 @@ type AccessProvider interface{
 	// Connect with provider. Return success and if true, list of additional parameter (for jwt token)
 	Connect(r * http.Request,isGuest func(user string)bool)(bool,map[string]interface{})
 	CheckReadAccess(token *jwt.Token)bool
+	CheckRegularReadAccess(token *jwt.Token)bool
 	CheckGuestAccess(token *jwt.Token)bool
 	GetId(token *jwt.Token)string
 	CheckAdminAccess(token *jwt.Token) bool
@@ -118,6 +119,14 @@ func (oauth2ap OAuth2AccessProvider)CheckReadAccess(token * jwt.Token)bool{
 	return oauth2ap.CheckGuestAccess(token)
 }
 
+func (oauth2ap OAuth2AccessProvider)CheckRegularReadAccess(token * jwt.Token)bool{
+	email := token.Claims.(jwt.MapClaims)["email"].(string)
+	if _,exist := oauth2ap.authorizedEmails[email] ; exist {
+		return true
+	}
+	return false
+}
+
 func (oauth2ap OAuth2AccessProvider)CheckGuestAccess(token * jwt.Token)bool{
 	// Check if a share exist
 	if isGuest,exist := token.Claims.(jwt.MapClaims)["guest"];exist {
@@ -170,6 +179,13 @@ func (bp BasicProvider) CheckAdminAccess(token *jwt.Token) bool {
 	}
 	if isAdmin,exist := token.Claims.(jwt.MapClaims)["is_admin"] ; exist {
 		return isAdmin.(bool)
+	}
+	return false
+}
+
+func (bp BasicProvider)CheckRegularReadAccess(token * jwt.Token)bool{
+	if strings.EqualFold(bp.username,token.Claims.(jwt.MapClaims)["username"].(string)) {
+		return true
 	}
 	return false
 }

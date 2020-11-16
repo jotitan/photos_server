@@ -57,7 +57,7 @@ func (s Server)canAccessAdmin(r * http.Request)bool{
 }
 
 func (s Server)canAccessUser(r * http.Request)bool{
-	return s.securityAccess!= nil && s.securityAccess.CheckJWTTokenAccess(r)
+	return s.securityAccess!= nil && s.securityAccess.CheckJWTTokenRegularAccess(r)
 }
 
 func (s Server)updateExifOfDate(w http.ResponseWriter,r * http.Request){
@@ -90,6 +90,13 @@ func (s Server)canAccess(w http.ResponseWriter,r * http.Request){
 		if !s.securityAccess.CheckJWTTokenAccess(r) {
 			http.Error(w,"access denied",401)
 		}
+	}
+}
+
+func (s Server)isGuest(w http.ResponseWriter,r * http.Request){
+	header(w)
+	if s.securityAccess != nil{
+		w.Write([]byte(fmt.Sprintf("{\"guest\":%t}",s.securityAccess.IsGuest(r))))
 	}
 }
 
@@ -312,7 +319,6 @@ func (s Server)update(w http.ResponseWriter,r * http.Request){
 	}
 }
 
-
 // Update a specific folder, faster than all folders
 // Return an id to monitor upload
 func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
@@ -429,7 +435,6 @@ func (s Server)getSharesFolder(w http.ResponseWriter,r * http.Request){
 func (s Server)getRootFolders(w http.ResponseWriter,r * http.Request){
 	// If no access, return error
 	if ! s.securityAccess.CheckJWTTokenAccess(r){
-		// If no access, try addShare
 		s.error403(w,r)
 		return
 	}
@@ -657,6 +662,7 @@ func (s Server)Launch(conf *config.Config){
 	// Security
 	server.HandleFunc("/canAdmin",s.buildHandler(s.needNoAccess,s.canAdmin))
 	server.HandleFunc("/canAccess",s.buildHandler(s.needNoAccess,s.canAccess))
+	server.HandleFunc("/isGuest",s.buildHandler(s.needNoAccess,s.canAccess))
 	server.HandleFunc("/connect",s.buildHandler(s.needNoAccess,s.connect))
 	server.HandleFunc("/securityConfig",s.buildHandler(s.needNoAccess,s.getSecurityConfig))
 
@@ -681,7 +687,7 @@ func (s Server)needUser(r * http.Request)bool{
 
 func (s Server)needShare(r * http.Request)bool{
 	id := s.securityAccess.GetUserId(r)
-	return s.securityAccess.ShareFolders.Exist(id)
+	return s.securityAccess.IsGuest(r) && s.securityAccess.ShareFolders.Exist(id)
 }
 
 func (s Server)needConnected(r * http.Request)bool{

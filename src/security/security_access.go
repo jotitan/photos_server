@@ -79,6 +79,14 @@ func (sa SecurityAccess) CheckJWTTokenAccess(r * http.Request)bool{
 	return false
 }
 
+func (sa SecurityAccess) CheckJWTTokenRegularAccess(r * http.Request)bool{
+	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion
+	if jwtToken,err := sa.getJWT(r) ; err == nil{
+		return sa.accessProvider.CheckRegularReadAccess(jwtToken)
+	}
+	return false
+}
+
 // Check write access
 func (sa SecurityAccess) CheckJWTTokenAdminAccess(r * http.Request)bool{
 	// Check if jwt token exist in a cookie and is valid. Create by server during first connexion

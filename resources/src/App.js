@@ -32,6 +32,13 @@ function checkAdminAccess(setCanAdmin){
     );
 }
 
+function checkIsGuest(){
+    return axios({
+        method: 'GET',
+        url: getBaseUrl() + '/isGuest',
+    });
+}
+
 const detectParameters = ()=> {
     return window.location.search.indexOf("?")!==-1 ?
         window.location.search
@@ -45,6 +52,7 @@ const detectParameters = ()=> {
 function App() {
     const { Sider,Content } = Layout;
 
+    const [isGuest,setIsGuest] = useState(true)
     const [collapsed,setCollapsed] = useState(false)
     const [showGallery,setShowGallery] = useState(true)
 
@@ -89,11 +97,16 @@ function App() {
 
     useEffect(()=> {
         if(canAccess) {
-            checkAdminAccess(setCanAdmin);
-            axios({
-                method: 'GET',
-                url: getBaseUrl() + '/count',
-            }).then(d => setNbPhotos(d.data));
+            checkIsGuest().then(data => {
+                setIsGuest(data.guest);
+                if (data.guest === false) {
+                    checkAdminAccess(setCanAdmin);
+                    axios({
+                        method: 'GET',
+                        url: getBaseUrl() + '/count',
+                    }).then(d => setNbPhotos(d.data));
+                }
+            });
         }
     },[canAccess]);
 
@@ -122,9 +135,10 @@ function App() {
 
                             {!collapsed ? showGallery ?
                                 <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update}/>:
-                                <div style={{width:300+'px'}}>
-                                    <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />
-                                </div>:
+                                (!isGuest ?
+                                    <div style={{width:300+'px'}}>
+                                        <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />
+                                    </div>:<></>):
                                 <></>}
                         </Content>
                     </Sider>
