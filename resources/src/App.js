@@ -126,7 +126,7 @@ function App() {
                                         <PlusCircleOutlined /> <span>Ajouter des photos</span>
                                     </Menu.Item>:<></>}
                             </Menu>
-                            {!collapsed ?
+                            {!collapsed && !isGuest ?
                                 <div style={{color:'white',padding:10+'px'}}>
                                     <span style={{paddingRight:10+'px'}}> Dossiers</span>
                                     <Switch onChange={isCalendar=>setShowGallery(!isCalendar)} className={"switch-selection"}/>
@@ -134,7 +134,7 @@ function App() {
                                 </div>:<></>}
 
                             {!collapsed ? showGallery ?
-                                <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update}/>:
+                                <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest}/>:
                                 (!isGuest ?
                                     <div style={{width:300+'px'}}>
                                         <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />

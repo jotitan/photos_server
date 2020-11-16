@@ -34,7 +34,7 @@ const adapt = node => {
     return data;
 };
 
-export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
+export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter}) {
     const [tree,setTree] = useState([]);
     const [originalTree,setOriginalTree] = useState([]);
     const { DirectoryTree } = Tree;
@@ -106,7 +106,10 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update}) {
 
     return(
             <>
-                <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',width:280+'px',marginRight:10+'px'}}/>
+                {canFilter ?
+                    <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',width:280+'px',marginRight:10+'px'}}/>
+                    :<></>
+                }
                 {tree.length > 0 ? <DirectoryTree
                     onSelect={onSelect}
                     treeData={tree}

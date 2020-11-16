@@ -662,7 +662,7 @@ func (s Server)Launch(conf *config.Config){
 	// Security
 	server.HandleFunc("/canAdmin",s.buildHandler(s.needNoAccess,s.canAdmin))
 	server.HandleFunc("/canAccess",s.buildHandler(s.needNoAccess,s.canAccess))
-	server.HandleFunc("/isGuest",s.buildHandler(s.needNoAccess,s.canAccess))
+	server.HandleFunc("/isGuest",s.buildHandler(s.needNoAccess,s.isGuest))
 	server.HandleFunc("/connect",s.buildHandler(s.needNoAccess,s.connect))
 	server.HandleFunc("/securityConfig",s.buildHandler(s.needNoAccess,s.getSecurityConfig))
 
