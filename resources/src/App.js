@@ -98,8 +98,8 @@ function App() {
     useEffect(()=> {
         if(canAccess) {
             checkIsGuest().then(data => {
-                setIsGuest(data.guest);
-                if (data.guest === false) {
+                setIsGuest(data.data.guest);
+                if (data.data.guest === false) {
                     checkAdminAccess(setCanAdmin);
                     axios({
                         method: 'GET',

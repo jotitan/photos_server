@@ -96,7 +96,8 @@ func (s Server)canAccess(w http.ResponseWriter,r * http.Request){
 func (s Server)isGuest(w http.ResponseWriter,r * http.Request){
 	header(w)
 	if s.securityAccess != nil{
-		w.Write([]byte(fmt.Sprintf("{\"guest\":%t}",s.securityAccess.IsGuest(r))))
+		//w.Write([]byte(fmt.Sprintf("{\"guest\":%t}",s.securityAccess.IsGuest(r))))
+		w.Write([]byte(fmt.Sprintf("{\"guest\":%t}",true)))
 	}
 }
 
