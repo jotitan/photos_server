@@ -230,6 +230,21 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
             </>;
     };
 
+    const showTagsBloc = ()=>{
+        return (
+            <>{tags
+                .sort((a,b)=>a.value < b.value ? -1:1)
+                .map(t=>
+                    <Tooltip key={`tp${t.value}`} trigger={"click"} title={
+                        <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
+                    }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
+                    </Tooltip>
+                )}
+        {!showInputTag && canAdmin && urlFolder.load !== ''?<Tag color="gray" onClick={()=>setShowInputTag(true)}><PlusOutlined /> tag</Tag>:<></>}
+        {showInputTag ? <Input size={"small"} style={{width:78+'px'}} onKeyUp={updateText} autoFocus={true} />:<></>}
+        </>);
+    }
+
     const updateText = value=>{
         switch(value.key){
             case 'Enter':
@@ -321,19 +336,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
                 <Col flex={"135px"}>
                     {showUpdateLink()}
                 </Col>
-                <Col flex={"auto"}>
-                    {
-                        tags
-                            .sort((a,b)=>a.value < b.value ? -1:1)
-                            .map(t=>
-                                <Tooltip key={`tp${t.value}`} trigger={"click"} title={
-                                    <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
-                                }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
-                                </Tooltip>
-                            )}
-                    {!showInputTag && urlFolder.load !== ''?<Tag color="gray" onClick={()=>setShowInputTag(true)}><PlusOutlined /> tag</Tag>:<></>}
-                    {showInputTag ? <Input size={"small"} style={{width:78+'px'}} onKeyUp={updateText} autoFocus={true} />:<></>}
-                </Col>
+                <Col flex={"auto"}>{showTagsBloc()}</Col>
             </Row>
             <Row className={"gallery"}>
                 <Col span={24} style={{marginTop:36+'px'}}>
