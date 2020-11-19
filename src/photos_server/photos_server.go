@@ -225,7 +225,7 @@ func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
 
 func (s Server)delete(w http.ResponseWriter,r * http.Request){
 	header(w)
-	if s.foldersManager.garbageManager != nil{
+	if s.foldersManager.garbageManager == nil{
 		s.error403(w,r)
 		return
 	}
