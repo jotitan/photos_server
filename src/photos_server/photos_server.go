@@ -284,7 +284,7 @@ func (s Server)writeImage(w http.ResponseWriter,path string){
 
 func (s Server)removeNode(w http.ResponseWriter,r * http.Request) {
 	header(w)
-	if s.foldersManager.garbageManager != nil{
+	if s.foldersManager.garbageManager == nil{
 		s.error403(w,r)
 		return
 	}
