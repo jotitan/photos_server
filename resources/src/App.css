@@ -124,6 +124,56 @@ body {
   overflow:auto;
 }
 
+.upload-list-video {
+  font-size:16px;
+  padding-left:20px;
+}
+
+.upload-list-video img {
+  margin: 10px;
+  border: solid 1px;
+  width:200px;
+}
+
+.video {
+  margin-top:20px;
+}
+
+currentVideo.VideosPath {
+  margin-left:10px;
+}
+
+.video-gallery .video img{
+  width:300px;
+  height:200px;
+  border:solid 2px white;
+}
+
+.video-gallery .title {
+  font-weight: bold;
+  width:120px;
+}
+
+.video-gallery .video .play:hover {
+  color:orange;
+}
+.video-gallery .video .play{
+  position: absolute;
+  color:white;
+  cursor: pointer;
+  font-size: 40px;
+  left:130px;
+  top:80px;
+}
+
+.modal-player .ant-modal-close {
+  color: white;
+}
+
+.modal-player .ant-modal-footer {
+  display: none;
+}
+
 .upload-photos-modal .ant-modal-body {
   padding:5px;
 }
@@ -181,4 +231,8 @@ body {
 .modal-zoom > .ant-modal img {
   max-height:calc(100vh - 30px);
   max-width:100%;
+}
+
+.container {
+  max-width: 500px;
 }

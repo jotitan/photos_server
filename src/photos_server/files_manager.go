@@ -1,16 +1,15 @@
 package photos_server
 
 import (
-	"crypto/md5"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/progress"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,15 +72,15 @@ type FoldersManager struct{
 	// When upload file, override first folder in tree (to force to be in a specific one)
 	overrideUploadFolder string
 	tagManger * TagManager
-	uploadProgressManager *uploadProgressManager
+	uploadProgressManager *progress.UploadProgressManager
 }
 
-func NewFoldersManager(cache,garbageFolder,maskAdmin, uploadedFolder,overrideUploadFolder string)*FoldersManager {
-	fm := &FoldersManager{Folders: make(map[string]*Node,0),reducer:NewReducer(cache,[]uint{1080,250}),
-		UploadedFolder:uploadedFolder,overrideUploadFolder:overrideUploadFolder,
-	uploadProgressManager:newUploadProgressManager()}
+func NewFoldersManager(conf config.Config, uploadProgressManager*progress.UploadProgressManager)*FoldersManager {
+	fm := &FoldersManager{Folders: make(map[string]*Node,0),reducer:NewReducer(conf.CacheFolder,[]uint{1080,250}),
+		UploadedFolder:conf.UploadedFolder,overrideUploadFolder:conf.OverrideUploadFolder,
+		uploadProgressManager:uploadProgressManager}
 	fm.load()
-	fm.garbageManager = NewGarbageManager(garbageFolder,maskAdmin,fm)
+	fm.garbageManager = NewGarbageManager(conf.Garbage,conf.Security.MaskForAdmin,fm)
 	fm.tagManger = NewTagManager(fm)
 	return fm
 }
@@ -125,6 +124,9 @@ func (fm *FoldersManager)updateExifOfDate(date string)(int,error){
 	}
 }
 
+func (fm *FoldersManager)GetVideosByDate()map[time.Time][]*Node{
+	return nil
+}
 
 func (fm *FoldersManager)GetPhotosByDate()map[time.Time][]*Node{
 	if fm.PhotosByDate == nil {
@@ -177,7 +179,6 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node,[]*Node)
 				for _,node := range noChanges {
 					noChangesNodes = append(noChangesNodes,node)
 				}
-
 			}
 		}else{
 			// Treat folder
@@ -208,7 +209,7 @@ func (files Files)Compare(previousFiles Files)([]*Node,map[string]*Node,[]*Node)
 var updateLocker = sync.Mutex{}
 
 // Only update one folder
-func (fm *FoldersManager)UpdateFolder(path string,progress *uploadProgress)error{
+func (fm *FoldersManager)UpdateFolder(path string,progresser *progress.UploadProgress)error{
 	if node,_,err := fm.FindNode(path) ; err != nil {
 		return err
 	}else {
@@ -216,7 +217,7 @@ func (fm *FoldersManager)UpdateFolder(path string,progress *uploadProgress)error
 		files := fm.Analyse(rootFolder, node.AbsolutePath)
 		// Take the specific folder
 		files = files[filepath.Base(path)].Files
-		fm.compareAndCleanFolder(files,path,make(map[string]*Node),progress)
+		fm.compareAndCleanFolder(files,path,make(map[string]*Node),progresser)
 		node.Files = files
 		fm.save()
 		return nil
@@ -255,7 +256,7 @@ func (fm *FoldersManager)UpdateExif(path string)error {
 }
 
 // If folderpath not empty, compare only in this folder
-func (fm *FoldersManager)compareAndCleanFolder(files Files,folderPath string,newFolders map[string]*Node, progress *uploadProgress){
+func (fm *FoldersManager)compareAndCleanFolder(files Files,folderPath string,newFolders map[string]*Node, progresser *progress.UploadProgress){
 
 	// Include dry run and full (compare length a nodes or compare always everything)
 	folders := fm.Folders
@@ -268,13 +269,13 @@ func (fm *FoldersManager)compareAndCleanFolder(files Files,folderPath string,new
 	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove and no changes",len(noChanges))
 	// Launch indexation of new images,
 	if len(delta) > 0 {
-		progress.enableWaiter()
-		progress.Add(len(delta))
+		progresser.EnableWaiter()
+		progresser.Add(len(delta))
 		for _, node := range delta {
 			logger.GetLogger2().Info("Launch update image resize", node.AbsolutePath)
-			fm.reducer.AddImage(node.AbsolutePath, node.RelativePath, "",node, progress,make(map[string]struct{}),false)
+			fm.reducer.AddImage(node.AbsolutePath, node.RelativePath, "",node, progresser,make(map[string]struct{}),false)
 		}
-		progress.Wait()
+		progresser.Wait()
 		logger.GetLogger2().Info("All pictures have been resized")
 	}
 
@@ -283,7 +284,7 @@ func (fm *FoldersManager)compareAndCleanFolder(files Files,folderPath string,new
 	for name, f := range files {
 		newFolders[name] = f
 	}
-	progress.end()
+	progresser.End()
 }
 
 //Update : compare structure in memory and folder to detect changes
@@ -294,7 +295,7 @@ func (fm *FoldersManager)Update()error{
 	updateWaiter.Add(1)
 	begin := time.Now()
 	chanelRunning := make(chan struct{},1)
-	up := fm.uploadProgressManager.addUploader(0)
+	up := fm.uploadProgressManager.AddUploader(0)
 	go func() {
 		// Is still block after one second, method exit and go routine is never executed
 		updateLocker.Lock()
@@ -317,7 +318,7 @@ func (fm *FoldersManager)Update()error{
 		updateLocker.Unlock()
 	}()
 
-	// Detect if an update is already running. Is true (after one secon), return error, otherwise, wait for end of update
+	// Detect if an update is already running. Is true (after one secon), return Error, otherwise, wait for End of update
 	select {
 	case <- chanelRunning :
 		updateWaiter.Wait()
@@ -372,9 +373,6 @@ func (fm FoldersManager)FindNode(path string)(*Node,map[string]*Node,error){
 			}
 		}
 	}
-	if current != nil {
-
-	}
 	return nil,nil,errors.New("Bad path " + path)
 }
 
@@ -400,12 +398,12 @@ func (fm FoldersManager)removeFile(path string)error{
 // used when upload
 // @overrideOutput override default output folder by adding inside a path folder
 // @forceRelativePath is true, use relativePath as real relative of new node
-func (fm *FoldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput string,forceRotate,forceRelativePath bool,progress *uploadProgress)error{
+func (fm *FoldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput string,forceRotate,forceRelativePath bool,p *progress.UploadProgress)error{
 	// Compute relative path
 	rootFolder := filepath.Dir(relativePath)
 	if strings.EqualFold("",rootFolder) || strings.EqualFold(".",rootFolder) {
 		// Add folder as usual (new one)
-		fm.AddFolder(folderPath,forceRotate,progress)
+		fm.AddFolder(folderPath,forceRotate,p)
 		return nil
 	}
 	// Find the node of root folder
@@ -413,22 +411,22 @@ func (fm *FoldersManager)AddFolderToNode(folderPath,relativePath,overrideOutput 
 		if forceRelativePath {
 			// Override rootFolder
 			root := folderPath[0:len(folderPath)-len(relativePath)]
-			fm.AddFolderWithNode(node.Files,root,folderPath,overrideOutput,forceRotate,progress)
+			fm.AddFolderWithNode(node.Files,root,folderPath,overrideOutput,forceRotate,p)
 		}else {
-			fm.AddFolderWithNode(node.Files, fm.UploadedFolder, folderPath, overrideOutput, forceRotate,progress)
+			fm.AddFolderWithNode(node.Files, fm.UploadedFolder, folderPath, overrideOutput, forceRotate,p)
 		}
 	}else{
 		// Add the parent folder (which is recursive)
-		return fm.AddFolderToNode(filepath.Dir(folderPath),rootFolder,overrideOutput,forceRotate,forceRelativePath,progress)
+		return fm.AddFolderToNode(filepath.Dir(folderPath),rootFolder,overrideOutput,forceRotate,forceRelativePath,p)
 	}
 	return nil
 }
 
-func (fm *FoldersManager)AddFolder(folderPath string,forceRotate bool,progress *uploadProgress){
-	fm.AddFolderWithNode(fm.Folders,"",folderPath,"",forceRotate,progress)
+func (fm *FoldersManager)AddFolder(folderPath string,forceRotate bool,p *progress.UploadProgress){
+	fm.AddFolderWithNode(fm.Folders,"",folderPath,"",forceRotate,p)
 }
 
-func (fm *FoldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,overrideOutput string,forceRotate bool,progress *uploadProgress){
+func (fm *FoldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,overrideOutput string,forceRotate bool,p *progress.UploadProgress){
 	if strings.EqualFold("",rootFolder) {
 		rootFolder = filepath.Dir(folderPath)
 	}
@@ -442,19 +440,16 @@ func (fm *FoldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,ove
 	// Check if images already exists to improve computing
 	existings := fm.searchExistingReducedImages(folderPath)
 	logger.GetLogger2().Info("Found existing",len(existings))
-	//globalWaiter := sync.WaitGroup{}
-	progress.enableWaiter()
-	//globalWaiter.Add(len(node))
+	p.EnableWaiter()
 	files[name] = node
-	fm.launchImageResize(node,strings.Replace(folderPath,name,"",-1),overrideOutput,progress,existings,forceRotate)
+	fm.launchImageResize(node,strings.Replace(folderPath,name,"",-1),overrideOutput,p,existings,forceRotate)
 
 	go func(){
-		progress.Wait()
-		progress.end()
+		p.Wait()
+		p.End()
 		logger.GetLogger2().Info("End of resize folder",node.Name)
 		node.ImagesResized=true
 	}()
-	//globalWaiter.Wait()
 	fm.save()
 }
 
@@ -504,125 +499,9 @@ func getSavePath()string{
 	return filepath.Join(wd,"save-images.json")
 }
 
-type uploadProgress struct {
-	id        string
-	chanel    chan struct{}
-	total     int
-	totalDone int
-	// SSE connexion
-	sses    []*sse
-	waiter  *sync.WaitGroup
-	manager *uploadProgressManager
-}
-
-// Add a waitergroup to manage Done / wait
-func (up * uploadProgress)enableWaiter(){
-	up.waiter = &sync.WaitGroup{}
-}
-
-func (up * uploadProgress)Add(size int){
-	if up.waiter != nil {
-		up.waiter.Add(size)
-	}
-}
-
-func (up * uploadProgress)run(){
-	go func(){
-		for {
-			if _,more := <-up.chanel ; more {
-				up.totalDone++
-				// Send notif if sse exist
-				for _, s := range up.sses {
-					s.done(stat{up.totalDone, up.total})
-				}
-			}else{
-				// close chanel, send end message to all
-				logger.GetLogger2().Info("Close chanel")
-				for _, s := range up.sses {
-					s.end()
-				}
-				break
-			}
-		}
-	}()
-}
-
-func (up * uploadProgress)end(){
-	close(up.chanel)
-	up.manager.remove(up.id)
-}
-
-func (up * uploadProgress) Done(){
-	if up.waiter != nil {
-		up.waiter.Done()
-	}
-	up.chanel<-struct{}{}
-}
-
-func (up * uploadProgress)Wait(){
-	if up.waiter != nil {
-		up.waiter.Wait()
-	}
-}
-
-func (up *uploadProgress) error(e error) {
-	// Send message to sse and remove from manager
-	for _, s := range up.sses {
-		s.error(e)
-	}
-}
-
-// Manage uploads progression
-type uploadProgressManager struct{
-	uploads map[string]*uploadProgress
-	count int
-}
-
-func newUploadProgressManager()*uploadProgressManager{
-	return &uploadProgressManager{make(map[string]*uploadProgress),0}
-}
-
-func (upm * uploadProgressManager)getStatUpload(id string)(stat,error){
-	if up,ok := upm.uploads[id] ; ok {
-		return stat{up.totalDone,up.total},nil
-	}
-	return stat{},errors.New("unknown upload id")
-}
-
-func (upm * uploadProgressManager)addSSE(id string, w http.ResponseWriter,r * http.Request)(*sse,error){
-	if up,ok := upm.uploads[id] ; ok {
-		sse := newSse(w,r)
-		up.sses = append(up.sses,sse)
-		return sse,nil
-	}
-	return nil,errors.New("unknown upload id " + id + " for SSE (" + fmt.Sprintf("%d",len(upm.uploads)))
-}
-
-// return unique id representing upload
-func (upm * uploadProgressManager)addUploader(total int)*uploadProgress{
-	id := upm.generateNewID()
-	uploader := &uploadProgress{chanel:make(chan struct{},10),total:total*2,id:id,manager:upm}
-	uploader.run()
-	logger.GetLogger2().Info("Create uploader",id)
-	upm.uploads[id] = uploader
-	return uploader
-}
-
-func (upm * uploadProgressManager)generateNewID()string{
-	upm.count++
-	h := md5.New()
-	h.Write([]byte{byte(upm.count)})
-	id := h.Sum([]byte{})
-	return base64.StdEncoding.EncodeToString(id)
-}
-
-func (upm *uploadProgressManager) remove(id string) {
-	delete(upm.uploads,id)
-}
-
 // folder must be a relative path
 // addToFolder, if true, can add photos in existing folder
-func (fm *FoldersManager)UploadFolder(folder string, files []multipart.File,names []string,addToFolder bool)(*uploadProgress,error){
+func (fm *FoldersManager)UploadFolder(folder string, files []multipart.File,names []string,addToFolder bool)(*progress.UploadProgress,error){
 	if len(files) != len(names){
 		return nil,errors.New("error during upload")
 	}
@@ -648,24 +527,24 @@ func (fm *FoldersManager)UploadFolder(folder string, files []multipart.File,name
 		}
 	}
 	// Create work in go routine and return a progresser status
-	progresser := fm.uploadProgressManager.addUploader(len(files))
+	progresser := fm.uploadProgressManager.AddUploader(len(files))
 	go fm.doUploadFolder(folder,outputFolder,names,files,addToFolder,progresser)
 	return progresser,nil
 }
 
-func (fm *FoldersManager)doUploadFolder( folder,outputFolder string,names []string,files []multipart.File,addToFolder bool,progress *uploadProgress){
+func (fm *FoldersManager)doUploadFolder( folder,outputFolder string,names []string,files []multipart.File,addToFolder bool,p *progress.UploadProgress){
 	// Copy files on filer
 	for i,file := range files {
 		if imageFile,err := os.OpenFile(filepath.Join(outputFolder,names[i]),os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
 			if _,err := io.Copy(imageFile,file) ; err != nil {
-				// Send error to progresser and stop
-				progress.error(err)
+				// Send Error to progresser and stop
+				p.Error(err)
 				return
 			}
 			imageFile.Close()
-			progress.Done()
+			p.Done()
 		}else{
-			progress.error(err)
+			p.Error(err)
 			return
 		}
 	}
@@ -673,14 +552,14 @@ func (fm *FoldersManager)doUploadFolder( folder,outputFolder string,names []stri
 	logger.GetLogger2().Info("Folder",folder,"well uploaded with",len(files),"files")
 	// If photos added in existing folder, update folder, otherwise, index
 	if addToFolder {
-		if err := fm.UpdateFolder(folder,progress) ; err != nil {
-			progress.error(err)
+		if err := fm.UpdateFolder(folder,p) ; err != nil {
+			p.Error(err)
 		}
 		return
 	}
 	// Launch add folder with input folder, node path
-	if err :=  fm.AddFolderToNode(outputFolder,filepath.Join(fm.overrideUploadFolder,folder),fm.overrideUploadFolder,false,false,progress) ; err != nil {
-		progress.error(err)
+	if err :=  fm.AddFolderToNode(outputFolder,filepath.Join(fm.overrideUploadFolder,folder),fm.overrideUploadFolder,false,false,p) ; err != nil {
+		p.Error(err)
 	}
 }
 
@@ -703,16 +582,16 @@ func (fm *FoldersManager)save(){
 	}
 }
 
-func (fm *FoldersManager)launchImageResize(folder *Node, rootFolder,overrideOutput string,progress *uploadProgress, existings map[string]struct{},forceRotate bool){
+func (fm *FoldersManager)launchImageResize(folder *Node, rootFolder,overrideOutput string,p *progress.UploadProgress, existings map[string]struct{},forceRotate bool){
 	folder.RelativePath = filepath.Join(overrideOutput,folder.RelativePath)
 	folder.applyOnEach(rootFolder,func(path,relativePath string,node * Node){
-		progress.Add(1)
+		p.Add(1)
 		// Override relative path to include override output
 		node.RelativePath = filepath.Join(overrideOutput,node.RelativePath)
-		fm.reducer.AddImage(path,relativePath,overrideOutput,node,progress,existings,forceRotate)
+		fm.reducer.AddImage(path,relativePath,overrideOutput,node,p,existings,forceRotate)
 	})
 	go func(node *Node){
-		progress.Wait()
+		p.Wait()
 		logger.GetLogger2().Info("End of resize folder",folder.Name)
 		node.ImagesResized=true
 	}(folder)
@@ -850,7 +729,7 @@ func (fm *FoldersManager) IndexFolder(path string, folder string) error {
 	if _,_,err := fm.FindNode(path) ; err == nil {
 		return errors.New("path already exist")
 	}
-	p := fm.uploadProgressManager.addUploader(0)
+	p := fm.uploadProgressManager.AddUploader(0)
 	return fm.AddFolderToNode(folder,path,"",false,true,p)
 }
 

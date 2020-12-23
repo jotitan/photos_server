@@ -35,10 +35,19 @@ type SecurityConfig struct {
 	OAuth2Config OAuth2Config `yaml:"oauth2"`
 }
 
+type VideoConfig struct {
+	ExifTool               string `yaml:"exiftool"`
+	FFMPEGPath             string `yaml:"ffmpeg"`
+	ConvertServer          string `yaml:"convert-server"`
+	OriginalUploadedFolder string `yaml:"original-upload-folder"`
+	HLSUploadedFolder      string `yaml:"hls-upload-folder"`
+}
+
 type Config struct {
 	CacheFolder string	`yaml:"cache"` // mandatory to specify where pictures are resized
 	WebResources string	`yaml:"resources"`	//mandatory to specify where web resources are
 	Port string	`yaml:"port"` // default 9006
+	VideoConfig VideoConfig `yaml:"video"`
 	Garbage string	`yaml:"garbage"`
 	UploadedFolder string `yaml:"upload-folder"`
 	OverrideUploadFolder string  `yaml:"override-upload"`

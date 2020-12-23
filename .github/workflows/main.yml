@@ -30,10 +30,12 @@ jobs:
         export GOOS=linux
         export GOARCH=arm
         go build -o photos_server
+        go build -o micro_hls_converter_server
         cd ../../
         mkdir artifacts
         echo Copy server artifact in artifacts/
         mv src/main/photos_server artifacts
+        mv src/main/micro_hls_converter_server artifacts
 
       # Build the front
     - name: Build front

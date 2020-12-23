@@ -6,10 +6,12 @@ import MyCalendar from "./pages/calendar";
 import TreeFolder, {getBaseUrl} from "./pages/treeFolder";
 import UploadFolder from "./pages/upload";
 import {Layout, Menu, Switch} from 'antd';
-import {HddFilled, PlusCircleOutlined} from "@ant-design/icons";
+import {HddFilled, PlusCircleOutlined,PictureOutlined,VideoCameraOutlined} from "@ant-design/icons";
 import {createBrowserHistory} from 'history';
 import axios from "axios";
 import ConnectPanel from "./pages/security";
+import VideoDisplay from "./pages/video";
+import UploadVideos from "./pages/upload-video";
 
 export const history = createBrowserHistory({
     basename: process.env.PUBLIC_URL
@@ -60,6 +62,7 @@ function App() {
         setCollapsed(!collapsed);
     };
     const [urlFolder,setUrlFolder] = useState({load:'',tags:''});
+    const [urlVideoFolder,setUrlVideoFolder] = useState({load:'',tags:''});
     // Used to refresh tree folder list
     const [update,setUpdate] = useState(false);
     const [currentFolder,setCurrentFolder] = useState('');
@@ -67,7 +70,9 @@ function App() {
     const [canAdmin,setCanAdmin] = useState(false);
     const [hideAll,setHideAll] = useState(true);
     const [nbPhotos,setNbPhotos] = useState(0);
+    const [videoMode,setVideoMode] = useState(false);
 
+    const [isVideoAddPanelVisible,setIsVideoAddPanelVisible] = useState(false);
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
     const [isAddFolderPanelVisible,setIsAddFolderPanelVisible] = useState(false);
 
@@ -110,6 +115,23 @@ function App() {
         }
     },[canAccess]);
 
+
+    const showPhotosMenu = ()=>
+        !collapsed ? showGallery ?
+            <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'}/>:
+            (!isGuest ?
+                <div style={{width:300+'px'}}>
+                    <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />
+                </div>:<></>):<></>;
+
+    const showVideosMenu = ()=>
+        !collapsed ? showGallery ?
+            <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootVideosFolders'}/>:
+            (!isGuest ?
+                <div style={{width:300+'px'}}>
+                    <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} />
+                </div>:<></>):<></>;
+
     return (
         // Hide during check access
         hideAll ? <></>:
@@ -122,38 +144,60 @@ function App() {
                                     <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos}</span>
                                 </Menu.Item>
                                 {canAdmin?
-                                    <Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>
-                                        <PlusCircleOutlined /> <span>Ajouter des photos</span>
-                                    </Menu.Item>:<></>}
+                                    videoMode ?
+                                        <Menu.Item className={"add-folder-text"} onClick={()=>setIsVideoAddPanelVisible(true)}>
+                                            <PlusCircleOutlined /> <span>Ajouter des vidéos</span>
+                                        </Menu.Item>
+                                        :<Menu.Item className={"add-folder-text"} onClick={()=>setIsAddPanelVisible(true)}>
+                                            <PlusCircleOutlined /> <span>Ajouter des photos</span>
+                                        </Menu.Item>:<></>}
                             </Menu>
                             {!collapsed && !isGuest ?
-                                <div style={{color:'white',padding:10+'px'}}>
-                                    <span style={{paddingRight:10+'px'}}> Dossiers</span>
-                                    <Switch onChange={isCalendar=>setShowGallery(!isCalendar)} className={"switch-selection"}/>
-                                    <span style={{paddingLeft:10+'px'}}> Calendrier</span>
-                                </div>:<></>}
+                                <>
+                                    <div style={{color:'white',padding:10+'px'}}>
+                                        <span style={{paddingRight:10+'px'}}>
+                                            <VideoCameraOutlined /> Vidéos
+                                        </span>
+                                        <Switch onChange={isVideo=>setVideoMode(!isVideo)} checked={!videoMode} className={"switch-selection"}/>
+                                        <span style={{paddingLeft:10+'px'}}>
+                                            Photos
+                                            <PictureOutlined style={{marginLeft:10+'px'}}/>
+                                        </span>
+                                    </div>
+                                    <div style={{color:'white',padding:10+'px'}}>
+                                        <span style={{paddingRight:10+'px'}}> Dossiers</span>
+                                        <Switch onChange={isCalendar=>setShowGallery(!isCalendar)} className={"switch-selection"}/>
+                                        <span style={{paddingLeft:10+'px'}}> Calendrier</span>
+                                    </div>
+                                </>:<></>}
 
-                            {!collapsed ? showGallery ?
-                                <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest}/>:
-                                (!isGuest ?
-                                    <div style={{width:300+'px'}}>
-                                        <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />
-                                    </div>:<></>):
-                                <></>}
+                            {
+                                videoMode ? showVideosMenu():showPhotosMenu()
+                            }
                         </Content>
                     </Sider>
                     <Layout>
-                        <MyGallery urlFolder={urlFolder} refresh={collapsed}
-                                   titleGallery={titleGallery}
-                                   canAdmin={canAdmin}
-                                   setCurrentFolder={setCurrentFolder}
-                                   update={update}
-                                   setUpdate={setUpdate}
-                                   setUrlFolder={setUrlFolder}
-                                   setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
+                        {
+                            videoMode ?
+                                <VideoDisplay urlVideo={urlVideoFolder.load}/>:
+                                <MyGallery urlFolder={urlFolder} refresh={collapsed}
+                                           titleGallery={titleGallery}
+                                           canAdmin={canAdmin}
+                                           setCurrentFolder={setCurrentFolder}
+                                           update={update}
+                                           setUpdate={setUpdate}
+                                           setUrlFolder={setUrlFolder}
+                                           setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
+                        }
+
+
                         <UploadFolder setUpdate={setUpdate}
                                       isAddPanelVisible={isAddPanelVisible}
                                       setIsAddPanelVisible={setIsAddPanelVisible}/>
+
+                        <UploadVideos setUpdate={setUpdate}
+                                      isAddPanelVisible={isVideoAddPanelVisible}
+                                      setIsAddPanelVisible={setIsVideoAddPanelVisible}/>
 
                         {/*Panel to upload in a specific folder*/}
                         <UploadFolder setUpdate={setUpdate}

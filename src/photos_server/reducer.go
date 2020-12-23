@@ -8,6 +8,7 @@ import (
 	exifutil "github.com/dsoprea/go-exif/v2"
 	"github.com/dsoprea/go-jpeg-image-structure"
 	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/progress"
 	"github.com/jotitan/photos_server/resize"
 	"github.com/rwcarlsen/goexif/exif"
 	"image/color"
@@ -44,7 +45,7 @@ type ImageToResize struct{
 	// Override cache resize folder by adding the folder
 	overrideOutput string
 	node         * Node
-	waiter       * uploadProgress
+	waiter       *progress.UploadProgress
 	forceRotate  bool
 	existings    map[string]struct{}
 }
@@ -84,8 +85,8 @@ func (itr ImageToResize)update(h,w uint, datePhoto time.Time, orientation int, c
 	itr.waiter.Done()
 }
 
-func (r Reducer)AddImage(path,relativePath,overrideOutput string,node * Node,progress * uploadProgress, existings map[string]struct{}, forceRotate bool){
-	r.imagesToResize <- ImageToResize{path,relativePath,overrideOutput,node,progress,forceRotate,existings}
+func (r Reducer)AddImage(path,relativePath,overrideOutput string,node * Node,progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool){
+	r.imagesToResize <- ImageToResize{path,relativePath,overrideOutput,node,progresser,forceRotate,existings}
 }
 
 // Return number of images wating to reduce and number of images reduced
@@ -174,7 +175,7 @@ func (r Reducer) resizeMultiformat(imageToResize ImageToResize,folder string){
 	}
 	callback := func(err error,width,height uint,correctOrientation int){
 		if err != nil {
-			logger.GetLogger2().Info("Got error on resize",from,err)
+			logger.GetLogger2().Info("Got Error on resize",from,err)
 			imageToResize.waiter.Done()
 		}else{
 			if width != 0 && height != 0 {

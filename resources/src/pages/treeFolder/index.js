@@ -34,7 +34,7 @@ const adapt = node => {
     return data;
 };
 
-export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter}) {
+export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter,rootUrl}) {
     const [tree,setTree] = useState([]);
     const [originalTree,setOriginalTree] = useState([]);
     const { DirectoryTree } = Tree;
@@ -43,7 +43,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
     useEffect(()=>{
         axios({
             method:'GET',
-            url:getBaseUrl() + '/rootFolders',
+            url:getBaseUrl() + rootUrl,
         }).then(d=>{
             if(d.data.Children != null) {
                 let data = d.data.Children.map(adapt);
@@ -51,7 +51,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
                 setOriginalTree(data);
             }
         })
-    },[update]);
+    },[update,rootUrl]);
 
     const hasName = (value,node,root,paths)=>{
         if(node.title.toLowerCase().indexOf(value) !== -1 || paths[root] != null){
@@ -102,7 +102,6 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
     };
 
     window.addEventListener('resize', ()=>setHeight(window.innerHeight-185));
-
 
     return(
             <>

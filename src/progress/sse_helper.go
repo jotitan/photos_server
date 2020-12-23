@@ -1,4 +1,4 @@
-package photos_server
+package progress
 
 import (
 	"fmt"
@@ -37,12 +37,12 @@ func (s * sse)done(st stat){
 }
 
 func (s * sse)end(){
-	logger.GetLogger2().Info("Write end")
+	logger.GetLogger2().Info("Write End")
 	writeEnd(s.w)
 	close(s.chanel)
 }
 
-func (s * sse)watch(){
+func (s * sse) Watch(){
 	for {
 		if st, more  := <- s.chanel ; more {
 			writeEvent(s.w,st)
@@ -65,14 +65,14 @@ func writeEvent(w http.ResponseWriter, st stat){
 }
 
 func writeEnd(w http.ResponseWriter){
-	w.Write([]byte("event: end\n"))
-	w.Write([]byte("data: {\"end\":true}\n\n"))
+	w.Write([]byte("event: End\n"))
+	w.Write([]byte("data: {\"End\":true}\n\n"))
 	w.(http.Flusher).Flush()
 }
 
 func writeError(w http.ResponseWriter,err error){
-	w.Write([]byte("event: error\n"))
-	w.Write([]byte(fmt.Sprintf("data: {\"error\":\"%s\"}\n\n",err.Error())))
+	w.Write([]byte("event: Error\n"))
+	w.Write([]byte(fmt.Sprintf("data: {\"Error\":\"%s\"}\n\n",err.Error())))
 	w.(http.Flusher).Flush()
 }
 

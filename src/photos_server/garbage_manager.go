@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -56,11 +57,11 @@ func (g GarbageManager)Remove(files []string)int{
 	return success
 }
 
-func (g GarbageManager)alreadyMoved(node *Node,path string)bool{
-	if move,err := os.Open(path);err == nil {
+func (g GarbageManager)alreadyMoved(originalPath,movePath string)bool{
+	if move,err := os.Open(movePath);err == nil {
 		move.Close()
-		if _,err := os.Open(node.AbsolutePath) ; err != nil {
-			logger.GetLogger2().Info("Image " + node.AbsolutePath + " is already in garbage")
+		if _,err := os.Open(originalPath) ; err != nil {
+			logger.GetLogger2().Info("Image " + originalPath + " is already in garbage")
 			return true
 		}
 	}
@@ -68,10 +69,10 @@ func (g GarbageManager)alreadyMoved(node *Node,path string)bool{
 }
 
 func (g GarbageManager)moveOriginalFile(node *Node)bool{
-
-	moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
+	return g.MoveOriginalFileFromPath(node.AbsolutePath,node.RelativePath)
+	/*moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
 	// Check if copy in garbage already exist and source already missing
-	if g.alreadyMoved(node,moveName){
+	if g.alreadyMoved(node.AbsolutePath,moveName){
 		return true
 	}
 	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
@@ -91,5 +92,32 @@ func (g GarbageManager)moveOriginalFile(node *Node)bool{
 	}
 
 	logger.GetLogger2().Error("Impossible to move",node.AbsolutePath,"in garbage")
+	return false*/
+}
+
+var replaceSeparator,_ = regexp.Compile("(\\\\)|(/)")
+func (g GarbageManager) MoveOriginalFileFromPath(absolutePath,relativePath string)bool{
+	moveName := filepath.Join(g.folder,replaceSeparator.ReplaceAllString(relativePath,"."))
+	// Check if copy in garbage already exist and source already missing
+	if g.alreadyMoved(absolutePath,moveName){
+		return true
+	}
+	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
+		defer move.Close()
+		if from,err := os.Open(absolutePath) ; err == nil {
+			if _,err := io.Copy(move,from) ; err == nil {
+				from.Close()
+				logger.GetLogger2().Info("Move",absolutePath,"to garbage",moveName)
+				if err := os.Remove(absolutePath); err == nil {
+					return true
+				}else{
+					logger.GetLogger2().Error("Impossible to remove",absolutePath)
+					return false
+				}
+			}
+		}
+	}
+
+	logger.GetLogger2().Error("Impossible to move",absolutePath,"in garbage")
 	return false
 }

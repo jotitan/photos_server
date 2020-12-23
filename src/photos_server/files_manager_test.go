@@ -1,6 +1,7 @@
 package photos_server
 
 import (
+	"github.com/jotitan/photos_server/config"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func newImage(folder,path,name,date string)*Node{
 }
 
 func createStructure()*FoldersManager {
-	fm := NewFoldersManager("//","","","","")
+	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}})
 	filesSub2 := Files{}
 	filesSub2["leaf1.jpg"] = newImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg","20200502")
 	filesSub2["leaf2.jpg"] = newImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg","20200502")
@@ -80,7 +81,7 @@ func createStructure()*FoldersManager {
 }
 
 func TestGroupByDate(t *testing.T){
-	fm := NewFoldersManager("//","","","","")
+	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}})
 	filesRoot := Files{}
 	filesRoot["f1"] = &Node{Name:"f1",IsFolder:false,Date:time.Date(2020,3,10,12,0,12,0,time.Local)}
 	filesRoot["f2"] = &Node{Name:"f2",IsFolder:false,Date:time.Date(2020,3,10,12,15,36,0,time.Local)}
@@ -116,19 +117,19 @@ func TestTagManager(t *testing.T){
 	tagManager := NewTagManager(fm)
 
 	if tagManager.AddTagByFolder("root/ploup","vacances","green") == nil {
-		t.Error("Must return an error")
+		t.Error("Must return an Error")
 	}
 	if len(tagManager.GetTagsByFolder("root/ploup")) != 0 {
 		t.Error("Must return 0 tag")
 	}
 	if err := tagManager.AddTagByFolder("root/folder1/folder2","vacances","green") ;err!= nil {
-		t.Error("Must not return an error",err)
+		t.Error("Must not return an Error",err)
 	}
 	if len(tagManager.GetTagsByFolder("root/folder1/folder2")) != 1 {
 		t.Error("Must return 1 tag")
 	}
 	if err := tagManager.AddTagByFolder("root/folder1/folder2","eliott","red") ;err!= nil {
-		t.Error("Must not return an error",err)
+		t.Error("Must not return an Error",err)
 	}
 	if len(tagManager.GetTagsByFolder("root/folder1/folder2")) != 2 {
 		t.Error("Must return 2 tag")
@@ -138,7 +139,7 @@ func TestTagManager(t *testing.T){
 	}
 	// CHange color
 	if err := tagManager.AddTagByFolder("root/folder1/folder2","eliott","green") ;err!= nil {
-		t.Error("Must not return an error",err)
+		t.Error("Must not return an Error",err)
 	}
 	if l := len(tagManager.GetTagsByFolder("root/folder1/folder2")) ; l != 2 {
 		t.Error("Must return 2 tag but found",l)

@@ -8,6 +8,14 @@ import (
 	"github.com/jotitan/photos_server/tasks"
 )
 
+func test(){
+	//h := photos_server.NewHSLLocalManager("C:\\Users\\jonathan.baranzini\\Downloads\\ffmpeg-20190519-fbdb3aa-win64-static\\bin\\ffmpeg.exe")
+	//h.Convert("C:\\Perso\\20200804\\export\\hugo_danse.mp4","c:\\toto",[]string{"960x540","640x360"},[]string{"2000","365"})
+	//c := h.Convert("C:\\Perso\\20200804\\export\\hugo_danse.mp4","c:\\toto",[]string{"640x360"},[]string{"365"})
+	//fmt.Println(<-c)
+}
+
+
 func main(){
 	args := arguments.NewArguments()
 	pathConfig := args.GetMandatoryString("config","Argument -config is mandatory to specify path of YAML config")
