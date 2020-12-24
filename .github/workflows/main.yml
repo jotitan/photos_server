@@ -29,8 +29,8 @@ jobs:
         cd src/main
         export GOOS=linux
         export GOARCH=arm
-        go build photos_server_run.go -o photos_server
-        go build -o micro_hls_converter_server.go
+        go build -o photos_server photos_server_run.go
+        go build micro_hls_converter_server.go
         cd ../../
         mkdir artifacts
         echo Copy server artifact in artifacts/
