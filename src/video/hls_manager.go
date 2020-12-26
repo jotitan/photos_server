@@ -75,10 +75,11 @@ func newHSLRemoteManager(endpoint string)HSLRemoteManager{
 
 func (hsrl HSLRemoteManager)Convert(path,output string, sizes,bitrates []string)chan bool{
 	// Call url with parameters and a unique generated id
-	urlValue := url.QueryEscape(fmt.Sprintf("%s?sizes=%s&bitrates=%s&path=%s&output=%s",hsrl.endpoint,
-		strings.Join(sizes,","),
-		strings.Join(bitrates,","),
-		path,output))
+	urlValue := fmt.Sprintf("%s?%s",hsrl.endpoint,
+		url.QueryEscape(fmt.Sprintf("sizes=%s&bitrates=%s&path=%s&output=%s",
+			strings.Join(sizes,","),
+			strings.Join(bitrates,","),
+			path,output)))
 	c := make(chan bool,1)
 	go func() {
 		if resp, err := http.DefaultClient.Get(urlValue); err == nil {
