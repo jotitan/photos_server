@@ -235,6 +235,7 @@ func (vm * VideoManager)UploadVideo(folder string,video multipart.File,videoName
 	if !vm.createSegments(filename,pathHls,progresser){
 		logger.GetLogger2().Info("Impossible to create segments")
 		progresser.Error(errors.New("impossible to create segments"))
+		progresser.End()
 		return false
 	}
 	// Create cover

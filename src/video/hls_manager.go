@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -28,6 +29,7 @@ func GetHLSManager(conf config.Config)HLSManager {
 }
 
 func newHSLLocalManager(ffmpegPath string)HSLLocalManager{
+	logger.GetLogger2().Info("Create local video converter")
 	return HSLLocalManager{ffmpegPath}
 }
 
@@ -66,6 +68,7 @@ type HSLRemoteManager struct {
 }
 
 func newHSLRemoteManager(endpoint string)HSLRemoteManager{
+	logger.GetLogger2().Info("Create remote video converter",endpoint)
 	return HSLRemoteManager{endpoint}
 }
 
@@ -81,6 +84,7 @@ func (hsrl HSLRemoteManager)Convert(path,output string, sizes,bitrates []string)
 			if data,err := ioutil.ReadAll(resp.Body) ; err == nil {
 				c<-strings.EqualFold("true",string(data))
 			}else {
+				logger.GetLogger2().Error("impossible to launch",url,":",err)
 				c <- false
 			}
 		}else{
