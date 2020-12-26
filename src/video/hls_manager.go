@@ -88,6 +88,7 @@ func (hsrl HSLRemoteManager)Convert(path,output string, sizes,bitrates []string)
 				c <- false
 			}
 		}else{
+			logger.GetLogger2().Error("impossible to launch",url,":",err)
 			c<-false
 		}
 	}()
