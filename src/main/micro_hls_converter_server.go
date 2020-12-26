@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jotitan/photos_server/logger"
 	"log"
 	"net/http"
 	"os"
@@ -31,10 +32,10 @@ func status(w http.ResponseWriter,_* http.Request){
 
 func convert(w http.ResponseWriter,r * http.Request){
 	path := r.FormValue("path")
-	log.Println("Receive request to convert video",path)
 	output := r.FormValue("output")
 	sizes := strings.Split(r.FormValue("sizes"),",")
 	bitrates := strings.Split(r.FormValue("bitrates"),",")
+	log.Println("Receive request to convert video",path,output,r.FormValue("sizes"),r.FormValue("bitrates"))
 	c := <- convertVideo(ffmpegPath,path,output,sizes,bitrates)
 	w.Write([]byte(fmt.Sprintf("%t",c)))
 }
@@ -61,6 +62,8 @@ func convertVideo(ffmpegPath,path,output string, sizes,bitrates []string)chan bo
 	c := make(chan bool,1)
 	go func(){
 		if err := cmd.Run() ; err != nil {
+			logger.GetLogger2().Error("Impossible to convert",err)
+			logger.GetLogger2().Info("Command was",strings.Join(paramsArray,","))
 			c <- false
 		}else{
 			c <- true

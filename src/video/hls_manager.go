@@ -6,6 +6,7 @@ import (
 	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,21 +75,21 @@ func newHSLRemoteManager(endpoint string)HSLRemoteManager{
 
 func (hsrl HSLRemoteManager)Convert(path,output string, sizes,bitrates []string)chan bool{
 	// Call url with parameters and a unique generated id
-	url := fmt.Sprintf("%s?sizes=%s&bitrates=%s&path=%s&output=%s",hsrl.endpoint,
+	urlValue := url.QueryEscape(fmt.Sprintf("%s?sizes=%s&bitrates=%s&path=%s&output=%s",hsrl.endpoint,
 		strings.Join(sizes,","),
 		strings.Join(bitrates,","),
-		path,output)
+		path,output))
 	c := make(chan bool,1)
 	go func() {
-		if resp, err := http.DefaultClient.Get(url); err == nil {
+		if resp, err := http.DefaultClient.Get(urlValue); err == nil {
 			if data,err := ioutil.ReadAll(resp.Body) ; err == nil {
 				c<-strings.EqualFold("true",string(data))
 			}else {
-				logger.GetLogger2().Error("impossible to launch",url,":",err)
+				logger.GetLogger2().Error("impossible to launch",urlValue,":",err)
 				c <- false
 			}
 		}else{
-			logger.GetLogger2().Error("impossible to launch",url,":",err)
+			logger.GetLogger2().Error("impossible to launch",urlValue,":",err)
 			c<-false
 		}
 	}()
