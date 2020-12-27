@@ -70,29 +70,6 @@ func (g GarbageManager)alreadyMoved(originalPath,movePath string)bool{
 
 func (g GarbageManager)moveOriginalFile(node *Node)bool{
 	return g.MoveOriginalFileFromPath(node.AbsolutePath,node.RelativePath)
-	/*moveName := filepath.Join(g.folder,strings.Replace(node.RelativePath[1:],string(filepath.Separator),".",-1))
-	// Check if copy in garbage already exist and source already missing
-	if g.alreadyMoved(node.AbsolutePath,moveName){
-		return true
-	}
-	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
-		defer move.Close()
-		if from,err := os.Open(node.AbsolutePath) ; err == nil {
-			if _,err := io.Copy(move,from) ; err == nil {
-				from.Close()
-				logger.GetLogger2().Info("Move",node.AbsolutePath,"to garbage",moveName)
-				if err := os.Remove(node.AbsolutePath); err == nil {
-					return true
-				}else{
-					logger.GetLogger2().Error("Impossible to remove",node.AbsolutePath)
-					return false
-				}
-			}
-		}
-	}
-
-	logger.GetLogger2().Error("Impossible to move",node.AbsolutePath,"in garbage")
-	return false*/
 }
 
 var replaceSeparator,_ = regexp.Compile("(\\\\)|(/)")

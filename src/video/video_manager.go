@@ -191,6 +191,8 @@ func (vm * VideoManager)Delete(path string,moveFile func(string,string)bool)erro
 		}
 		// Move original video
 		if moveFile(filepath.Join(vm.originalUploadFolder,node.OriginalPath),node.RelativePath + ".mp4") {
+			// Move cover
+			moveFile(filepath.Join(vm.hlsUploadFolder,node.HLSFolder,node.CoverPath),node.RelativePath + filepath.Ext(node.CoverPath))
 			delete(parent, node.Name)
 			vm.Save()
 		}else{
@@ -301,6 +303,7 @@ func (vm * VideoManager)addNode(folder string,parent,node * VideoNode){
 func (vm VideoManager)getProperties(path string)map[string]string{
 	cmd := exec.Command(vm.exiftool,path)
 	data,_:=cmd.Output()
+	logger.GetLogger2().Info("READ EXIF",string(data))
 	properties := make(map[string]string)
 	for _,line := range strings.Split(string(data),"\r\n"){
 		splits := strings.Split(line," :")
@@ -308,6 +311,7 @@ func (vm VideoManager)getProperties(path string)map[string]string{
 			properties[strings.ReplaceAll(strings.ToLower(strings.Trim(splits[0]," "))," ","_")] = strings.Trim(splits[1]," ")
 		}
 	}
+	logger.GetLogger2().Info("Read properties",len(properties))
 	return properties
 }
 
