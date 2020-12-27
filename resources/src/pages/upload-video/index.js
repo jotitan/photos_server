@@ -78,14 +78,16 @@ export default function UploadVideos({setUpdate,isAddPanelVisible,setIsAddPanelV
             setProgress(percent);
         });
         es.addEventListener("end", mess => {
+            console.log("end",mess)
             if(JSON.parse(mess.data).end === true){
                 uploadDone(path);
             }
             es.close();
         });
-        es.addEventListener("error", mess => {
-            let message = JSON.parse(mess.data).error;
-            notification["error"]({message:"Echec de la sauvegarde",description:`${message}`});
+        es.addEventListener("error-message", mess => {
+            let message = JSON.parse(mess.data).Error;
+            notification["error"]({message:"Echec de la sauvegarde",description:message});
+            es.close();
             uploadDone("",false);
         });
     };

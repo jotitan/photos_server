@@ -1,18 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jotitan/photos_server/arguments"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/photos_server"
 	"github.com/jotitan/photos_server/tasks"
+	"net/url"
 )
 
 func test(){
-	//h := photos_server.NewHSLLocalManager("C:\\Users\\jonathan.baranzini\\Downloads\\ffmpeg-20190519-fbdb3aa-win64-static\\bin\\ffmpeg.exe")
-	//h.Convert("C:\\Perso\\20200804\\export\\hugo_danse.mp4","c:\\toto",[]string{"960x540","640x360"},[]string{"2000","365"})
-	//c := h.Convert("C:\\Perso\\20200804\\export\\hugo_danse.mp4","c:\\toto",[]string{"640x360"},[]string{"365"})
-	//fmt.Println(<-c)
+	fmt.Println(url.PathEscape("toto=super&blalb=pigonouf truc"))
 }
 
 

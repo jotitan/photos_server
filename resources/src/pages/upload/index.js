@@ -85,7 +85,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             }
             es.close();
         });
-        es.addEventListener("error", mess => {
+        es.addEventListener("error-message", mess => {
             let message = JSON.parse(mess.data).error;
             notification["error"]({message:"Echec de la sauvegarde",description:`${message}`});
         });

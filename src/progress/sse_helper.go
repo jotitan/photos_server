@@ -71,7 +71,8 @@ func writeEnd(w http.ResponseWriter){
 }
 
 func writeError(w http.ResponseWriter,err error){
-	w.Write([]byte("event: Error\n"))
+	w.Write([]byte("event: erro" +
+		"r-message\n"))
 	w.Write([]byte(fmt.Sprintf("data: {\"Error\":\"%s\"}\n\n",err.Error())))
 	w.(http.Flusher).Flush()
 }

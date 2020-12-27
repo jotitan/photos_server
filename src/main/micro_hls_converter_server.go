@@ -35,7 +35,7 @@ func convert(w http.ResponseWriter,r * http.Request){
 	output := r.FormValue("output")
 	sizes := strings.Split(r.FormValue("sizes"),",")
 	bitrates := strings.Split(r.FormValue("bitrates"),",")
-	log.Println("Receive request to convert video",path,output,r.FormValue("sizes"),r.FormValue("bitrates"))
+	log.Println("Receive request to convert video with parameters",path,output,r.FormValue("sizes"),r.FormValue("bitrates"))
 	c := <- convertVideo(ffmpegPath,path,output,sizes,bitrates)
 	w.Write([]byte(fmt.Sprintf("%t",c)))
 }
