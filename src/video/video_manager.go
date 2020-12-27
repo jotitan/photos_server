@@ -306,7 +306,7 @@ func (vm VideoManager)getProperties(path string)map[string]string{
 	logger.GetLogger2().Info("READ EXIF",string(data))
 	properties := make(map[string]string)
 	for _,line := range strings.Split(string(data),"\r\n"){
-		splits := strings.Split(line," :")
+		splits := strings.Split(line,": ")
 		if len(splits) == 2 {
 			properties[strings.ReplaceAll(strings.ToLower(strings.Trim(splits[0]," "))," ","_")] = strings.Trim(splits[1]," ")
 		}
