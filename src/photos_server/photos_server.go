@@ -292,6 +292,7 @@ var splitStream,_ = regexp.Compile("(/stream/?)")
 // Use HLS to stream video
 func (s Server)getVideoStream(w http.ResponseWriter,r * http.Request){
 	path := r.URL.Path[14:]
+	w.Header().Set("Access-Control-Allow-Origin","*")
 	// Path can be
 	// /video_stream/path/stream => root of video path, return master.m3u8, which contains versions
 	// /video_stream/path/stream/v1/file => subversion and segment file
