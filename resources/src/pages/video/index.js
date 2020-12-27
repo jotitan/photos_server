@@ -115,7 +115,7 @@ export default function VideoDisplay({urlVideo}) {
                             <ReactPlayer
                                 playsinline
                                 controls={true}
-                                url={"http://localhost:9006" + currentVideo.VideosPath}
+                                url={`${baseUrl}${currentVideo.VideosPath}`}
                                 config={
                                     { file:{forceHLS:true}}
                                 }/>
