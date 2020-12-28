@@ -80,13 +80,13 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             setProgress(percent);
         });
         es.addEventListener("end", mess => {
-            if(JSON.parse(mess.data).end === true){
+            if(JSON.parse(mess.data).End === true){
                 uploadDone(path);
             }
             es.close();
         });
         es.addEventListener("error-message", mess => {
-            let message = JSON.parse(mess.data).error;
+            let message = JSON.parse(mess.data).Error;
             notification["error"]({message:"Echec de la sauvegarde",description:`${message}`});
         });
     };

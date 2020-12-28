@@ -65,14 +65,13 @@ func writeEvent(w http.ResponseWriter, st stat){
 }
 
 func writeEnd(w http.ResponseWriter){
-	w.Write([]byte("event: End\n"))
+	w.Write([]byte("event: end\n"))
 	w.Write([]byte("data: {\"End\":true}\n\n"))
 	w.(http.Flusher).Flush()
 }
 
 func writeError(w http.ResponseWriter,err error){
-	w.Write([]byte("event: erro" +
-		"r-message\n"))
+	w.Write([]byte("event: error-message\n"))
 	w.Write([]byte(fmt.Sprintf("data: {\"Error\":\"%s\"}\n\n",err.Error())))
 	w.(http.Flusher).Flush()
 }

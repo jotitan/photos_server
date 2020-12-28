@@ -79,7 +79,7 @@ export default function UploadVideos({setUpdate,isAddPanelVisible,setIsAddPanelV
         });
         es.addEventListener("end", mess => {
             console.log("end",mess)
-            if(JSON.parse(mess.data).end === true){
+            if(JSON.parse(mess.data).End === true){
                 uploadDone(path);
             }
             es.close();

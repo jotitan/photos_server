@@ -60,9 +60,11 @@ func (g GarbageManager)Remove(files []string)int{
 func (g GarbageManager)alreadyMoved(originalPath,movePath string)bool{
 	if move,err := os.Open(movePath);err == nil {
 		move.Close()
-		if _,err := os.Open(originalPath) ; err != nil {
+		if f,err := os.Open(originalPath) ; err != nil {
 			logger.GetLogger2().Info("Image " + originalPath + " is already in garbage")
 			return true
+		}else{
+			f.Close()
 		}
 	}
 	return false
@@ -80,15 +82,15 @@ func (g GarbageManager) MoveOriginalFileFromPath(absolutePath,relativePath strin
 		return true
 	}
 	if move,err := os.OpenFile(moveName,os.O_TRUNC|os.O_CREATE|os.O_RDWR,os.ModePerm); err == nil {
-		defer move.Close()
 		if from,err := os.Open(absolutePath) ; err == nil {
 			if _,err := io.Copy(move,from) ; err == nil {
+				move.Close()
 				from.Close()
 				logger.GetLogger2().Info("Move",absolutePath,"to garbage",moveName)
 				if err := os.Remove(absolutePath); err == nil {
 					return true
 				}else{
-					logger.GetLogger2().Error("Impossible to remove",absolutePath)
+					logger.GetLogger2().Error("Impossible to remove",absolutePath,err )
 					return false
 				}
 			}

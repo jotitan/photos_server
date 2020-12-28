@@ -105,6 +105,7 @@ func (vm * VideoManager)Save()error{
 	path := getSaveVideoPath()
 	if data,err := json.Marshal(vm.Folders) ; err == nil {
 		if f, err := os.OpenFile(path,os.O_CREATE|os.O_TRUNC|os.O_RDWR,os.ModePerm) ; err == nil {
+			defer f.Close()
 			if _,err := f.Write(data) ; err != nil{
 				return err
 			}
