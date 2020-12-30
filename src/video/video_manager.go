@@ -234,18 +234,35 @@ func (vm * VideoManager)UploadVideo(folder string,video multipart.File,videoName
 	}else{
 		return errorProgresser(progresser,err)
 	}
-	// use ffmpeg to create segments
-	if !vm.createSegments(filename,pathHls,progresser){
-		logger.GetLogger2().Info("Impossible to create segments")
-		progresser.Error(errors.New("impossible to create segments"))
-		progresser.End()
-		return false
+	// If pathHls is not empty, not need to compute again
+	if !isFolderEmpty(pathHls) {
+		logger.GetLogger2().Info("Segments already exists for",pathHls)
+		progresser.Done()
+	}else {
+		// use ffmpeg to create segments
+		if !vm.createSegments(filename, pathHls, progresser) {
+			logger.GetLogger2().Info("Impossible to create segments")
+			progresser.Error(errors.New("impossible to create segments"))
+			progresser.End()
+			return false
+		} else {
+			progresser.Done()
+		}
 	}
 	// Create cover
 	vm.copyCover(node,cover,coverName)
 	vm.addNode(folder,nil,node)
 	vm.Save()
 	progresser.End()
+	return true
+}
+
+func isFolderEmpty(path string)bool {
+	if f,err := os.Open(path) ; err == nil {
+		if files,err := f.Readdirnames(-1) ; err == nil && len(files) > 0 {
+			return false
+		}
+	}
 	return true
 }
 

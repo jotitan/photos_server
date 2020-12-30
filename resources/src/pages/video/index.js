@@ -34,7 +34,6 @@ export default function VideoDisplay({urlVideo}) {
             notification["success"]({message:'Suppression réussie',description:'La vidéo a bien été supprimée'})
         }).catch(()=>notification["error"]({message:'Opération impossible',description:'La vidéo n\'a pas été supprimée'}))
     };
-console.log(videos)
     return (
         <>
             <Row className={"options"}>
