@@ -27,7 +27,7 @@ type Metadata struct {
 	Duration int	// in second
 	Peoples []string
 	Keywords []string
-	Place string
+	Place []string
 }
 
 // Store the initial video and compute HLS
@@ -331,9 +331,9 @@ func createFolderIfNecessary(parentName,folder string,nodesToSearch map[string]*
 func createMetadatas(properties map[string]string)Metadata{
 	metadatas := Metadata{}
 	metadatas.Date = formatDate(properties["subtitle"])
-	metadatas.Keywords = strings.Split(properties["category"],", ")
-	metadatas.Peoples = strings.Split(properties["artist"],"/")
-	metadatas.Place = properties["producer"]
+	metadatas.Keywords = strings.Split(properties["category"],",")
+	metadatas.Peoples = strings.Split(properties["artist"],",")
+	metadatas.Place = strings.Split(properties["producer"],",")
 	metadatas.Title = properties["title"]
 	metadatas.Duration = parseDuration(properties["duration"])
 
