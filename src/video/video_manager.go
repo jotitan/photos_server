@@ -47,6 +47,17 @@ type VideoNode struct {
 	Files        VideoFiles
 }
 
+func (vn VideoNode) Count()int{
+	if !vn.IsFolder {
+		return 1
+	}
+	nb := 0
+	for _,node := range vn.Files {
+		nb+=node.Count()
+	}
+	return nb
+}
+
 type VideoNodeDto struct {
 	VideosPath string
 	CoverPath string
@@ -99,6 +110,14 @@ func (vm * VideoManager)Load()error{
 		return err
 	}
 	return nil
+}
+
+func (vm * VideoManager) Count()int{
+	nb := 0
+	for _,node:= range vm.Folders {
+		nb+=node.Count()
+	}
+	return nb
 }
 
 func (vm * VideoManager)Save()error{
@@ -182,6 +201,31 @@ func (vm * VideoManager)UploadVideoGlobal(folder string,video multipart.File,vid
 	progresser := progressManager.AddUploader(1)
 	go vm.UploadVideo(folder,video,videoName,cover,coverName,progresser)
 	return progresser,nil
+}
+
+func (vm * VideoManager)RemoveFolder(path string)error{
+	if node,parent,err := vm.FindVideoNode(path) ; err == nil {
+		if !node.IsFolder {
+			return errors.New("impossible to delete " + path + " : not a folder")
+		}
+		if len(node.Files) != 0 {
+			return errors.New("impossible to delete " + path + " : must be empty")
+		}
+		// Remove folder from hls and original
+		if err := os.Remove(filepath.Join(vm.originalUploadFolder,node.Name)) ; err !=nil && !os.IsNotExist(err){
+			// Already deleted, no error
+			return err
+		}
+		if err := os.Remove(filepath.Join(vm.hlsUploadFolder,node.Name)); err !=nil && !os.IsNotExist(err){
+			// Already deleted, no error
+			return err
+		}
+		delete(parent,node.Name)
+		vm.Save()
+		return nil
+	}else{
+		return err
+	}
 }
 
 func (vm * VideoManager)Delete(path string,moveFile func(string,string)bool)error{

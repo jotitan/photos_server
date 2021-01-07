@@ -170,6 +170,24 @@ currentVideo.VideosPath {
   color: white;
 }
 
+/* Define width of video */
+@media screen and (max-width: 1000px) and (orientation: portrait){
+  .modal-player.ant-modal {
+    width:95vw;
+  }
+}
+@media screen and (min-width: 1000px) or (orientation: landscape){
+  .modal-player.ant-modal {
+    width:65vw;
+  }
+}
+
+.modal-player .ant-modal-content {
+  background-color:rgba(0,0,0,0);
+  border:solid 1px darkgray;
+  height:100%;
+}
+
 .modal-player .ant-modal-footer {
   display: none;
 }

@@ -1,23 +1,27 @@
 import React, {useEffect, useState} from 'react'
-import {Image,Button, Col, Modal, notification, Popconfirm, Row} from 'antd'
+import {Image, Button, Col, Modal, notification, Popconfirm, Row, Tooltip} from 'antd'
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
 import default_icon from './flem.png';
 
-import {DeleteFilled, PlayCircleOutlined} from "@ant-design/icons";
+import {CloseOutlined, DeleteFilled, DeleteTwoTone, PlayCircleOutlined} from "@ant-design/icons";
 import ReactPlayer from "react-player/";
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function VideoDisplay({urlVideo}) {
+export default function VideoDisplay({urlVideo,setUpdate}) {
     let baseUrl = getBaseUrl();
     const [videos,setVideos] = useState([]);
     const [currentVideo,setCurrentVideo] = useState(null);
     const [showVideo,setShowVideo] = useState(false);
+    const [removeFolderUrl,setRemoveFolderUrl] = useState('');
     const loadVideos = url=>{
         axios({
             url:url,
             method:'GET'
-        }).then(data=>setVideos(data.data));
+        }).then(data=>{
+            setRemoveFolderUrl(data.data.RemoveFolderUrl);
+            setVideos(data.data.Children);
+        });
     };
 
     useEffect(()=>{
@@ -25,6 +29,18 @@ export default function VideoDisplay({urlVideo}) {
             loadVideos(urlVideo)
         }
     },[urlVideo])
+
+    const removeFolder = ()=>{
+        axios({
+            url:`${baseUrl}/${removeFolderUrl}`
+        }).then(()=>{
+            setUpdate(true);
+            setRemoveFolderUrl('');
+            notification["success"]({message:'Répertoire supprimé',description:'Le répertoire a été supprimé'});
+        }).catch((e)=>
+            notification["error"]({message:'Erreur de suppression',description:'Le répertoire n\'a pas été supprimé ' + e})
+        )
+    }
 
     const deleteVideo = (deletePath,path)=> {
         axios({
@@ -39,6 +55,15 @@ export default function VideoDisplay({urlVideo}) {
             <Row className={"options"}>
                 <Col>
                     {videos != null ? videos.length:'0'} vidéo(s)
+                    {removeFolderUrl !== '' && urlVideo !=='' && (videos == null || videos.length === 0) ?
+                        <span style={{marginLeft:20}}>
+                        <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
+                                    onConfirm={removeFolder} okText="Oui" cancelText="Non">
+                        <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
+                            <DeleteTwoTone style={{cursor:'pointer',padding:'4px',backgroundColor:'#ff8181'}} twoToneColor={"#b32727"}/>
+                        </Tooltip>
+                    </Popconfirm>
+                        </span>:''}
                 </Col>
 
             </Row>
@@ -98,22 +123,26 @@ export default function VideoDisplay({urlVideo}) {
             <Modal
                 className={"modal-player"}
                 maskStyle={{backgroundColor:'black',opacity:0.8}}
-                bodyStyle={{backgroundColor:'black'}}
+                bodyStyle={{backgroundColor:'rgba(0,0,0,0.6)',height:'100%'}}
                 visible={showVideo}
                 closable={true}
                 onCancel={(()=>{
                     setCurrentVideo(null);
                     setShowVideo(false);
                 })}
-                style={{color:'white'}}
-                width={"60%"}
+                closeIcon={<CloseOutlined style={{color:'white',position:'relative',top:-10,right:-15}}/>}
+
+                style={{top:20,height:'90vh',margin:'20px auto'}}
+                width={"65vw"}
             >
                 {
                     currentVideo != null ?
-                        <div className="container">
+                        <div style={{width:'100%',height:'100%',margin:10}}>
                             <ReactPlayer
                                 playsinline
                                 controls={true}
+                                width={"100%"}
+                                height={"100%"}
                                 url={`${baseUrl}${currentVideo.VideosPath}`}
                                 config={
                                     { file:{forceHLS:true}}

@@ -214,7 +214,7 @@ func (s Server)getAllVideosDates(w http.ResponseWriter,r * http.Request){
 
 func (s Server)count(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
-	write([]byte(fmt.Sprintf("%d",s.foldersManager.Count())),w)
+	write([]byte(fmt.Sprintf("{\"photos\":%d,\"videos\":%d}",s.foldersManager.Count(),s.videoManager.Count())),w)
 }
 
 func (s Server)listFolders(w http.ResponseWriter,r * http.Request){
@@ -243,6 +243,17 @@ func (s Server)addFolder(w http.ResponseWriter,r * http.Request){
 	logger.GetLogger2().Info("Add folder",folder,"and forceRotate :",forceRotate)
 	p := s.foldersManager.uploadProgressManager.AddUploader(0)
 	s.foldersManager.AddFolder(folder,forceRotate,p)
+}
+
+func (s Server)deleteVideoFolder(w http.ResponseWriter,r * http.Request){
+	header(w)
+	path := r.FormValue("path")
+	logger.GetLogger2().Info("Delete folder",path)
+	if err := s.videoManager.RemoveFolder(path) ;err != nil {
+		http.Error(w,err.Error(),400)
+	}else{
+		write([]byte("{\"success\":true}"),w)
+	}
 }
 
 func (s Server)deleteVideo(w http.ResponseWriter,r * http.Request){
@@ -589,8 +600,11 @@ func (s Server)browseRestfulVideo(w http.ResponseWriter,r * http.Request){
 		for _,file := range node.Files {
 			nodes = append(nodes,file)
 		}
-		formatedFiles := s.convertVideoPaths(nodes,false)
-		if data,err := json.Marshal(formatedFiles) ; err == nil{
+		folder := folderRestFul{Name:node.Name,Children:s.convertVideoPaths(nodes,false)}
+		if s.canAccessAdmin(r) {
+			folder.RemoveFolderUrl = fmt.Sprintf("/deleteFolder?path=%s",path[1:])
+		}
+		if data,err := json.Marshal(folder) ; err == nil{
 			write(data,w)
 		}
 	}
@@ -693,6 +707,7 @@ type imageRestFul struct{
 type folderRestFul struct {
 	Name string
 	Link string
+	RemoveFolderUrl string
 	// Link to update tags
 	LinkTags string
 	// Means that folder also have images to display
@@ -819,6 +834,7 @@ func (s Server) mainRoutes(server * http.ServeMux){
 func (s Server) videoRoutes(server * http.ServeMux){
 	server.HandleFunc("/uploadVideo",s.buildHandler(s.needAdmin,s.uploadVideo))
 	server.HandleFunc("/deleteVideo",s.buildHandler(s.needAdmin,s.deleteVideo))
+	server.HandleFunc("/deleteFolder",s.buildHandler(s.needAdmin,s.deleteVideoFolder))
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){

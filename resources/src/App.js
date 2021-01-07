@@ -70,6 +70,7 @@ function App() {
     const [canAdmin,setCanAdmin] = useState(false);
     const [hideAll,setHideAll] = useState(true);
     const [nbPhotos,setNbPhotos] = useState(0);
+    const [nbVideos,setNbVideos] = useState(0);
     const [videoMode,setVideoMode] = useState(false);
 
     const [isVideoAddPanelVisible,setIsVideoAddPanelVisible] = useState(false);
@@ -109,7 +110,10 @@ function App() {
                     axios({
                         method: 'GET',
                         url: getBaseUrl() + '/count',
-                    }).then(d => setNbPhotos(d.data));
+                    }).then(d => {
+                        setNbPhotos(d.data.photos)
+                        setNbVideos(d.data.videos)
+                    });
                 }
             });
         }
@@ -141,7 +145,7 @@ function App() {
                         <Content style={{height:100+'%'}}>
                             <Menu theme={"dark"}>
                                 <Menu.Item className={"logo"}>
-                                    <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos}</span>
+                                    <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos} / {nbVideos}</span>
                                 </Menu.Item>
                                 {canAdmin?
                                     videoMode ?
@@ -179,7 +183,7 @@ function App() {
                     <Layout>
                         {
                             videoMode ?
-                                <VideoDisplay urlVideo={urlVideoFolder.load}/>:
+                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate}/>:
                                 <MyGallery urlFolder={urlFolder} refresh={collapsed}
                                            titleGallery={titleGallery}
                                            canAdmin={canAdmin}
