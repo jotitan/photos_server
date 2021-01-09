@@ -391,7 +391,7 @@ func createFolderIfNecessary(parentName,folder string,nodesToSearch map[string]*
 
 func createMetadatas(properties map[string]string)Metadata{
 	metadatas := Metadata{}
-	metadatas.Date = formatDate(properties["subtitle"])
+	metadatas.Date = formatDate(properties["sub_title"])
 	metadatas.Keywords = strings.Split(properties["category"],",")
 	metadatas.Peoples = strings.Split(properties["artist"],",")
 	metadatas.Place = strings.Split(properties["producer"],",")
