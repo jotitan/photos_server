@@ -4,7 +4,7 @@ import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
 import default_icon from './flem.png';
 
-import {CloseOutlined, DeleteFilled, DeleteTwoTone, PlayCircleOutlined} from "@ant-design/icons";
+import {CloseOutlined, DeleteFilled, DeleteTwoTone, ChromeOutlined,PlayCircleOutlined} from "@ant-design/icons";
 import ReactPlayer from "react-player/";
 
 // setIsAddFolderPanelVisible to show folder to upload
@@ -14,12 +14,14 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
     const [currentVideo,setCurrentVideo] = useState(null);
     const [showVideo,setShowVideo] = useState(false);
     const [removeFolderUrl,setRemoveFolderUrl] = useState('');
+    const [updateExifFolderUrl,setUpdateExifFolderUrl] = useState('');
     const loadVideos = url=>{
         axios({
             url:url,
             method:'GET'
         }).then(data=>{
             setRemoveFolderUrl(data.data.RemoveFolderUrl);
+            setUpdateExifFolderUrl(data.data.UpdateExifFolderUrl);
             setVideos(data.data.Children);
         });
     };
@@ -29,6 +31,18 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
             loadVideos(urlVideo)
         }
     },[urlVideo])
+
+    const updateExif = ()=>{
+        axios({
+            url:`${baseUrl}/${updateExifFolderUrl}`
+        }).then(()=>{
+            setUpdate(true);
+            setRemoveFolderUrl('');
+            notification["success"]({message:'Répertoire mise à jour',description:'Les exifs sont à jour'});
+        }).catch((e)=>
+            notification["error"]({message:'Erreur de mise à jour',description:'Les exifs n\'ont pas été mises à jour ' + e})
+        )
+    }
 
     const removeFolder = ()=>{
         axios({
@@ -61,6 +75,15 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
                                     onConfirm={removeFolder} okText="Oui" cancelText="Non">
                         <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
                             <DeleteTwoTone style={{cursor:'pointer',padding:'4px',backgroundColor:'#ff8181'}} twoToneColor={"#b32727"}/>
+                        </Tooltip>
+                    </Popconfirm>
+                        </span>:''}
+                    {updateExifFolderUrl !== '' && urlVideo !==''  ?
+                        <span style={{marginLeft:20}}>
+                        <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre a jour les exifs"}
+                                    onConfirm={updateExif} okText="Oui" cancelText="Non">
+                        <Tooltip key={"image-info"} placement="top" title={"Mise à jour des exifs"}>
+                            <ChromeOutlined style={{cursor:'pointer',padding:'4px',backgroundColor:'#ff8181'}} twoToneColor={"#b32727"}/>
                         </Tooltip>
                     </Popconfirm>
                         </span>:''}

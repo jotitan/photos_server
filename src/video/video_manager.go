@@ -301,6 +301,27 @@ func (vm * VideoManager)UploadVideo(folder string,video multipart.File,videoName
 	return true
 }
 
+func (vm * VideoManager)UpdateExifFolder(path string)error{
+	if node,_,err := vm.FindVideoNode(path) ; err == nil && node.IsFolder{
+		for _,child:= range node.Files {
+			vm.updateExif(child)
+		}
+		return vm.Save()
+	}else{
+		if err != nil{
+			return err
+		}
+		return errors.New("can update non folder")
+	}
+	return nil
+}
+
+func (vm * VideoManager) updateExif(node * VideoNode){
+	originalPath := filepath.Join(vm.originalUploadFolder,node.OriginalPath)
+	properties := vm.getProperties(originalPath)
+	node.Metadata = createMetadatas(properties)
+}
+
 func isFolderEmpty(path string)bool {
 	if f,err := os.Open(path) ; err == nil {
 		if files,err := f.Readdirnames(-1) ; err == nil && len(files) > 0 {
@@ -371,7 +392,7 @@ func (vm VideoManager)getProperties(path string)map[string]string{
 	for _,line := range splitRegexp.Split(string(data),-1){
 		splits := strings.Split(line," :")
 		if len(splits) == 2 {
-			properties[strings.ReplaceAll(strings.ToLower(strings.Trim(splits[0]," "))," ","_")] = strings.Trim(splits[1]," ")
+			properties[strings.ReplaceAll(strings.ToLower(strings.Trim(splits[0]," "))," ","")] = strings.Trim(splits[1]," ")
 		}
 	}
 	logger.GetLogger2().Info("Read properties",len(properties))
@@ -391,7 +412,7 @@ func createFolderIfNecessary(parentName,folder string,nodesToSearch map[string]*
 
 func createMetadatas(properties map[string]string)Metadata{
 	metadatas := Metadata{}
-	metadatas.Date = formatDate(properties["sub_title"])
+	metadatas.Date = formatDate(properties["subtitle"])
 	metadatas.Keywords = strings.Split(properties["category"],",")
 	metadatas.Peoples = strings.Split(properties["artist"],",")
 	metadatas.Place = strings.Split(properties["producer"],",")

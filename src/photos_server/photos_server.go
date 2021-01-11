@@ -256,6 +256,16 @@ func (s Server)deleteVideoFolder(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+func (s Server) updateVideoFolderExif(w http.ResponseWriter,r * http.Request){
+	header(w)
+	path := r.FormValue("path")
+	if err := s.videoManager.UpdateExifFolder(path) ; err == nil {
+		write([]byte("{\"success\":true}"),w)
+	} else{
+		http.Error(w,err.Error(),400)
+	}
+}
+
 func (s Server)deleteVideo(w http.ResponseWriter,r * http.Request){
 	header(w)
 	if s.foldersManager.garbageManager == nil {
@@ -504,7 +514,11 @@ func (s Server)updateExifFolder(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	folder := r.FormValue("folder")
 	logger.GetLogger2().Info("Launch update exif folder :",folder)
-	if err := s.foldersManager.UpdateExif(folder) ; err != nil {
+	treatError(s.foldersManager.UpdateExif(folder),folder,w)
+}
+
+func treatError(err error, folder string, w http.ResponseWriter){
+	if err != nil {
 		logger.GetLogger2().Error(err.Error())
 	}else{
 		logger.GetLogger2().Info("End update folder",folder)
@@ -518,12 +532,7 @@ func (s Server)updateFolder(w http.ResponseWriter,r * http.Request){
 	folder := r.FormValue("folder")
 	logger.GetLogger2().Info("Launch update folder :",folder)
 	up := s.foldersManager.uploadProgressManager.AddUploader(0)
-	if err := s.foldersManager.UpdateFolder(folder,up) ; err != nil {
-		logger.GetLogger2().Error(err.Error())
-	}else{
-		logger.GetLogger2().Info("End update folder",folder)
-		write([]byte("success"),w)
-	}
+	treatError(s.foldersManager.UpdateFolder(folder,up),folder,w)
 }
 
 // Index an existing folder
@@ -603,6 +612,7 @@ func (s Server)browseRestfulVideo(w http.ResponseWriter,r * http.Request){
 		folder := folderRestFul{Name:node.Name,Children:s.convertVideoPaths(nodes,false)}
 		if s.canAccessAdmin(r) {
 			folder.RemoveFolderUrl = fmt.Sprintf("/deleteFolder?path=%s",path[1:])
+			folder.UpdateExifFolderUrl = fmt.Sprintf("/updateVideoFolderExif?path=%s",path[1:])
 		}
 		if data,err := json.Marshal(folder) ; err == nil{
 			write(data,w)
@@ -708,6 +718,7 @@ type folderRestFul struct {
 	Name string
 	Link string
 	RemoveFolderUrl string
+	UpdateExifFolderUrl string
 	// Link to update tags
 	LinkTags string
 	// Means that folder also have images to display
@@ -835,6 +846,7 @@ func (s Server) videoRoutes(server * http.ServeMux){
 	server.HandleFunc("/uploadVideo",s.buildHandler(s.needAdmin,s.uploadVideo))
 	server.HandleFunc("/deleteVideo",s.buildHandler(s.needAdmin,s.deleteVideo))
 	server.HandleFunc("/deleteFolder",s.buildHandler(s.needAdmin,s.deleteVideoFolder))
+	server.HandleFunc("/updateVideoFolderExif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){
