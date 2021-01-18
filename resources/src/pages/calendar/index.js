@@ -115,7 +115,7 @@ export default function MyCalendar({setUrlFolder,setTitleGallery,update,urls}) {
             setDates(dates);
             setOriginalDates(dates);
         },urls.getAll);
-    },[setDates,update]);
+    },[setDates,update,urls]);
 
     const filter = value => {
         if(value === ""){
