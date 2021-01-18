@@ -125,7 +125,7 @@ function App() {
             <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
-                    <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} />
+                    <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/allDates',getByDate:'/getByDate'}}/>
                 </div>:<></>):<></>;
 
     const showVideosMenu = ()=>
@@ -133,7 +133,7 @@ function App() {
             <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootVideosFolders'}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
-                    <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} />
+                    <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/videos/allDates',getByDate:'/getVideosByDate'}}/>
                 </div>:<></>):<></>;
 
     return (

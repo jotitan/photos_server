@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/progress"
@@ -17,9 +18,6 @@ import (
 	"time"
 )
 
-type INode interface {
-	IsDir()bool
-}
 
 type Files map[string]*Node
 
@@ -35,6 +33,22 @@ type Node struct {
 	// Store files in a map with name
 	Files Files
 	ImagesResized bool
+}
+
+func (n Node)GetDate()time.Time{
+	return n.Date
+}
+
+func (n Node)GetIsFolder()bool {
+	return n.IsFolder
+}
+
+func (n Node)GetFiles()map[string]common.INode{
+	nodes := make(map[string]common.INode,len(n.Files))
+	for key,value := range n.Files {
+		nodes[key] = value
+	}
+	return nodes
 }
 
 func (n Node)applyOnEach(rootFolder string, fct func(path,relativePath string, node * Node)){
@@ -64,7 +78,7 @@ func NewFolder(rootFolder,path,name string,files Files, imageResized bool)*Node{
 // Store many folders
 type FoldersManager struct{
 	Folders map[string]*Node
-	PhotosByDate map[time.Time][]*Node
+	PhotosByDate map[time.Time][]common.INode
 	garbageManager * GarbageManager
 	reducer Reducer
 	// Path of folder where to upload files
@@ -85,16 +99,11 @@ func NewFoldersManager(conf config.Config, uploadProgressManager*progress.Upload
 	return fm
 }
 
-type photosByDate struct {
-	Date time.Time
-	Nb int
-}
-
-func (fm *FoldersManager)GetAllDates()[]photosByDate{
+func (fm *FoldersManager)GetAllDates()[]common.NodeByDate {
 	byDate := fm.GetPhotosByDate()
-	dates := make([]photosByDate,0,len(byDate))
+	dates := make([]common.NodeByDate,0,len(byDate))
 	for date,nodes := range byDate {
-		dates = append(dates,photosByDate{Date:date,Nb:len(nodes)})
+		dates = append(dates, common.NodeByDate{Date: date,Nb:len(nodes)})
 	}
 	return dates
 }
@@ -108,7 +117,7 @@ func (fm *FoldersManager)updateExifOfDate(date string)(int,error){
 	if parseDate,err := time.Parse("20060102",date) ; err != nil {
 		return 0,err
 	}else {
-		midnightDate := getMidnightDate(parseDate)
+		midnightDate := common.GetMidnightDate(parseDate)
 		nodes,exist := fm.GetPhotosByDate()[midnightDate]
 		logger.GetLogger2().Info("Found",len(nodes),"to update exif for",midnightDate)
 		if !exist {
@@ -116,8 +125,8 @@ func (fm *FoldersManager)updateExifOfDate(date string)(int,error){
 		}
 		for _,node := range nodes {
 			// extract again exif date and update node
-			node.Date,_ = GetExif(node.AbsolutePath)
-			logger.GetLogger2().Info("Found date",node.Date,"for path",node.AbsolutePath)
+			node.(*Node).Date,_ = GetExif(node.(*Node).AbsolutePath)
+			logger.GetLogger2().Info("Found date",node.(*Node).Date,"for path",node.(*Node).AbsolutePath)
 		}
 		fm.save()
 		return len(nodes),nil
@@ -128,9 +137,13 @@ func (fm *FoldersManager)GetVideosByDate()map[time.Time][]*Node{
 	return nil
 }
 
-func (fm *FoldersManager)GetPhotosByDate()map[time.Time][]*Node{
+func (fm *FoldersManager)GetPhotosByDate()map[time.Time][]common.INode{
 	if fm.PhotosByDate == nil {
-		fm.PhotosByDate = fm.computePhotosByDate(fm.Folders)
+		nodes := make(map[string]common.INode,len(fm.Folders))
+		for key,value := range fm.Folders{
+			nodes[key] = value
+		}
+		fm.PhotosByDate = common.ComputeNodeByDate(nodes)
 	}
 	return fm.PhotosByDate
 }
@@ -700,22 +713,7 @@ func (fm *FoldersManager)browsePaths(path string)(*Node,error){
 	return node,nil
 }
 
-func (fm *FoldersManager) computePhotosByDate(files Files) map[time.Time][]*Node {
-	byDate := make(map[time.Time][]*Node)
-	// Browse all pictures and group by date
-	for _,node := range files {
-		if node.IsFolder {
-			// Relaunch
-			for date,nodes := range fm.computePhotosByDate(node.Files) {
-				addInTimeMap(byDate,date,nodes)
-			}
-		}else{
-			formatDate := getMidnightDate(node.Date)
-			addInTimeMap(byDate,formatDate,[]*Node{node})
-		}
-	}
-	return byDate
-}
+
 
 func (fm *FoldersManager) Count() int{
 	count := 0
@@ -733,20 +731,6 @@ func (fm *FoldersManager) IndexFolder(path string, folder string) error {
 	return fm.AddFolderToNode(folder,path,"",false,true,p)
 }
 
-func addInTimeMap(byDate map[time.Time][]*Node,date time.Time,nodes []*Node){
-	if list,exist := byDate[date] ; !exist {
-		byDate[date] = nodes
-	}else{
-		byDate[date] = append(list,nodes...)
-	}
-}
-
-func getMidnightDate(date time.Time)time.Time {
-	if format,err := time.Parse("2006-01-02",date.Format("2006-01-02")) ; err == nil {
-		return format
-	}
-	return date
-}
 
 func isImage(name string)bool{
 	for _,suffix := range extensions {

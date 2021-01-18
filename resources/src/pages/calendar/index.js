@@ -21,11 +21,11 @@ const groupDates = (rawDates,getNb=d=>d.Nb,parseDate=d=>new Date(d.Date).toISOSt
     return dates;
 }
 
-const getAllDates = (setDates)=> {
+const getAllDates = (setDates,url)=> {
     let baseUrl = getBaseUrl();
     axios({
         method:'GET',
-        url:baseUrl+'/allDates',
+        url:baseUrl+url,
     }).then(d=>setDates(groupDates(d.data)));
 };
 
@@ -86,7 +86,7 @@ function header(infos,mode,setMode) {
     }
 }
 
-function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
+function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery,getByDate){
     // If action comes from navigation bar, return
     if(value.navigation){
         return;
@@ -100,11 +100,11 @@ function onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery){
         // Check if photos exist for this date
         setTitleGallery(value.format('DD/MM/YYYY') + " - ");
         // Load gallery with date and url
-        setUrlFolder({load:`${getBaseUrl()}/getByDate?date=${value.format('YYYYMMDD')}`,tags:`${getBaseUrl()}/tagsByDate/${value.format('YYYYMMDD')}`});
+        setUrlFolder({load:`${getBaseUrl()}/${getByDate}?date=${value.format('YYYYMMDD')}`,tags:`${getBaseUrl()}/tagsByDate/${value.format('YYYYMMDD')}`});
     }
 }
 
-export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
+export default function MyCalendar({setUrlFolder,setTitleGallery,update,urls}) {
     const [dates,setDates] = useState([]);
     const [originalDates,setOriginalDates] = useState([]);
     const [mode,setMode] = useState('year');
@@ -114,7 +114,7 @@ export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
         getAllDates(dates=>{
             setDates(dates);
             setOriginalDates(dates);
-        });
+        },urls.getAll);
     },[setDates,update]);
 
     const filter = value => {
@@ -146,7 +146,7 @@ export default function MyCalendar({setUrlFolder,setTitleGallery,update}) {
                   dateCellRender={value=>dateCellRender(value,dates)}
                   locale={fr}
                   monthCellRender={value=>monthCellRender(value,dates)} mode={mode}
-                  onSelect={value=>onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery)}/>
+                  onSelect={value=>onSelect(dates,value,mode,setMode,setUrlFolder,setTitleGallery,urls.getByDate)}/>
                   </>
                   )
 }

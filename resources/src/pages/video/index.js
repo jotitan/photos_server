@@ -22,7 +22,7 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
         }).then(data=>{
             setRemoveFolderUrl(data.data.RemoveFolderUrl);
             setUpdateExifFolderUrl(data.data.UpdateExifFolderUrl);
-            setVideos(data.data.Children);
+            setVideos(data.data.Children || data.data.Files);
         });
     };
 

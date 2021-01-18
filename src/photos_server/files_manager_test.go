@@ -1,6 +1,7 @@
 package photos_server
 
 import (
+	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
 	"math/rand"
 	"path/filepath"
@@ -91,7 +92,7 @@ func TestGroupByDate(t *testing.T){
 	filesRoot["f6"] = &Node{Name:"f6",IsFolder:false,Date:time.Date(2020,4,12,23,59,12,0,time.Local)}
 
 	fm.Folders["root"] = NewFolder("/home","/home/folder1","folder1",filesRoot,false)
-	byDate := fm.computePhotosByDate(fm.Folders)
+	byDate := common.ComputeNodeByDate(fm.Folders)
 	if len(byDate) != 4 {
 		t.Error("Must find 4 group of date")
 	}

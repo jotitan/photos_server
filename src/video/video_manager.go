@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/progress"
@@ -58,6 +59,22 @@ func (vn VideoNode) Count()int{
 	return nb
 }
 
+func (vn VideoNode)GetDate()time.Time{
+	return vn.Metadata.Date
+}
+
+func (vn VideoNode)GetIsFolder()bool {
+	return vn.IsFolder
+}
+
+func (vn VideoNode)GetFiles()map[string]common.INode{
+	nodes := make(map[string]common.INode,len(vn.Files))
+	for key,value := range vn.Files {
+		nodes[key] = value
+	}
+	return nodes
+}
+
 type VideoNodeDto struct {
 	VideosPath string
 	CoverPath string
@@ -80,6 +97,7 @@ type VideoManager struct {
 	// Folder when hls segment (and cover) are stored
 	hlsUploadFolder string
 	Folders VideoFiles
+	VideosByDate map[time.Time][]common.INode
 	hlsManager HLSManager
 }
 
@@ -92,6 +110,7 @@ func NewVideoManager(conf config.Config)*VideoManager{
 		hlsUploadFolder:conf.VideoConfig.HLSUploadedFolder,
 		originalUploadFolder:conf.VideoConfig.OriginalUploadedFolder,
 		Folders:make(map[string]*VideoNode),
+		VideosByDate:nil,
 		hlsManager:GetHLSManager(conf)}
 }
 
@@ -110,6 +129,27 @@ func (vm * VideoManager)Load()error{
 		return err
 	}
 	return nil
+}
+
+func (vm *VideoManager)GetAllDates()[]common.NodeByDate{
+	byDate := vm.GetVideosByDate()
+	dates := make([]common.NodeByDate,0,len(byDate))
+	for date,nodes := range byDate {
+		dates = append(dates,common.NodeByDate{Date:date,Nb:len(nodes)})
+	}
+	return dates
+}
+
+func (vm * VideoManager)GetVideosByDate()map[time.Time][]common.INode{
+	if vm.VideosByDate == nil {
+		nodes := make(map[string]common.INode,len(vm.Folders))
+		for key,value := range vm.Folders{
+			nodes[key] = value
+		}
+
+		vm.VideosByDate = common.ComputeNodeByDate(nodes)
+	}
+	return vm.VideosByDate
 }
 
 func (vm * VideoManager) Count()int{

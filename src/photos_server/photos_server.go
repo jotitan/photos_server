@@ -3,6 +3,7 @@ package photos_server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/progress"
@@ -145,7 +146,20 @@ func (s Server)filterByFct(w http.ResponseWriter,r * http.Request,filter func(st
 func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
 	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
 		if photos,exist := s.foldersManager.GetPhotosByDate()[date] ; exist {
-			converts := s.convertPaths(photos,false)
+			converts := s.convertPathsFromInterface(photos,false)
+			response := imagesResponse{Files:converts,Tags:s.foldersManager.tagManger.GetTagsByDate(r.FormValue("date"))}
+			header(w)
+			if data,err := json.Marshal(response) ; err == nil {
+				w.Write(data)
+			}
+		}
+	}
+}
+
+func (s Server)getVideosByDate(w http.ResponseWriter,r * http.Request){
+	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
+		if videos,exist := s.videoManager.GetVideosByDate()[date] ; exist {
+			converts := s.convertVideosPathsFromInterface(videos,false)
 			response := imagesResponse{Files:converts,Tags:s.foldersManager.tagManger.GetTagsByDate(r.FormValue("date"))}
 			header(w)
 			if data,err := json.Marshal(response) ; err == nil {
@@ -206,7 +220,7 @@ func (s Server)getAllDates(w http.ResponseWriter,r * http.Request){
 }
 
 func (s Server)getAllVideosDates(w http.ResponseWriter,r * http.Request){
-	dates := s.foldersManager.GetAllDates()
+	dates := s.videoManager.GetAllDates()
 	data,_ := json.Marshal(dates)
 	header(w)
 	write(data,w)
@@ -735,6 +749,14 @@ func (s Server)newImageRestful(node *Node)imageRestFul{
 		ImageLink:     filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetMiddleImageName(*node)))}
 }
 
+func (s Server)convertPathsFromInterface(nodes []common.INode,onlyFolders bool)[]interface{}{
+	formatNodes := make([]*Node,len(nodes))
+	for i,n := range nodes {
+		formatNodes[i] = n.(*Node)
+	}
+	return s.convertPaths(formatNodes,onlyFolders)
+}
+
 // Convert node to restful response
 func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 	files := make([]interface{},0,len(nodes))
@@ -757,6 +779,16 @@ func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 	}
 	return files
 }
+
+
+func (s Server)convertVideosPathsFromInterface(nodes []common.INode,onlyFolders bool)[]interface{}{
+	formatNodes := make([]*video.VideoNode,len(nodes))
+	for i,n := range nodes {
+		formatNodes[i] = n.(*video.VideoNode)
+	}
+	return s.convertVideoPaths(formatNodes,onlyFolders)
+}
+
 
 // Convert node to restful response
 func (s Server)convertVideoPaths(nodes []*video.VideoNode,onlyFolders bool)[]interface{}{
@@ -847,6 +879,7 @@ func (s Server) videoRoutes(server * http.ServeMux){
 	server.HandleFunc("/deleteVideo",s.buildHandler(s.needAdmin,s.deleteVideo))
 	server.HandleFunc("/deleteFolder",s.buildHandler(s.needAdmin,s.deleteVideoFolder))
 	server.HandleFunc("/updateVideoFolderExif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
+	server.HandleFunc("/getVideosByDate",s.buildHandler(s.needUser,s.getVideosByDate))
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){
