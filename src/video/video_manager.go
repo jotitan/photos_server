@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +91,89 @@ func NewVideoNodeDto(node VideoNode)VideoNodeDto{
 		VideosPath:fmt.Sprintf("/video_stream/%s/stream/",node.HLSFolder)}
 }
 
+type VideoMetadataIndex struct {
+	// Index by keyword, key is the relativepath of videonode
+	byKeyword map[string]map[string]*VideoNode
+	byPeople  map[string]map[string]*VideoNode
+	byPlace   map[string]map[string]*VideoNode
+}
+
+func NewVideoMetadataIndex(files VideoFiles)*VideoMetadataIndex{
+	metadataIndex := VideoMetadataIndex{
+		byKeyword: make(map[string]map[string]*VideoNode),
+		byPeople: make(map[string]map[string]*VideoNode),
+		byPlace: make(map[string]map[string]*VideoNode),
+	}
+	metadataIndex.index(files)
+	logger.GetLogger2().Info("Load index metadata video",len(metadataIndex.byKeyword))
+	return &metadataIndex
+}
+
+func (vmi * VideoMetadataIndex)index(files map[string]*VideoNode){
+	for _,node := range files {
+		if !node.IsFolder {
+			vmi.add(vmi.byKeyword,node.Metadata.Keywords,node)
+			vmi.add(vmi.byPeople,node.Metadata.Peoples,node)
+			vmi.add(vmi.byPlace,node.Metadata.Place,node)
+		}else{
+			vmi.index(node.Files)
+		}
+	}
+}
+
+func (vmi * VideoMetadataIndex)add(index map[string]map[string]*VideoNode,keywords []string,node *VideoNode){
+	for _,keyword := range keywords {
+		normKeyword := strings.ToLower(keyword)
+		if nodes,exist := index[normKeyword] ; ! exist {
+			index[normKeyword] = map[string]*VideoNode{node.RelativePath: node}
+		}else{
+			nodes[node.RelativePath] = node
+		}
+	}
+}
+
+func (vmi VideoMetadataIndex)find(source map[string]map[string]*VideoNode,founded map[string]*VideoNode,name string){
+	if nodes,exist := source[strings.ToLower(name)] ; exist {
+		for key,value := range nodes {
+			founded[key] = value
+		}
+	}
+}
+
+func (vmi VideoMetadataIndex)findAll(name string)map[string]*VideoNode{
+	results := make(map[string]*VideoNode)
+	vmi.find(vmi.byKeyword,results,name)
+	vmi.find(vmi.byPeople,results,name)
+	vmi.find(vmi.byPlace,results,name)
+	return results
+}
+
+func (vmi VideoMetadataIndex)Search(names []string)map[string]*VideoNode{
+	results := make(map[string]*VideoNode)
+	for i,name := range names {
+		if nodes := vmi.findAll(name) ; len(nodes) == 0 {
+			return map[string]*VideoNode{}
+		}else {
+
+			if i == 0 {
+				results = nodes
+			}else{
+				// compute intersection
+				for key := range results {
+					if _,exist := nodes[key] ;!exist{
+						// Remove it
+						delete(results,key)
+					}
+				}
+				if len(results) == 0{
+					return results
+				}
+			}
+		}
+	}
+	return results
+}
+
 type VideoManager struct {
 	exiftool string
 	// Folder where original video files are stored
@@ -99,6 +183,7 @@ type VideoManager struct {
 	Folders VideoFiles
 	VideosByDate map[time.Time][]common.INode
 	hlsManager HLSManager
+	index *VideoMetadataIndex
 }
 
 func NewVideoManager(conf config.Config)*VideoManager{
@@ -120,11 +205,32 @@ func getSaveVideoPath()string{
 	return filepath.Join(wd,"save-videos.json")
 }
 
+type sortFolders []*VideoNode
+
+func (sf sortFolders)Len() int{return len(sf)}
+func (sf sortFolders)Less(i, j int) bool{return sf[i].Name < sf[j].Name}
+func (sf sortFolders)Swap(i, j int){sf[i],sf[j] = sf[j],sf[i]}
+
+// GetSortedFolders return folders sorted by name
+func (vm VideoManager)GetSortedFolders()[]*VideoNode{
+	folders := make([]*VideoNode,0,len(vm.Folders))
+	for _,node := range vm.Folders {
+		folders = append(folders,node)
+	}
+	sort.Sort(sortFolders(folders))
+	return folders
+}
+
 func (vm * VideoManager)Load()error{
 	path := getSaveVideoPath()
 	if data,err := ioutil.ReadFile(path) ; err == nil {
 		vm.Folders = make(map[string]*VideoNode)
-		return json.Unmarshal(data,&vm.Folders)
+		if err := json.Unmarshal(data,&vm.Folders) ; err == nil {
+			// Load index
+			vm.index = NewVideoMetadataIndex(vm.Folders)
+		}else{
+			return err
+		}
 	}else{
 		return err
 	}
@@ -158,6 +264,18 @@ func (vm * VideoManager) Count()int{
 		nb+=node.Count()
 	}
 	return nb
+}
+
+func (vm VideoManager)Search (query string)[]*VideoNode {
+	if strings.EqualFold(strings.Trim(query," "),"") {
+		return []*VideoNode{}
+	}
+	mapResults := vm.index.Search(strings.Split(query," "))
+	results := make([]*VideoNode,0,len(mapResults))
+	for _,node := range mapResults {
+		results = append(results,node)
+	}
+	return results
 }
 
 func (vm * VideoManager)Save()error{

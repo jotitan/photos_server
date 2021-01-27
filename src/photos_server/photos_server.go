@@ -156,6 +156,14 @@ func (s Server)getPhotosByDate(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+func (s Server)searchVideos(w http.ResponseWriter,r * http.Request){
+	results := s.videoManager.Search(r.FormValue("query"))
+	convertResults := s.convertVideoPaths(results, false)
+	if data,err := json.Marshal(imagesResponse{Files:convertResults}) ; err == nil {
+		w.Write(data)
+	}
+}
+
 func (s Server)getVideosByDate(w http.ResponseWriter,r * http.Request){
 	if date, err := time.Parse("20060102",r.FormValue("date")) ; err == nil {
 		if videos,exist := s.videoManager.GetVideosByDate()[date] ; exist {
@@ -605,10 +613,7 @@ func (s Server)getRootFolders(w http.ResponseWriter,r * http.Request){
 func (s Server)getRootVideoFolders(w http.ResponseWriter,r * http.Request){
 	logger.GetLogger2().Info("Get root videos folders")
 	header(w)
-	nodes := make([]*video.VideoNode,0,len(s.videoManager.Folders))
-	for _,node := range s.videoManager.Folders {
-		nodes = append(nodes,node)
-	}
+	nodes := s.videoManager.GetSortedFolders()
 	root := folderRestFul{Name:"Racine",Link:"",Children:s.convertVideoPaths(nodes,true)}
 	if data,err := json.Marshal(root) ; err == nil {
 		write(data,w)
@@ -864,7 +869,6 @@ func (s Server) updateRoutes(server * http.ServeMux){
 
 func (s Server) mainRoutes(server * http.ServeMux){
 	server.HandleFunc("/rootFolders",s.buildHandler(s.needConnected,s.getRootFolders))
-	server.HandleFunc("/rootVideosFolders",s.buildHandler(s.needConnected,s.getRootVideoFolders))
 	server.HandleFunc("/analyse",s.buildHandler(s.needAdmin,s.analyse))
 	server.HandleFunc("/delete",s.buildHandler(s.needAdmin,s.delete))
 	server.HandleFunc("/addFolder",s.buildHandler(s.needAdmin,s.addFolder))
@@ -875,11 +879,13 @@ func (s Server) mainRoutes(server * http.ServeMux){
 }
 
 func (s Server) videoRoutes(server * http.ServeMux){
+	server.HandleFunc("/rootVideosFolders",s.buildHandler(s.needConnected,s.getRootVideoFolders))
 	server.HandleFunc("/uploadVideo",s.buildHandler(s.needAdmin,s.uploadVideo))
 	server.HandleFunc("/deleteVideo",s.buildHandler(s.needAdmin,s.deleteVideo))
 	server.HandleFunc("/deleteFolder",s.buildHandler(s.needAdmin,s.deleteVideoFolder))
 	server.HandleFunc("/updateVideoFolderExif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
 	server.HandleFunc("/getVideosByDate",s.buildHandler(s.needUser,s.getVideosByDate))
+	server.HandleFunc("/video/search",s.buildHandler(s.needUser,s.searchVideos))
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){

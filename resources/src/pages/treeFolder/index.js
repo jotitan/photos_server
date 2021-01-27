@@ -34,7 +34,7 @@ const adapt = node => {
     return data;
 };
 
-export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter,rootUrl}) {
+export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter,rootUrl,filterMode}) {
     const [tree,setTree] = useState([]);
     const [originalTree,setOriginalTree] = useState([]);
     const { DirectoryTree } = Tree;
@@ -70,17 +70,21 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
     };
 
     const filter = value => {
-        // ask server
-        axios({
-            url:getBaseUrl() + `/filterTagsFolder?value=${value}`
-        }).then(d=>{
-            // Create map
-            let map = {};
-            d.data.forEach(d=>map[d.replace(/_/g," ")]=true);
-            // Keep values from server and from name
-            let values = originalTree.map(n=>hasName(value.toLowerCase(),n,n.title,map)).filter(n=>n!=null);
-            setTree(values);
-        })
+        if(filterMode === 'video') {
+            setUrlFolder({load: `/video/search?query=${value}`, path: ''});
+        }else {
+            // ask server
+            axios({
+                url: getBaseUrl() + `/filterTagsFolder?value=${value}`
+            }).then(d => {
+                // Create map
+                let map = {};
+                d.data.forEach(d => map[d.replace(/_/g, " ")] = true);
+                // Keep values from server and from name
+                let values = originalTree.map(n => hasName(value.toLowerCase(), n, n.title, map)).filter(n => n != null);
+                setTree(values);
+            })
+        }
     };
 
     const filterTree = event => {
@@ -104,27 +108,27 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
     window.addEventListener('resize', ()=>setHeight(window.innerHeight-185));
 
     return(
-            <>
-                {canFilter ?
-                    <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',width:280+'px',marginRight:10+'px'}}/>
-                    :<></>
-                }
-                {tree.length > 0 ? <DirectoryTree
-                    onSelect={onSelect}
-                    treeData={tree}
-                    height={height}
-                    autoExpandParent={false}
-                    expandedKeys={expandables}
-                    onExpand={setExpandables}
-                    virtual={true}
-                    style={{
-                        fontSize: 12 + 'px',
-                        width: 300 + 'px',
-                        overflow: 'auto',
-                        backgroundColor: '#001529',
-                        color: '#999'
-                    }}
-                />:''}
-                </>
+        <>
+            {canFilter ?
+                <Search onKeyUp={filterTree} size={"small"} placeholder={"Filtrer par tag ou par nom"} style={{marginLeft:10+'px',width:280+'px',marginRight:10+'px'}}/>
+                :<></>
+            }
+            {tree.length > 0 ? <DirectoryTree
+                onSelect={onSelect}
+                treeData={tree}
+                height={height}
+                autoExpandParent={false}
+                expandedKeys={expandables}
+                onExpand={setExpandables}
+                virtual={true}
+                style={{
+                    fontSize: 12 + 'px',
+                    width: 300 + 'px',
+                    overflow: 'auto',
+                    backgroundColor: '#001529',
+                    color: '#999'
+                }}
+            />:''}
+        </>
     )
 }

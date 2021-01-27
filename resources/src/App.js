@@ -122,7 +122,7 @@ function App() {
 
     const showPhotosMenu = ()=>
         !collapsed ? showGallery ?
-            <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'}/>:
+            <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'} filterMode={"photo"}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
                     <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/allDates',getByDate:'/getByDate'}}/>
@@ -130,7 +130,7 @@ function App() {
 
     const showVideosMenu = ()=>
         !collapsed ? showGallery ?
-            <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootVideosFolders'}/>:
+            <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootVideosFolders'} filterMode={"video"}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
                     <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/videos/allDates',getByDate:'/getVideosByDate'}}/>
