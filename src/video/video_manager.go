@@ -109,12 +109,16 @@ func NewVideoMetadataIndex(files VideoFiles)*VideoMetadataIndex{
 	return &metadataIndex
 }
 
+func (vmi * VideoMetadataIndex)indexVideo(node *VideoNode){
+	vmi.add(vmi.byKeyword,node.Metadata.Keywords,node)
+	vmi.add(vmi.byPeople,node.Metadata.Peoples,node)
+	vmi.add(vmi.byPlace,node.Metadata.Place,node)
+}
+
 func (vmi * VideoMetadataIndex)index(files map[string]*VideoNode){
 	for _,node := range files {
 		if !node.IsFolder {
-			vmi.add(vmi.byKeyword,node.Metadata.Keywords,node)
-			vmi.add(vmi.byPeople,node.Metadata.Peoples,node)
-			vmi.add(vmi.byPlace,node.Metadata.Place,node)
+			vmi.indexVideo(node)
 		}else{
 			vmi.index(node.Files)
 		}
@@ -454,6 +458,7 @@ func (vm * VideoManager)UploadVideo(folder string,video multipart.File,videoName
 	// Create cover
 	vm.copyCover(node,cover,coverName)
 	vm.addNode(folder,nil,node)
+	vm.index.indexVideo(node)
 	vm.Save()
 	progresser.End()
 	return true
