@@ -270,6 +270,13 @@ func (vm * VideoManager) Count()int{
 	return nb
 }
 
+type sortVideosByDate []*VideoNode
+
+func (sf sortVideosByDate)Len() int           {return len(sf)}
+func (sf sortVideosByDate)Less(i, j int) bool {return sf[i].Metadata.Date.Unix() < sf[j].Metadata.Date.Unix()}
+func (sf sortVideosByDate)Swap(i, j int)      {sf[i],sf[j] = sf[j],sf[i]}
+
+//Search return founded video node sort by date
 func (vm VideoManager)Search (query string)[]*VideoNode {
 	if strings.EqualFold(strings.Trim(query," "),"") {
 		return []*VideoNode{}
@@ -279,6 +286,7 @@ func (vm VideoManager)Search (query string)[]*VideoNode {
 	for _,node := range mapResults {
 		results = append(results,node)
 	}
+	sort.Sort(sortVideosByDate(results))
 	return results
 }
 
