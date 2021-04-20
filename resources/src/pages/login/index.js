@@ -13,7 +13,7 @@ export default function Login({setCanAccess}) {
     const basicConnect = ()=>{
         return axios({
             method: 'GET',
-            url: getBaseUrl() + '/connect',
+            url: getBaseUrl() + '/security/connect',
             auth:{username:username,password:password}
         }).then(d => {
             // If no access, ask again with basic auth

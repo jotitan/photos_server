@@ -8,6 +8,11 @@ type INode interface {
 	GetIsFolder()bool
 }
 
+func AddVideoToDates(node INode, dates map[time.Time][]INode){
+	formatDate := GetMidnightDate(node.GetDate())
+	addInTimeMap(dates,formatDate,[]INode{node})
+}
+
 func ComputeNodeByDate(files map[string]INode) map[time.Time][]INode {
 	byDate := make(map[time.Time][]INode)
 	// Browse all pictures and group by date

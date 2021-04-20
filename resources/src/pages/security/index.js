@@ -12,7 +12,7 @@ export default function ConnectPanel({setCanAccess}) {
     useEffect(()=>{
         axios({
             method:'GET',
-            url:getBaseUrl() + '/securityConfig'
+            url:getBaseUrl() + '/security/config'
         }).then(d=>{
             switch(d.data.name){
                 case "basic":setBasic(true);break;

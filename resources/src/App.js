@@ -20,14 +20,14 @@ export const history = createBrowserHistory({
 function checkReadAccess(){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/canAccess',
+        url: getBaseUrl() + '/security/canAccess',
     })
 }
 
 function checkAdminAccess(setCanAdmin){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/canAdmin',
+        url: getBaseUrl() + '/security/canAdmin',
     }).then(() =>
         // If 200, can admin, otherwise, 403
         setCanAdmin(true)
@@ -37,7 +37,7 @@ function checkAdminAccess(setCanAdmin){
 function checkIsGuest(){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/isGuest',
+        url: getBaseUrl() + '/security/isGuest',
     });
 }
 
@@ -85,7 +85,7 @@ function App() {
         if(params.length > 0){
             axios({
                 method:'POST',
-                url: getBaseUrl() + '/connect',
+                url: getBaseUrl() + '/security/connect',
                 data:params
             }).then(()=>checkReadAccess()
                 .then(()=>setCanAccess(true))
@@ -130,10 +130,10 @@ function App() {
 
     const showVideosMenu = ()=>
         !collapsed ? showGallery ?
-            <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootVideosFolders'} filterMode={"video"}/>:
+            <TreeFolder setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/video/folder'} filterMode={"video"}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
-                    <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/videos/allDates',getByDate:'/getVideosByDate'}}/>
+                    <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/videos/allDates',getByDate:'/video/date'}}/>
                 </div>:<></>):<></>;
 
     return (

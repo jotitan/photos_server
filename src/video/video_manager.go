@@ -87,7 +87,7 @@ func NewVideoNodeDto(node VideoNode)VideoNodeDto{
 	return VideoNodeDto{
 		Metadata:node.Metadata,
 		CoverPath:"/cover/" + node.RelativePath,
-		DeletePath:"/deleteVideo?path=" + node.RelativePath,
+		DeletePath:"/video?path=" + node.RelativePath,
 		VideosPath:fmt.Sprintf("/video_stream/%s/stream/",node.HLSFolder)}
 }
 
@@ -248,6 +248,10 @@ func (vm *VideoManager)GetAllDates()[]common.NodeByDate{
 		dates = append(dates,common.NodeByDate{Date:date,Nb:len(nodes)})
 	}
 	return dates
+}
+
+func (vm * VideoManager) addVideoByDate(node *VideoNode) {
+	common.AddVideoToDates(node,vm.VideosByDate)
 }
 
 func (vm * VideoManager)GetVideosByDate()map[time.Time][]common.INode{
@@ -467,6 +471,7 @@ func (vm * VideoManager)UploadVideo(folder string,video multipart.File,videoName
 	vm.copyCover(node,cover,coverName)
 	vm.addNode(folder,nil,node)
 	vm.index.indexVideo(node)
+	vm.addVideoByDate(node)
 	vm.Save()
 	progresser.End()
 	return true

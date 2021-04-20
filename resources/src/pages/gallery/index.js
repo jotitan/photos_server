@@ -158,7 +158,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
         if(canAdmin && updateUrl !==""){
             setUpdateRunning(true);
             axios({
-                method:'GET',
+                method:'POST',
                 url:baseUrl + updateUrl,
             }).then(()=>{
                 // Reload folder

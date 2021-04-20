@@ -55,7 +55,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
 
         axios({
             method:'POST',
-            url:getBaseUrl()+'/uploadFolder',
+            url:getBaseUrl()+'/photo',
             data:data,
             // Progress count for 25%
             onUploadProgress:info=>setProgress(Math.round((info.loaded / info.total)*25))

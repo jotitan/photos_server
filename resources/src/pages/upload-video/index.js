@@ -53,7 +53,7 @@ export default function UploadVideos({setUpdate,isAddPanelVisible,setIsAddPanelV
 
         axios({
             method:'POST',
-            url:getBaseUrl()+'/uploadVideo',
+            url:getBaseUrl()+'/video',
             data:data,
             // Progress count for 50%
             onUploadProgress:info=>setProgress(Math.round((info.loaded / info.total)*50))

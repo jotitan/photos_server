@@ -36,7 +36,7 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
 
     const updateExif = ()=>{
         axios({
-            url:`${baseUrl}/${updateExifFolderUrl}`
+            url:`${baseUrl}${updateExifFolderUrl}`
         }).then(()=>{
             setUpdate(true);
             setRemoveFolderUrl('');
@@ -48,7 +48,8 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
 
     const removeFolder = ()=>{
         axios({
-            url:`${baseUrl}/${removeFolderUrl}`
+            url:`${baseUrl}${removeFolderUrl}`,
+            method:'DELETE'
         }).then(()=>{
             setUpdate(true);
             setRemoveFolderUrl('');
@@ -60,7 +61,8 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
 
     const deleteVideo = (deletePath,path)=> {
         axios({
-            url:`${baseUrl}/${deletePath}`
+            method:'DELETE',
+            url:`${baseUrl}${deletePath}`
         }).then(()=>{
             setVideos(videos.filter(v=>v.VideosPath !== path));
             notification["success"]({message:'Suppression réussie',description:'La vidéo a bien été supprimée'})

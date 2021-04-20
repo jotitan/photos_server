@@ -73,3 +73,9 @@ Https is not enaled cause I'm using secured proxy in front.
 
 At home, server run on Raspberry Pi 2 with an old SAN.
 Indexation is quite slow but after that, displaying is very fast.
+
+
+Usefull links :
+* https://hlsbook.net/creating-a-master-playlist-with-ffmpeg/
+* https://developer.apple.com/documentation/http_live_streaming/hls_authoring_specification_for_apple_devices
+* https://masteringjs.io/axios 
