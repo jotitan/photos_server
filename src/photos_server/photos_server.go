@@ -485,7 +485,7 @@ func (s Server)uploadVideo(w http.ResponseWriter,r * http.Request){
 // Return an id to monitor upload
 func (s Server)uploadFolder(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
-	if r.Method == http.MethodPost {
+	if r.Method != http.MethodPost {
 		http.Error(w,"only POST method is allowed",405)
 		return
 	}
@@ -899,14 +899,6 @@ func (s Server) videoRoutes(server * http.ServeMux){
 	server.HandleFunc("/video/folder/exif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
 	server.HandleFunc("/video/date",s.buildHandler(s.needUser,s.getVideosByDate))
 	server.HandleFunc("/video/search",s.buildHandler(s.needUser,s.searchVideos))
-
-	/*server.HandleFunc("/rootVideosFolders",s.buildHandler(s.needConnected,s.getRootVideoFolders))
-	server.HandleFunc("/uploadVideo",s.buildHandler(s.needAdmin,s.uploadVideo))
-	server.HandleFunc("/deleteVideo",s.buildHandler(s.needAdmin,s.deleteVideo))
-	server.HandleFunc("/deleteFolder",s.buildHandler(s.needAdmin,s.deleteVideoFolder))
-	server.HandleFunc("/updateVideoFolderExif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
-	server.HandleFunc("/getVideosByDate",s.buildHandler(s.needUser,s.getVideosByDate))
-	server.HandleFunc("/video/search",s.buildHandler(s.needUser,s.searchVideos))*/
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){
