@@ -7,6 +7,7 @@ import (
 	"github.com/disintegration/imaging"
 	exifutil "github.com/dsoprea/go-exif/v2"
 	"github.com/dsoprea/go-jpeg-image-structure"
+	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/progress"
 	"github.com/jotitan/photos_server/resize"
@@ -29,12 +30,21 @@ type Reducer struct {
 	sizes []uint
 	// Receive an absolute path of image and a relative path to cache
 	imagesToResize chan ImageToResize
-	resize resize.AsyncGoResizer
+	resize resize.GoResizerManager
 	totalCount int
 }
 
-func NewReducer(folder string, sizes []uint)Reducer{
-	r := Reducer{cache: folder,sizes:sizes,resize:resize.NewAsyncGoResize(),imagesToResize:make(chan ImageToResize,100)}
+func NewReducer(conf config.Config, sizes []uint)Reducer{
+	r := Reducer{
+		cache: conf.CacheFolder,
+		sizes:sizes,
+		imagesToResize:make(chan ImageToResize,100),
+	}
+	if strings.EqualFold(conf.PhotoConfig.Converter,"remote") {
+		r.resize = resize.NewHttpGoResizer(conf.PhotoConfig.Url)
+	}else{
+		r.resize = resize.NewAsyncGoResize()
+	}
 	go r.listenAndResize()
 	return r
 }
@@ -151,7 +161,7 @@ func getExifOrientation(infos *exif.Exif)int{
 	}
 	return 0
 	/*
-	1 : 0, 8 : 90, 3 : 180, 6 : 270
+		1 : 0, 8 : 90, 3 : 180, 6 : 270
 	*/
 }
 

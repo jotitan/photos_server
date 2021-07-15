@@ -1,0 +1,37 @@
+cache: c:\Projets\DATA\cache_resizer
+upload-folder: C:\Projets\DATA\cache_resizer\uploaded
+resources: c:\Projets\photos_server\resources\build
+garbage: C:\Projets\DATA\garbage
+photo:
+  converter: remote
+  url: http://localhost:9013
+video:
+  exiftool: C:\Users\jonathan.baranzini\Downloads\exiftool-12.12\exiftool.exe
+#  ffmpeg: C:\Users\jonathan.baranzini\Downloads\ffmpeg-20190519-fbdb3aa-win64-static\bin\ffmpeg.exe
+  convert-server: http://localhost:9014/convert
+  original-upload-folder: C:\Projets\DATA\VIDEOS\original
+  hls-upload-folder: C:\Projets\DATA\VIDEOS\streaming
+security:
+  mask-admin: empty
+  secret: GZsvLDezrSX-BKjxN3hgXy_gB1PllVkIHPobpXG8zqs
+  #basic:
+  #  username: titan
+  #  password: azerty
+  oauth2:
+     provider: google
+     client_id: 657324761627-0gs2jvhjv5hu40v1f1alrhi39ao1a3ct.apps.googleusercontent.com
+     client_secret: X3LBEsggeU6s8qPG6mkHBDya
+     redirect_url: http://localhost:9006
+     emails:
+       - titanbar@gmail.com
+    # - jonathan.baranzini@talan.com
+     admin_emails:
+       - titanbar@gmail.com
+    #suffix_email_share:
+    #  - '@gmail.com'
+    #  - '@talan.com'
+
+tasks:
+  - cron: "0 0 */1 * * *"
+    run: cp save-images.json c:\tmp\
+

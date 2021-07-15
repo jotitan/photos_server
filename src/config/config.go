@@ -35,6 +35,11 @@ type SecurityConfig struct {
 	OAuth2Config OAuth2Config `yaml:"oauth2"`
 }
 
+type PhotoConfig struct {
+	Converter string `yaml:"converter"` // local | remote
+	Url string `yaml:"url"`	// Url of remote server
+}
+
 type VideoConfig struct {
 	ExifTool               string `yaml:"exiftool"`
 	FFMPEGPath             string `yaml:"ffmpeg"`
@@ -48,6 +53,7 @@ type Config struct {
 	WebResources string	`yaml:"resources"`	//mandatory to specify where web resources are
 	Port string	`yaml:"port"` // default 9006
 	VideoConfig VideoConfig `yaml:"video"`
+	PhotoConfig PhotoConfig `yaml:"photo"`
 	Garbage string	`yaml:"garbage"`
 	UploadedFolder string `yaml:"upload-folder"`
 	OverrideUploadFolder string  `yaml:"override-upload"`

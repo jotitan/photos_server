@@ -90,7 +90,7 @@ type FoldersManager struct{
 }
 
 func NewFoldersManager(conf config.Config, uploadProgressManager*progress.UploadProgressManager)*FoldersManager {
-	fm := &FoldersManager{Folders: make(map[string]*Node,0),reducer:NewReducer(conf.CacheFolder,[]uint{1080,250}),
+	fm := &FoldersManager{Folders: make(map[string]*Node,0),reducer:NewReducer(conf,[]uint{1080,250}),
 		UploadedFolder:conf.UploadedFolder,overrideUploadFolder:conf.OverrideUploadFolder,
 		uploadProgressManager:uploadProgressManager}
 	fm.load()
