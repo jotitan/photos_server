@@ -54,11 +54,8 @@ func (gor GoResizer)Resize(from,to string,width,height uint)(error,uint,uint){
 	}
 
 	if img,err := openImage(from) ; err == nil {
-		//fmt.Println("Time read",time.Now().Sub(begin))
 		imgResize,w,h := resizeImage(img, width, height)
-		//fmt.Println("Time resize",time.Now().Sub(begin))
 		return saveImage(imgResize, to),w,h
-		//fmt.Println("Time save",time.Now().Sub(begin))
 	}else{
 		logger.GetLogger2().Info("Impossible to resize",err)
 		return err,0,0
@@ -104,6 +101,7 @@ func NewAsyncGoResize()AsyncGoResizer{
 	go agor.runOpener()
 	go agor.runResizer()
 	go agor.runSaver()
+	logger.GetLogger2().Info("Use default async resizer")
 	return agor
 }
 
@@ -118,13 +116,6 @@ func (agor AsyncGoResizer)runOpener(){
 			pathWrapper.callback(err, 0, 0,1)
 		}
 	}
-}
-
-func GetSize(path string)(uint,uint){
-	if img,err := openImage(path) ; err == nil {
-		return uint(img.Bounds().Size().X),uint(img.Bounds().Size().Y)
-	}
-	return 0,0
 }
 
 func (agor AsyncGoResizer)runResizer(){
@@ -235,4 +226,12 @@ func CorrectRotation(orientation int)int{
 	case 6 : return -90
 	}
 	return 0
+}
+
+
+func GetSize(path string)(uint,uint){
+	if img,err := openImage(path) ; err == nil {
+		return uint(img.Bounds().Size().X),uint(img.Bounds().Size().Y)
+	}
+	return 0,0
 }

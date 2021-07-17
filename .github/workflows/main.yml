@@ -31,11 +31,13 @@ jobs:
         export GOARCH=arm
         go build -o photos_server photos_server_run.go
         go build micro_hls_converter_server.go
+        go build -o photo_converter micro_photo_converter_server.go
         cd ../../
         mkdir artifacts
         echo Copy server artifact in artifacts/
         mv src/main/photos_server artifacts
         mv src/main/micro_hls_converter_server artifacts
+        mv src/main/photo_converter artifacts
 
       # Build the front
     - name: Build front
