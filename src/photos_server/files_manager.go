@@ -10,6 +10,7 @@ import (
 	"github.com/jotitan/photos_server/progress"
 	"io"
 	"io/ioutil"
+	"math"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -25,14 +26,15 @@ type Node struct {
 	AbsolutePath string
 	// Path of node relative to head
 	RelativePath string
-	Width int
-	Height int
-	Date time.Time
-	Name string
-	IsFolder bool
+	Width        int
+	Height       int
+	Date         time.Time
+	Name         string
+	IsFolder     bool
 	// Store files in a map with name
-	Files Files
+	Files         Files
 	ImagesResized bool
+	Id            int	`json:"id,omitempty"`
 }
 
 func (n Node)GetDate()time.Time{
@@ -87,6 +89,7 @@ type FoldersManager struct{
 	overrideUploadFolder string
 	tagManger * TagManager
 	uploadProgressManager *progress.UploadProgressManager
+	nextFolderId int
 }
 
 func NewFoldersManager(conf config.Config, uploadProgressManager*progress.UploadProgressManager)*FoldersManager {
@@ -94,9 +97,21 @@ func NewFoldersManager(conf config.Config, uploadProgressManager*progress.Upload
 		UploadedFolder:conf.UploadedFolder,overrideUploadFolder:conf.OverrideUploadFolder,
 		uploadProgressManager:uploadProgressManager}
 	fm.load()
+	fm.updateNextFolderId()
+	fm.detectMissingFoldersId()
 	fm.garbageManager = NewGarbageManager(conf.Garbage,conf.Security.MaskForAdmin,fm)
 	fm.tagManger = NewTagManager(fm)
 	return fm
+}
+
+func (fm *FoldersManager)updateNextFolderId(){
+	id := 0
+	for _,node := range fm.Folders {
+		if node.IsFolder {
+			id = int(math.Max(float64(node.Id),float64(id)))
+		}
+	}
+	fm.nextFolderId = id+1
 }
 
 func (fm *FoldersManager)GetAllDates()[]common.NodeByDate {
@@ -495,6 +510,33 @@ func extractImages(node *Node)map[string]struct{}{
 	return m
 }
 
+func (fm *FoldersManager)detectMissingFoldersIdOfFolder(folders map[string]*Node)int{
+	counter := 0
+	for _,folder := range folders {
+		if folder.IsFolder {
+			if folder.Id == 0 {
+				// Need to define folder
+				counter++
+				folder.Id = fm.nextFolderId
+				fm.nextFolderId++
+			}
+			// Browse subfolders
+			counter += fm.detectMissingFoldersIdOfFolder(folder.Files)
+		}
+	}
+	return counter
+}
+
+// Detect folders without id, create if necessary
+func (fm *FoldersManager)detectMissingFoldersId(){
+	counter := fm.detectMissingFoldersIdOfFolder(fm.Folders)
+	if counter != 0 {
+		// Save configuration to keep new ids
+		logger.GetLogger2().Info("Save new ids of folder",counter,". Next folder id is",fm.nextFolderId)
+		fm.save()
+	}
+}
+
 func (fm *FoldersManager)load(){
 	if f,err := os.Open(getSavePath()) ; err == nil {
 		defer f.Close()
@@ -502,6 +544,7 @@ func (fm *FoldersManager)load(){
 		folders := make(map[string]*Node,0)
 		json.Unmarshal(data,&folders)
 		fm.Folders = folders
+
 	}else{
 		logger.GetLogger2().Error("Impossible to read saved config",getSavePath(),err)
 	}
@@ -673,22 +716,22 @@ func (fm FoldersManager)List()[]*Node{
 	return nodes
 }
 
-func (fm *FoldersManager) Browse(path string) ([]*Node,error){
+func (fm *FoldersManager) Browse(path string) ([]*Node,int,error){
 	if len(path) < 2 {
 		// Return list
-		return fm.List(),nil
+		return fm.List(),0,nil
 
 	}else{
 		node,err:= fm.browsePaths(path)
 		if err != nil{
-			return nil,err
+			return nil,0,err
 		}
 		// Parse file of nodes
 		nodes := make([]*Node,0,len(node.Files))
 		for _,file := range node.Files {
 			nodes = append(nodes,file)
 		}
-		return nodes,nil
+		return nodes,node.Id,nil
 	}
 }
 
@@ -713,8 +756,6 @@ func (fm *FoldersManager)browsePaths(path string)(*Node,error){
 	return node,nil
 }
 
-
-
 func (fm *FoldersManager) Count() int{
 	count := 0
 	for _,nodes := range fm.GetPhotosByDate() {
@@ -730,7 +771,6 @@ func (fm *FoldersManager) IndexFolder(path string, folder string) error {
 	p := fm.uploadProgressManager.AddUploader(0)
 	return fm.AddFolderToNode(folder,path,"",false,true,p)
 }
-
 
 func isImage(name string)bool{
 	for _,suffix := range extensions {

@@ -6,6 +6,7 @@ import (
 	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/people_tag"
 	"github.com/jotitan/photos_server/progress"
 	"github.com/jotitan/photos_server/security"
 	"github.com/jotitan/photos_server/video"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -237,6 +239,80 @@ func (s Server)getAllVideosDates(w http.ResponseWriter,r * http.Request){
 func (s Server)count(w http.ResponseWriter,r * http.Request){
 	w.Header().Set("Access-Control-Allow-Origin","*")
 	write([]byte(fmt.Sprintf("{\"photos\":%d,\"videos\":%d}",s.foldersManager.Count(),s.videoManager.Count())),w)
+}
+
+type tagRequest struct{
+	Tag int	`json:"tag"`
+	Folder int	`json:"folder"`
+	Paths []string	`json:"paths"`
+	Deleted []string	`json:"deleted"`
+}
+
+func getTagPath()string{
+	wd,_ := os.Getwd()
+	return wd
+}
+
+func (s Server)tagFolder(w http.ResponseWriter,r * http.Request){
+	if r.Method != http.MethodPost {
+		http.Error(w,"Bad method",http.StatusMethodNotAllowed)
+		return
+	}
+	data,_ := ioutil.ReadAll(r.Body)
+	tags := make([]tagRequest,0)
+	if err := json.Unmarshal(data,&tags) ; err != nil {
+		http.Error(w,err.Error(),http.StatusBadRequest)
+		return
+	}
+	ptm := people_tag.NewPeopleTagManager(getTagPath())
+	for _,tag := range tags {
+		ptm.Tag(tag.Folder,tag.Tag,tag.Paths, tag.Deleted)
+	}
+	ptm.Flush()
+	w.Write([]byte("ok"))
+}
+
+func (s Server)getPeoples(w http.ResponseWriter,r * http.Request){
+	if peoples,err := people_tag.GetPeoplesAsByte(getTagPath()) ; err == nil {
+		w.Write(peoples)
+	}else{
+		http.Error(w,err.Error(),http.StatusBadRequest)
+	}
+}
+
+func (s Server)addPeopleTag(w http.ResponseWriter,r * http.Request){
+	if id,err := people_tag.AddPeopleTag(getTagPath(),r.FormValue("name")) ; err == nil {
+		w.Write([]byte(fmt.Sprintf("%d",id)))
+	}else{
+		http.Error(w,err.Error(),http.StatusBadRequest)
+	}
+}
+
+
+func (s Server)searchTagsOfFolder(w http.ResponseWriter,r * http.Request){
+	idFolder,err := strconv.Atoi(r.FormValue("folder"))
+	if err != nil {
+		http.Error(w,err.Error(),http.StatusBadRequest)
+		return
+	}
+	ptm := people_tag.NewPeopleTagManager(getTagPath())
+	data,_ := json.Marshal(ptm.SearchFolder(idFolder))
+	w.Write(data)
+
+}
+
+func (s Server)searchTag(w http.ResponseWriter,r * http.Request){
+	idFolder,err1 := strconv.Atoi(r.FormValue("folder"))
+	idTag,err2 := strconv.Atoi(r.FormValue("tag"))
+	if err1 != nil ||err2 != nil {
+		http.Error(w,"Bad request",http.StatusBadRequest)
+		return
+	}
+	logger.GetLogger2().Info("Search tag folder",idFolder,idTag)
+	ptm := people_tag.NewPeopleTagManager(getTagPath())
+	results := ptm.Search(idFolder,idTag)
+	data,_ := json.Marshal(results)
+	w.Write(data)
 }
 
 func error403(w http.ResponseWriter,r * http.Request){
@@ -670,10 +746,10 @@ func (s Server)browseRestful(w http.ResponseWriter,r * http.Request){
 		return
 	}
 	logger.GetLogger2().Info("Browse restfull receive request",path)
-	if files,err := s.foldersManager.Browse(path) ; err == nil {
+	if files,id,err := s.foldersManager.Browse(path) ; err == nil {
 		formatedFiles := s.convertPaths(files,false)
 		tags :=s.foldersManager.tagManger.GetTagsByFolder(path[1:])
-		imgResponse := imagesResponse{Files:formatedFiles,UpdateExifUrl:"/photo/folder/exif?folder=" + path[1:],UpdateUrl:"/photo/folder/update?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
+		imgResponse := imagesResponse{Id:id,Files:formatedFiles,UpdateExifUrl:"/photo/folder/exif?folder=" + path[1:],UpdateUrl:"/photo/folder/update?folder=" + path[1:],FolderPath:path[1:],Tags:tags}
 		if s.canAccessAdmin(r){
 			imgResponse.RemoveFolderUrl="/removeNode" + path
 		}
@@ -735,6 +811,7 @@ type imagesResponse struct {
 	RemoveFolderUrl string
 	FolderPath string
 	Tags []*Tag
+	Id int
 }
 
 // Restful representation : real link instead real path
@@ -864,6 +941,7 @@ func (s Server)Launch(conf *config.Config){
 	s.photoRoutes(&server)
 	s.updateRoutes(&server)
 	s.videoRoutes(&server)
+	s.tagRoutes(&server)
 	s.dateRoutes(&server)
 	s.securityRoutes(&server)
 
@@ -899,6 +977,14 @@ func (s Server) videoRoutes(server * http.ServeMux){
 	server.HandleFunc("/video/folder/exif",s.buildHandler(s.needAdmin,s.updateVideoFolderExif))
 	server.HandleFunc("/video/date",s.buildHandler(s.needUser,s.getVideosByDate))
 	server.HandleFunc("/video/search",s.buildHandler(s.needUser,s.searchVideos))
+}
+
+func (s Server) tagRoutes(server * http.ServeMux){
+	server.HandleFunc("/tag/tag_folder",s.buildHandler(s.needAdmin,s.tagFolder))
+	server.HandleFunc("/tag/search",s.buildHandler(s.needUser,s.searchTag))
+	server.HandleFunc("/tag/search_folder",s.buildHandler(s.needUser,s.searchTagsOfFolder))
+	server.HandleFunc("/tag/peoples",s.buildHandler(s.needUser,s.getPeoples))
+	server.HandleFunc("/tag/add_people",s.buildHandler(s.needAdmin,s.addPeopleTag))
 }
 
 func (s Server) dateRoutes(server * http.ServeMux){

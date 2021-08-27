@@ -13,7 +13,7 @@ func AddVideoToDates(node INode, dates map[time.Time][]INode){
 	addInTimeMap(dates,formatDate,[]INode{node})
 }
 
-func ComputeNodeByDate(files map[string]INode) map[time.Time][]INode {
+func ComputeNodeByDate(files map[string] INode) map[time.Time][]INode {
 	byDate := make(map[time.Time][]INode)
 	// Browse all pictures and group by date
 	for _,node := range files {

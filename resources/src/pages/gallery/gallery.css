@@ -1,0 +1,8 @@
+.people.selected {
+  color:green;
+  font-weight: bold;
+}
+
+.people {
+  cursor:pointer;
+}

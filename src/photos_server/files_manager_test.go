@@ -64,7 +64,7 @@ func newImage(folder,path,name,date string)*Node{
 }
 
 func createStructure()*FoldersManager {
-	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}})
+	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}},nil)
 	filesSub2 := Files{}
 	filesSub2["leaf1.jpg"] = newImage("/home","/home/folder1/folder2/leaf1.jpg","leaf1.jpg","20200502")
 	filesSub2["leaf2.jpg"] = newImage("/home","/home/folder1/folder2/leaf2.jpg","leaf2.jpg","20200502")
@@ -82,7 +82,7 @@ func createStructure()*FoldersManager {
 }
 
 func TestGroupByDate(t *testing.T){
-	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}})
+	fm := NewFoldersManager(config.Config{Security:config.SecurityConfig{}},nil)
 	filesRoot := Files{}
 	filesRoot["f1"] = &Node{Name:"f1",IsFolder:false,Date:time.Date(2020,3,10,12,0,12,0,time.Local)}
 	filesRoot["f2"] = &Node{Name:"f2",IsFolder:false,Date:time.Date(2020,3,10,12,15,36,0,time.Local)}
@@ -92,7 +92,11 @@ func TestGroupByDate(t *testing.T){
 	filesRoot["f6"] = &Node{Name:"f6",IsFolder:false,Date:time.Date(2020,4,12,23,59,12,0,time.Local)}
 
 	fm.Folders["root"] = NewFolder("/home","/home/folder1","folder1",filesRoot,false)
-	byDate := common.ComputeNodeByDate(fm.Folders)
+	ff := make(map[string]common.INode)
+	for key,value := range fm.Folders {
+		ff[key] = value
+	}
+	byDate := common.ComputeNodeByDate(ff)
 	if len(byDate) != 4 {
 		t.Error("Must find 4 group of date")
 	}
@@ -164,16 +168,6 @@ func TestRemoveNode(t *testing.T){
 	}
 	if node,_,err :=  fm.FindNode("root/folder1/folder2/leaf1.jpg") ; node != nil || err == nil {
 		t.Error("Must not find the node")
-	}
-}
-
-func TestConvertDateToMidnight(t *testing.T){
-	if formatDate := getMidnightDate(time.Date(2020,10,5,12,36,12,0,time.Local)) ; formatDate.Hour() != 0 || formatDate.Month() != 10 || formatDate.Minute()!= 0 && formatDate.Second() != 0 {
-		t.Error("Date must be set at midnight but found",formatDate)
-	}
-
-	if formatDate := getMidnightDate(time.Date(2019,1,1,17,36,12,0,time.Local)) ; formatDate.Hour() != 0 || formatDate.Month() != 1 || formatDate.Minute()!= 0 && formatDate.Second() != 0 {
-		t.Error("Date must be set at midnight but found",formatDate)
 	}
 }
 

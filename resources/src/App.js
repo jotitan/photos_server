@@ -119,7 +119,6 @@ function App() {
         }
     },[canAccess]);
 
-
     const showPhotosMenu = ()=>
         !collapsed ? showGallery ?
             <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'} filterMode={"photo"}/>:
