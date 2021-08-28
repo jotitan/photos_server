@@ -18,6 +18,7 @@ const (
 type HeaderElement struct{
 	idFolder int
 	position int64
+	// First byte means delete, second byte means empty
 	flags byte
 }
 
@@ -25,8 +26,16 @@ func (he HeaderElement)isToDelete()bool{
 	return he.flags & 1 == 1
 }
 
+func (he HeaderElement)isEmpty()bool{
+	return he.flags & 2 == 2
+}
+
 func(he *HeaderElement)toDelete(){
 	he.flags = byte(1)
+}
+
+func (he *HeaderElement)empty(){
+	he.flags = he.flags | 2
 }
 
 /**
@@ -40,6 +49,16 @@ type PeopleTagHeader struct {
 	elements []*HeaderElement
 	// Map to find quikly last block of folder
 	latestFolder map[int]*HeaderElement
+}
+
+func (pth PeopleTagHeader)getFoldersId()[]int{
+	ids := make([]int,0,len(pth.latestFolder))
+	for e,h := range pth.latestFolder {
+		if !h.isEmpty() {
+			ids = append(ids, e)
+		}
+	}
+	return ids
 }
 
 func (pth PeopleTagHeader)sizeHeader()int{
@@ -195,23 +214,34 @@ func (pt *PeopleTag)Tag(idFolder int, paths, deleted []string){
 	}else{
 		pt.pathsToSave = append(pt.pathsToSave,paths)
 	}
-	pt.header.add(&HeaderElement{idFolder: idFolder,position:pt.currentPosition,flags:0})
+	h := &HeaderElement{idFolder: idFolder, position: pt.currentPosition, flags: 0}
+	if len(paths) == 0 {
+		h.empty()
+	}
+	pt.header.add(h)
 	pt.currentPosition+=pt.computeSizeBlock(paths)
 }
 
-func (pt *PeopleTag)Search(idFolder int)[]string{
+func (pt *PeopleTag)loadHeaderIfEmpty()error{
 	if pt.header == nil || pt.header.nbWritten == 0 {
-		if f,err := os.Open(pt.getFilename()) ; err == nil {
+		if f, err := os.Open(pt.getFilename()); err == nil {
 			defer f.Close()
 			pt.header = &PeopleTagHeader{}
 			pt.header.read(f)
-			if !pt.header.has(idFolder) {
-				return []string{}
-			}
 		}else{
-			logger.GetLogger2().Error("Impossible to open file",err)
-			return []string{}
+			return err
 		}
+	}
+	return nil
+}
+
+func (pt *PeopleTag)Search(idFolder int)[]string{
+	if err := pt.loadHeaderIfEmpty() ; err != nil {
+		logger.GetLogger2().Error("Impossible to open file",err)
+		return []string{}
+	}
+	if !pt.header.has(idFolder) {
+		return []string{}
 	}
 	return pt.readPaths(idFolder)
 }
@@ -346,7 +376,6 @@ func AddPeopleTag(folder,name string)(int,error){
 		return 0,err
 	}
 	return id,nil
-
 }
 
 func GetPeoples(folder string)([]peopleTag,error) {
@@ -385,6 +414,16 @@ func (ptm *PeopleTagManager)getPeopleTag(idTag int)*PeopleTag{
 func (ptm *PeopleTagManager)Tag(idFolder, idTag int,paths,deleted []string){
 	pm := ptm.getPeopleTag(idTag)
 	pm.Tag(idFolder,paths, deleted)
+}
+
+// Search all folders containing specific tag
+func (ptm PeopleTagManager)SearchAllFolder(tag int)[]int{
+	// Just read header
+	pt := ptm.getPeopleTag(tag)
+	if pt.loadHeaderIfEmpty() != nil {
+		return []int{}
+	}
+	return pt.header.getFoldersId()
 }
 
 // Return, for each people tag, just paths of folder

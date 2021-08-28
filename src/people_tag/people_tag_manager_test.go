@@ -8,14 +8,41 @@ import (
 	"time"
 )
 
-func TestAddTag(t *testing.T){
-	folder := os.TempDir()
-	ptm := NewPeopleTagManager(folder)
-	ptm.Tag(1,1,[]string{"path1","path2"})
+func TestDeleteTag(t *testing.T){
+	folder := filepath.Join(os.TempDir(),fmt.Sprintf("tag_%d",time.Now().Unix()))
+	os.MkdirAll(folder,os.ModePerm)
 
-	if length := len(ptm.Search(1,1)) ; length != 2 {
-		t.Error(fmt.Sprintf("Must find 2 but found %d",length))
+	ptm := NewPeopleTagManager(folder)
+	id,err := AddPeopleTag(folder,"toto")
+	if err != nil {
+		t.Error(err.Error())
 	}
+	ptm.Tag(12,id,[]string{"path1","path2","path3"},[]string{})
+	ptm.Flush()
+
+	if nb := len(ptm.Search(12,id)) ; nb != 3 {
+		t.Error("Must find 3 but find",nb)
+	}
+
+	ptm = NewPeopleTagManager(folder)
+	ptm.Tag(12,id,[]string{},[]string{"path2"})
+	ptm.Flush()
+
+	if nb := len(ptm.Search(12,id)) ; nb != 2 {
+		t.Error("Must find 2 but find",nb)
+	}
+
+	if nb := len(ptm.SearchAllFolder(id)) ; nb != 1 {
+		t.Error("Must find 1 but find",nb)
+	}
+
+	ptm.Tag(12,id,[]string{},[]string{"path1","path3"})
+	ptm.Flush()
+
+	if nb := len(ptm.SearchAllFolder(id)) ; nb != 0 {
+		t.Error("Must find 0 but find",nb)
+	}
+
 }
 
 func TestAddTagAndSave(t *testing.T){
@@ -23,7 +50,7 @@ func TestAddTagAndSave(t *testing.T){
 	os.MkdirAll(folder,os.ModePerm)
 
 	ptm := NewPeopleTagManager(folder)
-	ptm.Tag(1,1,[]string{"path1","path2"})
+	ptm.Tag(1,1,[]string{"path1","path2"},[]string{})
 
 	ptm2 := NewPeopleTagManager(folder)
 	if length := len(ptm2.Search(1,1)) ; length != 0 {
@@ -36,9 +63,9 @@ func TestAddTagAndSave(t *testing.T){
 	}
 
 	ptm2 = NewPeopleTagManager(folder)
-	ptm2.Tag(1,2,[]string{"new path1","new path2","new path 2"})
-	ptm2.Tag(1,1,[]string{"missing one path"})
-	ptm2.Tag(2,1,[]string{"single path"})
+	ptm2.Tag(1,2,[]string{"new path1","new path2","new path 2"},[]string{})
+	ptm2.Tag(1,1,[]string{"missing one path"},[]string{})
+	ptm2.Tag(2,1,[]string{"single path"},[]string{})
 
 	ptm2.Flush()
 

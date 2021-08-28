@@ -288,6 +288,17 @@ func (s Server)addPeopleTag(w http.ResponseWriter,r * http.Request){
 	}
 }
 
+// Return all folder with specific tag
+func (s Server)filterFolder(w http.ResponseWriter,r * http.Request){
+	idTag,err := strconv.Atoi(r.FormValue("tag"))
+	if err != nil {
+		http.Error(w,err.Error(),http.StatusBadRequest)
+	}
+	ptm := people_tag.NewPeopleTagManager(getTagPath())
+	folders := ptm.SearchAllFolder(idTag)
+	data,_ := json.Marshal(folders)
+	w.Write(data)
+}
 
 func (s Server)searchTagsOfFolder(w http.ResponseWriter,r * http.Request){
 	idFolder,err := strconv.Atoi(r.FormValue("folder"))
@@ -837,6 +848,7 @@ type folderRestFul struct {
 	HasImages bool
 	Children  []interface{}
 	Path      string
+	Id int
 }
 
 func (s Server)newImageRestful(node *Node)imageRestFul{
@@ -866,6 +878,7 @@ func (s Server)convertPaths(nodes []*Node,onlyFolders bool)[]interface{}{
 		}else{
 			folder := folderRestFul{Name:node.Name,
 				Path:node.RelativePath,
+				Id:node.Id,
 				Link:filepath.ToSlash(filepath.Join("/browserf",node.RelativePath)),
 				LinkTags:filepath.ToSlash(filepath.Join("/tagsByFolder",node.RelativePath)),
 			}
@@ -982,6 +995,7 @@ func (s Server) videoRoutes(server * http.ServeMux){
 func (s Server) tagRoutes(server * http.ServeMux){
 	server.HandleFunc("/tag/tag_folder",s.buildHandler(s.needAdmin,s.tagFolder))
 	server.HandleFunc("/tag/search",s.buildHandler(s.needUser,s.searchTag))
+	server.HandleFunc("/tag/filter_folder",s.buildHandler(s.needUser,s.filterFolder))
 	server.HandleFunc("/tag/search_folder",s.buildHandler(s.needUser,s.searchTagsOfFolder))
 	server.HandleFunc("/tag/peoples",s.buildHandler(s.needUser,s.getPeoples))
 	server.HandleFunc("/tag/add_people",s.buildHandler(s.needAdmin,s.addPeopleTag))

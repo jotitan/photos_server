@@ -89,7 +89,6 @@ class deleteMode extends mode{
 class tagMode extends mode{
     name;
     count=0;
-    peoples=[{id:2,name:'Eliott'},{id:1,name:'Hugo'},{id:3,name:'Cendrine'},{id:4,name:'Jonathan'}];
     paths={};
     reset(){
         this.setContext(ctx=>{
@@ -122,7 +121,7 @@ class tagMode extends mode{
                 // Check if already exists in original list, if not, add to remove
                 if(ctx.originalPaths != null
                     && ctx.originalPaths[copy.currentTag.id] != null
-                    && ctx.originalPaths[copy.currentTag.id].find(p=>image.path.indexOf(p.path) !== -1)){
+                    && ctx.originalPaths[copy.currentTag.id].some(p=>image.path.indexOf(p) !== -1)){
                     // If already exist in original path, try to remove it
                     pathList.push({path: image.path, idx: index,delete:true})
                 }else {
@@ -165,7 +164,7 @@ class tagMode extends mode{
         // Count selected path and originalPaths
         let count = 0;
         if(context.paths != null && context.paths[people.id] != null){
-            count+=context.paths[people.id].length;
+            count+=context.paths[people.id].map(p=>p.delete === true ? -1:1).reduce((total,v)=>total+v,0);
         }
         if(context.originalPaths != null && context.originalPaths[people.id] != null){
             count+=context.originalPaths[people.id].length;
