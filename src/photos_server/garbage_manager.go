@@ -47,9 +47,11 @@ func (g GarbageManager)Remove(files []string)int{
 					success++
 					logger.GetLogger2().Info("Remove image", node.AbsolutePath)
 				}else{
-					logger.GetLogger2().Error("Impossible to delete images",err)
+					logger.GetLogger2().Error("Impossible to delete image",file,err)
 				}
 			}
+		}else{
+			logger.GetLogger2().Error("Impossible to find image to delete",file,err)
 		}
 	}
 	// Save structure

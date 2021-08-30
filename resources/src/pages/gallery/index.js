@@ -215,7 +215,7 @@ class tagMode extends mode{
                 <p
                     onClick={()=>this.selectPeople(p)}
                     className={`people${context.currentTag != null && context.currentTag.id === p.id ? " selected":""}`}>
-                    {p.name} <Badge count={this.countTaged(p,context)} style={{ backgroundColor: '#427a10' }} />
+                    {p.name} <Badge overflowCount={1000} count={this.countTaged(p,context)} style={{ backgroundColor: '#427a10' }} />
                 </p>):''}
             <Tag style={{cursor:'pointer'}} onClick={()=>this.setContext(ctx=>setProperty(ctx,"flag",true))}>
                 <UserAddOutlined />+ New people
