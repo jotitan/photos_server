@@ -464,6 +464,8 @@ func (fm *FoldersManager)AddFolderWithNode(files Files,rootFolder,folderPath,ove
 		logger.GetLogger2().Error("Impossible to have more that one node")
 		return
 	}
+	node.Id = fm.nextFolderId
+	fm.nextFolderId++
 	logger.GetLogger2().Info("Add folder",folderPath)
 	// Check if images already exists to improve computing
 	existings := fm.searchExistingReducedImages(folderPath)
