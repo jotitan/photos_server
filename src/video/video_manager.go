@@ -594,7 +594,7 @@ func createMetadatas(properties map[string]string) Metadata {
 	metadatas.Place = strings.Split(properties["producer"], ",")
 	metadatas.Title = properties["title"]
 	metadatas.Duration = parseDuration(properties["duration"])
-	logger.GetLogger2().Info("Read metadatas", properties["subtitle"],metadatas.Date, metadatas.Title, metadatas.Keywords)
+	logger.GetLogger2().Info("Read metadatas", properties["subtitle"], metadatas.Date, metadatas.Title, metadatas.Keywords)
 	return metadatas
 }
 
