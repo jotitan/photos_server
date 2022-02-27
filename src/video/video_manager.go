@@ -231,6 +231,7 @@ func (vm *VideoManager) Load() error {
 		if err := json.Unmarshal(data, &vm.Folders); err == nil {
 			// Load index
 			vm.index = NewVideoMetadataIndex(vm.Folders)
+			vm.loadDates()
 		} else {
 			return err
 		}
@@ -253,15 +254,16 @@ func (vm *VideoManager) addVideoByDate(node *VideoNode) {
 	common.AddVideoToDates(node, vm.VideosByDate)
 }
 
-func (vm *VideoManager) GetVideosByDate() map[time.Time][]common.INode {
-	if vm.VideosByDate == nil {
-		nodes := make(map[string]common.INode, len(vm.Folders))
-		for key, value := range vm.Folders {
-			nodes[key] = value
-		}
-
-		vm.VideosByDate = common.ComputeNodeByDate(nodes)
+func (vm *VideoManager) loadDates() {
+	nodes := make(map[string]common.INode, len(vm.Folders))
+	for key, value := range vm.Folders {
+		nodes[key] = value
 	}
+
+	vm.VideosByDate = common.ComputeNodeByDate(nodes)
+}
+
+func (vm *VideoManager) GetVideosByDate() map[time.Time][]common.INode {
 	return vm.VideosByDate
 }
 
@@ -594,7 +596,6 @@ func createMetadatas(properties map[string]string) Metadata {
 	metadatas.Place = strings.Split(properties["producer"], ",")
 	metadatas.Title = properties["title"]
 	metadatas.Duration = parseDuration(properties["duration"])
-	logger.GetLogger2().Info("Read metadatas", properties["subtitle"], metadatas.Date, metadatas.Title, metadatas.Keywords)
 	return metadatas
 }
 

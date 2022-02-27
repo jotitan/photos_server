@@ -1,7 +1,6 @@
 package common
 
 import (
-	"github.com/jotitan/photos_server/logger"
 	"time"
 )
 
@@ -34,7 +33,6 @@ func ComputeNodeByDate(files map[string]INode) map[time.Time][]INode {
 }
 
 func addInTimeMap(byDate map[time.Time][]INode, date time.Time, nodes []INode) {
-	logger.GetLogger2().Info("Add in time", len(byDate), date)
 	if list, exist := byDate[date]; !exist {
 		byDate[date] = nodes
 	} else {
