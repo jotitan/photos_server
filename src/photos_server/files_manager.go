@@ -464,10 +464,6 @@ func (fm *FoldersManager) AddFolderWithNode(files Files, rootFolder, folderPath,
 		return
 	}
 	// Override relative path if override is not in prefix
-	logger.GetLogger2().Info("TEMP :", overrideOutput, node.RelativePath, folderPath, rootFolder, !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(node.RelativePath, overrideOutput))
-	if !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(node.RelativePath, overrideOutput) {
-		node.RelativePath = overrideOutput + node.RelativePath
-	}
 	node.Id = fm.nextFolderId
 	fm.nextFolderId++
 	logger.GetLogger2().Info("Add folder", folderPath)
@@ -644,7 +640,13 @@ func (fm *FoldersManager) save() {
 }
 
 func (fm *FoldersManager) launchImageResize(folder *Node, rootFolder, overrideOutput string, p *progress.UploadProgress, existings map[string]struct{}, forceRotate bool) {
+	/*if !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(node.RelativePath, overrideOutput) {
+		node.RelativePath = overrideOutput + node.RelativePath
+	}*/
+
 	folder.RelativePath = filepath.Join(overrideOutput, folder.RelativePath)
+	logger.GetLogger2().Info("TEMP :", overrideOutput, folder.RelativePath, rootFolder, rootFolder, !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(folder.RelativePath, overrideOutput))
+
 	folder.applyOnEach(rootFolder, func(path, relativePath string, node *Node) {
 		p.Add(1)
 		// Override relative path to include override output
