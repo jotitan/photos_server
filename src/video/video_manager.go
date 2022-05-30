@@ -269,8 +269,10 @@ func (vm *VideoManager) GetVideosByDate() map[time.Time][]common.INode {
 
 func (vm *VideoManager) Count() int {
 	nb := 0
-	for _, node := range vm.Folders {
-		nb += node.Count()
+	if vm != nil {
+		for _, node := range vm.Folders {
+			nb += node.Count()
+		}
 	}
 	return nb
 }

@@ -69,11 +69,10 @@ security:
 ```
 **Server run on port 9006**
 
-Https is not enaled cause I'm using secured proxy in front.
+Https is not enabled cause I'm using secured proxy in front.
 
 At home, server run on Raspberry Pi 2 with an old SAN.
 Indexation is quite slow but after that, displaying is very fast.
-
 
 Usefull links :
 * https://hlsbook.net/creating-a-master-playlist-with-ffmpeg/
