@@ -464,6 +464,7 @@ func (fm *FoldersManager) AddFolderWithNode(files Files, rootFolder, folderPath,
 		return
 	}
 	// Override relative path if override is not in prefix
+	logger.GetLogger2().Info("TEMP :", overrideOutput, node.RelativePath, folderPath, rootFolder, !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(node.RelativePath, overrideOutput))
 	if !strings.EqualFold("", overrideOutput) && !strings.HasPrefix(node.RelativePath, overrideOutput) {
 		node.RelativePath = overrideOutput + node.RelativePath
 	}
