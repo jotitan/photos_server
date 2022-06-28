@@ -97,6 +97,7 @@ func NewFoldersManager(conf config.Config, uploadProgressManager *progress.Uploa
 		uploadProgressManager: uploadProgressManager}
 	fm.load()
 	fm.updateNextFolderId()
+	logger.GetLogger2().Info("Next folder id", fm.nextFolderId)
 	fm.detectMissingFoldersId()
 	fm.garbageManager = NewGarbageManager(conf.Garbage, conf.Security.MaskForAdmin, fm)
 	fm.tagManger = NewTagManager(fm)
