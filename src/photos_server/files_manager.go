@@ -105,13 +105,19 @@ func NewFoldersManager(conf config.Config, uploadProgressManager *progress.Uploa
 }
 
 func (fm *FoldersManager) updateNextFolderId() {
+	fm.nextFolderId = 1 + computeMaxNodeId(fm.Folders)
+}
+
+func computeMaxNodeId(files Files) int {
 	id := 0
-	for _, node := range fm.Folders {
+	for _, node := range files {
 		if node.IsFolder {
 			id = int(math.Max(float64(node.Id), float64(id)))
+			id = int(math.Max(float64(computeMaxNodeId(node.Files)), float64(id)))
 		}
 	}
-	fm.nextFolderId = id + 1
+	return id
+
 }
 
 func (fm *FoldersManager) GetAllDates() []common.NodeByDate {
