@@ -39,6 +39,10 @@ jobs:
         mv src/main/micro_hls_converter_server artifacts
         mv src/main/photo_converter artifacts
 
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
       # Build the front
     - name: Build front
       run: |
@@ -48,8 +52,6 @@ jobs:
         npm run-script build
         tar -cvzf build.tar.gz build
         mv build.tar.gz ../artifacts
-      with:
-        node-version: '16'
 
   # Upload artifact
     - uses: actions/upload-artifact@v1
