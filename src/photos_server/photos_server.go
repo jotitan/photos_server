@@ -667,6 +667,16 @@ func (s Server) updateFolder(w http.ResponseWriter, r *http.Request) {
 	treatError(s.foldersManager.UpdateFolder(folder, up), folder, w)
 }
 
+// move a specific folder
+func (s Server) moveFolder(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	fromPath := r.FormValue("from")
+	toPath := r.FormValue("to")
+	logger.GetLogger2().Info("Launch move folder", fromPath, toPath)
+	err := s.foldersManager.MoveFolder(fromPath, toPath)
+	treatError(err, fromPath, w)
+}
+
 // Index an existing folder
 func (s Server) indexFolder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -974,6 +984,7 @@ func (s Server) Launch(conf *config.Config) {
 func (s Server) updateRoutes(server *http.ServeMux) {
 	server.HandleFunc("/update", s.buildHandler(s.needAdmin, s.update))
 	server.HandleFunc("/photo/folder/update", s.buildHandler(s.needAdmin, s.updateFolder))
+	server.HandleFunc("/photo/folder/move", s.buildHandler(s.needAdmin, s.moveFolder))
 	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.needAdmin, s.updateExifFolder))
 	server.HandleFunc("/photo", s.buildHandler(s.needAdmin, s.uploadFolder))
 	server.HandleFunc("/updateExifOfDate", s.buildHandler(s.needAdmin, s.updateExifOfDate))
