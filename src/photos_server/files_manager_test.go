@@ -133,6 +133,7 @@ func createFakeStructure() (*FoldersManager, string, string) {
 	r := NewFolder(folder, folder, filepath.Dir(folder), root, false)
 
 	fm := NewFoldersManager(config.Config{Security: config.SecurityConfig{}, UploadedFolder: folder, CacheFolder: cache}, nil)
+	fm.tagManger = NewTagManager(fm)
 	fm.Folders["root"] = r
 	return fm, folder, cache
 }

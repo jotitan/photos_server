@@ -138,6 +138,9 @@ func (fm *FoldersManager) MoveFolder(pathFrom, pathTo string) error {
 	fm.moveNode(pathTo, node)
 	delete(siblings, filepath.Base(pathFrom))
 
+	fm.tagManger.UpdateExistingPath(pathFrom, pathTo)
+	fm.tagManger.flush()
+
 	fm.save()
 
 	// Move folder really (original and cache)
