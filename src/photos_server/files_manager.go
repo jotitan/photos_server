@@ -8,6 +8,7 @@ import (
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/progress"
+	"github.com/jotitan/photos_server/resize"
 	"io"
 	"io/ioutil"
 	"log"
@@ -223,9 +224,13 @@ func (fm *FoldersManager) updateExifOfDate(date string) (int, error) {
 			return 0, errors.New("impossible to find images for this date")
 		}
 		for _, node := range nodes {
+			n := node.(*Node)
 			// extract again exif date and update node
-			node.(*Node).Date, _ = GetExif(node.(*Node).AbsolutePath)
-			logger.GetLogger2().Info("Found date", node.(*Node).Date, "for path", node.(*Node).AbsolutePath)
+			n.Date, _ = GetExif(n.AbsolutePath)
+			if n.Width == 0 {
+				n.Width, n.Height = resize.GetSizeAsInt(n.AbsolutePath)
+			}
+			logger.GetLogger2().Info("Found date", n.Date, "for path", n.AbsolutePath)
 		}
 		fm.save()
 		return len(nodes), nil
@@ -358,6 +363,9 @@ func (fm *FoldersManager) UpdateExif(path string) error {
 			for _, file := range noChanges {
 				datePhoto, _ := GetExif(file.AbsolutePath)
 				file.Date = datePhoto
+				if file.Width == 0 {
+					file.Width, file.Height = resize.GetSizeAsInt(file.AbsolutePath)
+				}
 			}
 			fm.save()
 			return nil
