@@ -228,7 +228,8 @@ func (fm *FoldersManager) updateExifOfDate(date string) (int, error) {
 			// extract again exif date and update node
 			n.Date, _ = GetExif(n.AbsolutePath)
 			if n.Width == 0 {
-				n.Width, n.Height = resize.GetSizeAsInt(n.AbsolutePath)
+				path := filepath.Join(fm.reducer.cache, fm.GetSmallImageName(n))
+				n.Width, n.Height = resize.GetSizeAsInt(path)
 			}
 			logger.GetLogger2().Info("Found date", n.Date, "for path", n.AbsolutePath)
 		}
@@ -364,7 +365,9 @@ func (fm *FoldersManager) UpdateExif(path string) error {
 				datePhoto, _ := GetExif(file.AbsolutePath)
 				file.Date = datePhoto
 				if file.Width == 0 {
-					file.Width, file.Height = resize.GetSizeAsInt(file.AbsolutePath)
+					path := filepath.Join(fm.reducer.cache, fm.GetSmallImageName(*file))
+					file.Width, file.Height = resize.GetSizeAsInt(path)
+					logger.GetLogger2().Info("Update exif size", path, file.Width, file.Height)
 				}
 			}
 			fm.save()
