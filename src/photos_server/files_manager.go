@@ -228,7 +228,7 @@ func (fm *FoldersManager) updateExifOfDate(date string) (int, error) {
 			// extract again exif date and update node
 			n.Date, _ = GetExif(n.AbsolutePath)
 			if n.Width == 0 {
-				path := filepath.Join(fm.reducer.cache, fm.GetSmallImageName(n))
+				path := filepath.Join(fm.reducer.cache, fm.GetSmallImageName(*n))
 				n.Width, n.Height = resize.GetSizeAsInt(path)
 			}
 			logger.GetLogger2().Info("Found date", n.Date, "for path", n.AbsolutePath)
