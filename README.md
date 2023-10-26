@@ -50,6 +50,7 @@ resources: <folder where build front resources are (mandatory)>
 port: <to ovveride default port (9006)>
 garbage: <folder where to move deleted files>
 upload-folder: <folder where to upload pictures>
+override-upload: <folder name to prefix upload>
 security:    
   mask-admin: <mandatory to use garbage, mask on referer. Used to protect admin operation to be launch only at home on personal network>
   secret: <key used to sign jwt Token (HS256) (https://mkjwk.org/ > oct / HS256)>
