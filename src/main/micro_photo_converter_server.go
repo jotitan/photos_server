@@ -44,6 +44,7 @@ func convertPhoto(w http.ResponseWriter, r *http.Request) {
 	resp := <-doConversion(cr.Input, cr.Orientation, cr.Conversions)
 	// When conversion end, return immedialty result, no async
 	if resp.err != nil {
+		logger.GetLogger2().Error("Impossible to convert", resp.err)
 		http.Error(w, resp.err.Error(), 400)
 	} else {
 		w.Write([]byte(fmt.Sprintf("{\"width\":%d,\"height\":%d,\"orientation\":%d}", resp.width, resp.height, resp.orientation)))
