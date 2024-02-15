@@ -49,7 +49,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
         loadPeoplesTag();
         axios({
             method:'GET',
-            url:getBaseUrl() + rootUrl,
+            url:`${getBaseUrl()}${rootUrl}`,
         }).then(d=>{
             if(d.data.Children != null) {
                 let data = d.data.Children.map(adapt);

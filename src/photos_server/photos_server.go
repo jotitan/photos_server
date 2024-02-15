@@ -925,14 +925,25 @@ func (s Server) convertVideoPaths(nodes []*video.VideoNode, onlyFolders bool) []
 				files = append(files, video.NewVideoNodeDto(*node))
 			}
 		} else {
+			// If node contains subfolers, define childrens
 			folder := folderRestFul{Name: node.Name,
-				Path: node.RelativePath,
-				Link: filepath.ToSlash(filepath.Join("/browse_videos_rf", node.RelativePath)),
+				Path:     node.RelativePath,
+				Children: s.getVideosChildren(node),
+				Link:     filepath.ToSlash(filepath.Join("/browse_videos_rf", node.RelativePath)),
 			}
 			files = append(files, folder)
 		}
 	}
 	return files
+}
+
+func (s Server) getVideosChildren(n *video.VideoNode) []interface{} {
+	children := make([]*video.VideoNode, 0, len(n.Files))
+
+	for _, f := range n.Files {
+		children = append(children, f)
+	}
+	return s.convertVideoPaths(children, true)
 }
 
 func (s Server) convertSubFolders(node *Node, folder *folderRestFul) {
