@@ -3,7 +3,6 @@ import './timeline.css';
 
 export default function Timeline({images, setImages}) {
     const [selected, setSelected] = useState(-1);
-    const [folders, setFolders] = useState([]);
     const [nameFolders, setNameFolders] = useState([]);
     const [groupedImages, setGroupedImages] = useState([]);
     const [left, setLeft] = useState(0)
@@ -29,7 +28,7 @@ export default function Timeline({images, setImages}) {
             return;
         }
         setImages(groupedImages[selected])
-    }, [selected])
+    }, [selected, groupedImages, setImages])
 
 
     const step = 200;

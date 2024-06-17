@@ -10,7 +10,6 @@ import (
 	"github.com/jotitan/photos_server/progress"
 	"github.com/jotitan/photos_server/resize"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"mime/multipart"
@@ -23,6 +22,10 @@ import (
 )
 
 type Files map[string]*Node
+
+//FolderMetadata store more information about each folder
+type FolderMetadata struct {
+}
 
 type Node struct {
 	AbsolutePath string
@@ -637,11 +640,10 @@ func (fm *FoldersManager) detectMissingFoldersId() {
 func (fm *FoldersManager) load() {
 	if f, err := os.Open(getSavePath()); err == nil {
 		defer f.Close()
-		data, _ := ioutil.ReadAll(f)
+		data, _ := io.ReadAll(f)
 		folders := make(map[string]*Node, 0)
 		json.Unmarshal(data, &folders)
 		fm.Folders = folders
-
 	} else {
 		logger.GetLogger2().Error("Impossible to read saved config", getSavePath(), err)
 	}
