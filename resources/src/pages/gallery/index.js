@@ -709,7 +709,7 @@ export default function MyGallery({
             {showTimeline?
                 <Row>
                     <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
-                         style={{marginTop: 40 + 'px', backgroundColor: 'rgb(0,21,41)'}}>
+                         style={{marginTop: 35 + 'px', backgroundColor: 'rgb(0,21,41)'}}>
                         <Timeline images={originalImages} setImages={imgs => {
                             setImages(() => {
                                 setContextSelect(ctx => setProperty(ctx, "allImages", imgs))

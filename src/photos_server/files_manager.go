@@ -23,8 +23,10 @@ import (
 
 type Files map[string]*Node
 
-//FolderMetadata store more information about each folder
+// FolderMetadata store more information about each folder
 type FolderMetadata struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 type Node struct {

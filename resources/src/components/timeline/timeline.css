@@ -1,3 +1,7 @@
+:root {
+    --width-timeline-black:100px;
+}
+
 .timeline .dot-label {
     color:white;
 }
@@ -64,15 +68,16 @@
 .my-timeline li {
     list-style: none;
     position:absolute;
-    width:100px;
+    width:var(--width-timeline-black);
     text-align:center;
 }
 
 .my-timeline li > span.text {
     position:absolute;
     left:0px;
-    width:100px;
+    width:var(--width-timeline-black);
     text-transform: capitalize;
+    cursor:pointer;
 }
 
 .my-timeline li:nth-child(2n) > span.text {
