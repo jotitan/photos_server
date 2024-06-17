@@ -85,7 +85,7 @@ function App() {
         if(params.length > 0){
             axios({
                 method:'POST',
-                url: getBaseUrl() + '/security/connect',
+                url: `${getBaseUrl()}/security/connect`,
                 data:params
             }).then(()=>checkReadAccess()
                 .then(()=>setCanAccess(true))

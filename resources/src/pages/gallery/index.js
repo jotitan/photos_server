@@ -12,146 +12,166 @@ import {
     DeleteFilled,
     DeleteTwoTone,
     FileImageOutlined,
+    FilterOutlined,
     PictureOutlined,
     PlusCircleOutlined,
     PlusOutlined,
     ReloadOutlined,
+    SaveOutlined,
     ShareAltOutlined,
-    UserAddOutlined,
-    FilterOutlined,
-    SaveOutlined
+    UserAddOutlined
 } from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
 import {CirclePicker} from 'react-color';
+import Timeline from "../../components/timeline";
 
 
-const setProperty = (ctx,property,value)=> {
+const setProperty = (ctx, property, value) => {
     const copy = {...ctx};
     copy[property] = value;
     return copy;
 }
 
-const adaptImages = photos=> {
+const adaptImages = photos => {
     return photos
-        .filter(file=>file.ImageLink != null)
-        .sort((img1,img2)=>new Date(img1.Date) - new Date(img2.Date))
-        .map(img=>{
+        .filter(file => file.ImageLink != null)
+        .sort((img1, img2) => new Date(img1.Date) - new Date(img2.Date))
+        .map(img => {
             let d = new Date(img.Date).toLocaleString();
-            let folder = img.HdLink.replace(img.Name,'').replace('/imagehd/','');
+            let folder = img.HdLink.replace(img.Name, '').replace('/imagehd/', '');
             return {
-                hdLink:getBaseUrlHref() + img.HdLink,
-                path:img.HdLink,
-                folder:folder,
-                Date:d,
-                caption:"",thumbnail:getBaseUrl() + img.ThumbnailLink,src:getBaseUrl() + img.ImageLink,
-                customOverlay:<div style={{padding:2+'px',bottom:0,opacity:0.8,fontSize:10+'px',position:'absolute',backgroundColor:'white'}}>{d}</div>,
-                thumbnailWidth:img.Width,
-                thumbnailHeight:img.Height
+                hdLink: getBaseUrlHref() + img.HdLink,
+                path: img.HdLink,
+                folder: folder,
+                Date: d,
+                caption: "", thumbnail: getBaseUrl() + img.ThumbnailLink, src: getBaseUrl() + img.ImageLink,
+                customOverlay: <div style={{
+                    padding: 2 + 'px',
+                    bottom: 0,
+                    opacity: 0.8,
+                    fontSize: 10 + 'px',
+                    position: 'absolute',
+                    backgroundColor: 'white'
+                }}>{d}</div>,
+                thumbnailWidth: img.Width,
+                thumbnailHeight: img.Height
             }
         });
 };
 
-class mode{
+class mode {
     setImages;
     context;
     setContext;
-    constructor(setImages,context,setContext) {
+
+    constructor(setImages, context, setContext) {
         this.setImages = setImages;
         this.context = context;
         this.setContext = setContext;
     }
-    defaultSelect(index){
-        this.setImages(list=>{
+
+    defaultSelect(index) {
+        this.setImages(list => {
             let copy = list.slice();
             copy[index].isSelected = list[index].isSelected != null ? !list[index].isSelected : true;
             return copy;
         });
     }
-    reset(){
+
+    reset() {
         console.log("not implemented")
     }
-    select(index){
+
+    select(index) {
         console.log("not implemented")
     }
-    showFullMenu(){
+
+    showFullMenu() {
         return true;
     }
-    getContent(){}
+
+    getContent() {
+    }
 }
 
-class deleteMode extends mode{
+class deleteMode extends mode {
     select(index) {
         this.defaultSelect(index);
     }
 }
 
-class tagMode extends mode{
+class tagMode extends mode {
     name;
-    count=0;
-    paths={};
-    reset(){
-        this.setContext(ctx=>{
+    count = 0;
+    paths = {};
+
+    reset() {
+        this.setContext(ctx => {
             const copy = {...ctx};
             copy.currentTag = null;
             copy.paths = null;
             return copy;
         })
     }
-    select(index,image){
-        this.setContext(ctx=>{
-            if(ctx.currentTag == null){
+
+    select(index, image) {
+        this.setContext(ctx => {
+            if (ctx.currentTag == null) {
                 return ctx;
             }
             let copy = {...ctx};
-            if(copy.paths == null){
+            if (copy.paths == null) {
                 copy.paths = {};
             }
             let pathList = copy.paths[copy.currentTag.id];
-            if(pathList == null){
+            if (pathList == null) {
                 pathList = [];
                 copy.paths[copy.currentTag.id] = pathList;
             }
             // If index already exist, remove it
-            let found = pathList.findIndex(p=>p.idx === index)
-            if(found !== -1){
+            let found = pathList.findIndex(p => p.idx === index)
+            if (found !== -1) {
                 // Remove
-                pathList.splice(found,1);
-            }else{
+                pathList.splice(found, 1);
+            } else {
                 // Check if already exists in original list, if not, add to remove
-                if(ctx.originalPaths != null
+                if (ctx.originalPaths != null
                     && ctx.originalPaths[copy.currentTag.id] != null
-                    && ctx.originalPaths[copy.currentTag.id].some(p=>image.path.indexOf(p) !== -1)){
+                    && ctx.originalPaths[copy.currentTag.id].some(p => image.path.indexOf(p) !== -1)) {
                     // If already exist in original path, try to remove it
-                    pathList.push({path: image.path, idx: index,delete:true})
-                }else {
-                    pathList.push({path: image.path, idx: index,delete:false})
+                    pathList.push({path: image.path, idx: index, delete: true})
+                } else {
+                    pathList.push({path: image.path, idx: index, delete: false})
                 }
             }
             this.defaultSelect(index);
             return copy;
         })
     }
-    setName(name){
+
+    setName(name) {
         this.name = name;
     }
+
     showFullMenu() {
         return false;
     }
-    selectPeople(tag){
-        this.setContext(ctx=>{
+
+    selectPeople(tag) {
+        this.setContext(ctx => {
             let copy = {...ctx};
             copy.currentTag = tag;
             // Select only images of people
-            this.setImages(list=>{
+            this.setImages(list => {
                 let copyImages = list.slice();
-                copyImages.forEach(i=>i.isSelected = false);
-                if(copy.paths != null && copy.paths[copy.currentTag.id] != null) {
+                copyImages.forEach(i => i.isSelected = false);
+                if (copy.paths != null && copy.paths[copy.currentTag.id] != null) {
                     copy.paths[copy.currentTag.id].forEach(p => copyImages[p.idx].isSelected = true)
                 }
-                if(copy.originalPaths != null && copy.originalPaths[copy.currentTag.id] != null) {
+                if (copy.originalPaths != null && copy.originalPaths[copy.currentTag.id] != null) {
                     copy.originalPaths[copy.currentTag.id].forEach(p => {
-                        copyImages.find(img=>img.path.indexOf(p) !== -1).isSelected = true
+                        copyImages.find(img => img.path.indexOf(p) !== -1).isSelected = true
                     })
                 }
                 return copyImages;
@@ -160,30 +180,31 @@ class tagMode extends mode{
         });
 
     }
-    countTaged(people,context){
+
+    countTaged(people, context) {
         // Count selected path and originalPaths
         let count = 0;
-        if(context.paths != null && context.paths[people.id] != null){
-            count+=context.paths[people.id].map(p=>p.delete === true ? -1:1).reduce((total,v)=>total+v,0);
+        if (context.paths != null && context.paths[people.id] != null) {
+            count += context.paths[people.id].map(p => p.delete === true ? -1 : 1).reduce((total, v) => total + v, 0);
         }
-        if(context.originalPaths != null && context.originalPaths[people.id] != null){
-            count+=context.originalPaths[people.id].length;
+        if (context.originalPaths != null && context.originalPaths[people.id] != null) {
+            count += context.originalPaths[people.id].length;
         }
         return count;
     }
 
-    updateNewPeople(value){
+    updateNewPeople(value) {
         let name = value.target.value;
-        if(value.key === 'Enter'){
+        if (value.key === 'Enter') {
             // Save
             axios({
                 method: 'POST',
                 url: `${getBaseUrl()}/tag/add_people?name=${name}`,
-            }).then(r=>{
-                notification["success"]({message:'New people added',description:`New people ${name} well added`})
-                this.setContext(ctx=>{
+            }).then(r => {
+                notification["success"]({message: 'New people added', description: `New people ${name} well added`})
+                this.setContext(ctx => {
                     const copy = {...ctx};
-                    copy.peoples.push({name:name,id:r.data});
+                    copy.peoples.push({name: name, id: r.data});
                     copy.flag = false;
                     return copy;
                 });
@@ -191,58 +212,64 @@ class tagMode extends mode{
 
         }
     }
-    save(context){
+
+    save(context) {
         // Request is [{tag,folder,paths:[]}]
-        const data = Object.keys(context.paths).map(tag=>{
+        const data = Object.keys(context.paths).map(tag => {
             // Keep only last part of path
             return {
-                paths:context.paths[tag].filter(p=>!p.delete).map(v=>v.path.substr(v.path.lastIndexOf("/")+1)),
-                deleted:context.paths[tag].filter(p=>p.delete).map(v=>v.path.substr(v.path.lastIndexOf("/")+1)),
-                tag:parseInt(tag),
-                folder:context.id
+                paths: context.paths[tag].filter(p => !p.delete).map(v => v.path.substr(v.path.lastIndexOf("/") + 1)),
+                deleted: context.paths[tag].filter(p => p.delete).map(v => v.path.substr(v.path.lastIndexOf("/") + 1)),
+                tag: parseInt(tag),
+                folder: context.id
             };
         })
         return axios({
             method: 'POST',
             url: `${getBaseUrl()}/tag/tag_folder`,
-            data:data
-        }).then(()=>notification["success"]({message:'Tags saved',description:`All tagged have been saved`}));
+            data: data
+        }).then(() => notification["success"]({message: 'Tags saved', description: `All tagged have been saved`}));
     }
+
     // return peoples
-    getContent(context){
+    getContent(context) {
         return <>
-            {context.peoples != null ? context.peoples.map(p=>
+            {context.peoples != null ? context.peoples.map(p =>
                 <p
-                    onClick={()=>this.selectPeople(p)}
-                    className={`people${context.currentTag != null && context.currentTag.id === p.id ? " selected":""}`}>
-                    {p.name} <Badge overflowCount={1000} count={this.countTaged(p,context)} style={{ backgroundColor: '#427a10' }} />
-                </p>):''}
-            <Tag style={{cursor:'pointer'}} onClick={()=>this.setContext(ctx=>setProperty(ctx,"flag",true))}>
-                <UserAddOutlined />+ New people
+                    onClick={() => this.selectPeople(p)}
+                    className={`people${context.currentTag != null && context.currentTag.id === p.id ? " selected" : ""}`}>
+                    {p.name} <Badge overflowCount={1000} count={this.countTaged(p, context)}
+                                    style={{backgroundColor: '#427a10'}}/>
+                </p>) : ''}
+            <Tag style={{cursor: 'pointer'}} onClick={() => this.setContext(ctx => setProperty(ctx, "flag", true))}>
+                <UserAddOutlined/>+ New people
             </Tag>
-            <Tag style={{cursor:'pointer'}} onClick={()=>this.save(context)}><SaveOutlined /> Save tags</Tag>
+            <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> Save tags</Tag>
             {context.flag ?
                 <p>
                     People :
-                    <Input onKeyUp={v=>this.updateNewPeople(v)}/>
-                </p>:<></>}
+                    <Input onKeyUp={v => this.updateNewPeople(v)}/>
+                </p> : <></>}
         </>
     }
-    asSet(list){
+
+    asSet(list) {
         return new Set(list);
     }
-    filterPeople(people,context){
+
+    filterPeople(people, context) {
         // Already select, show all images
-        if(people.id === context.currentTag){
-            this.setContext(ctx=>setProperty(ctx,"currentTag",null))
+        if (people.id === context.currentTag) {
+            this.setContext(ctx => setProperty(ctx, "currentTag", null))
             return this.setImages(context.allImages);
         }
         // If image already filtered, restore original images
         axios({
-            method:'GET',
-        url:`${getBaseUrl()}/tag/search?folder=${context.id}&tag=${people.id}`})
-            .then(d=>{
-                this.setImages(()=>{
+            method: 'GET',
+            url: `${getBaseUrl()}/tag/search?folder=${context.id}&tag=${people.id}`
+        })
+            .then(d => {
+                this.setImages(() => {
                     // Save current tag and original images
                     this.setContext(ctx => {
                         const copy = {...ctx};
@@ -251,18 +278,19 @@ class tagMode extends mode{
                     })
                     let s = this.asSet(d.data);
                     // Keep only images in list where path exists in returned list
-                    return context.allImages.filter(i=>s.has(i.path.substr(i.path.lastIndexOf("/")+1)))
+                    return context.allImages.filter(i => s.has(i.path.substr(i.path.lastIndexOf("/") + 1)))
                 })
             })
     }
-    getFilterContent(context){
+
+    getFilterContent(context) {
         return <>
-            {context.peoples != null ? context.peoples.map(p=>
+            {context.peoples != null ? context.peoples.map(p =>
                 <p
-                    onClick={()=>this.filterPeople(p,context)}
-                    className={`people${context.currentTag === p.id ? " selected":""}`}>
+                    onClick={() => this.filterPeople(p, context)}
+                    className={`people${context.currentTag === p.id ? " selected" : ""}`}>
                     {p.name}
-                </p>):''}
+                </p>) : ''}
         </>
     }
 }
@@ -274,7 +302,7 @@ const loadTagsOfFolder = id => {
     });
 }
 
-const loadPeoplesTag = ()=>{
+const loadPeoplesTag = () => {
     return axios({
         method: 'GET',
         url: getBaseUrl() + '/tag/peoples',
@@ -282,135 +310,157 @@ const loadPeoplesTag = ()=>{
 }
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,canAdmin,setIsAddFolderPanelVisible,setCurrentFolder,update,setUpdate}) {
-    const [images,setImages] = useState([]);
-    const [imageToZoom,setImageToZoom] = useState('');
-    const [zoomEnable,setZoomEnable] = useState(false);
-    const [updateUrl,setUpdateUrl] = useState('');
-    const [showSharePanel,setShowSharePanel] = useState(false);
-    const [updateExifUrl,setUpdateExifUrl] = useState('');
-    const [removeFolderUrl,setRemoveFolderUrl] = useState('');
-    const [currentImage,setCurrentImage] = useState(-1);
-    const [updateRunning,setUpdateRunning] = useState(false);
-    const [updateExifRunning,setUpdateExifRunning] = useState(false);
-    const [key,setKey] = useState(-1);
-    const [lightboxVisible,setLightboxVisible] = useState(false);
-    const [showThumbnails,setShowThumbnails] = useState(false);
-    const [comp,setComp] = useState(null);
+export default function MyGallery({
+                                      setUrlFolder,
+                                      urlFolder,
+                                      refresh,
+                                      titleGallery,
+                                      canAdmin,
+                                      setIsAddFolderPanelVisible,
+                                      setCurrentFolder,
+                                      update,
+                                      setUpdate
+                                  }) {
+    const [images, setImages] = useState([]);
+    const [originalImages, setOriginalImages] = useState([]);
+    const [imageToZoom, setImageToZoom] = useState('');
+    const [zoomEnable, setZoomEnable] = useState(false);
+    const [updateUrl, setUpdateUrl] = useState('');
+    const [showSharePanel, setShowSharePanel] = useState(false);
+    const [updateExifUrl, setUpdateExifUrl] = useState('');
+    const [removeFolderUrl, setRemoveFolderUrl] = useState('');
+    const [currentImage, setCurrentImage] = useState(-1);
+    const [updateRunning, setUpdateRunning] = useState(false);
+    const [updateExifRunning, setUpdateExifRunning] = useState(false);
+    const [key, setKey] = useState(-1);
+    const [lightboxVisible, setLightboxVisible] = useState(false);
+    const [showThumbnails, setShowThumbnails] = useState(false);
+    const [comp, setComp] = useState(null);
+    const [showTimeline, setShowTimeline] = useState(false);
 
-    const [input,setInput] = useState('');
-    const [contextSelect,setContextSelect] = useState({input:input,setInput:setInput,flag:false});
-    const dMode = new deleteMode(setImages,contextSelect,setContextSelect);
-    const tMode = new tagMode(setImages,contextSelect,setContextSelect);
-    const [selectMode,setSelectMode] = useState(dMode)
+    const [input, setInput] = useState('');
+    const [contextSelect, setContextSelect] = useState({input: input, setInput: setInput, flag: false});
+    const dMode = new deleteMode(setImages, contextSelect, setContextSelect);
+    const tMode = new tagMode(setImages, contextSelect, setContextSelect);
+    const [selectMode, setSelectMode] = useState(dMode)
 
-    const [filterEnable,setFilterEnable] = useState(false);
+    const [filterEnable, setFilterEnable] = useState(false);
 
     let baseUrl = getBaseUrl();
 
     // Gestion du tag
-    const [showInputTag,setShowInputTag] = useState(false);
-    const [tags,setTags] = useState([]);
-    const [nextTagValue,setNextTagValue] = useState('');
+    const [showInputTag, setShowInputTag] = useState(false);
+    const [tags, setTags] = useState([]);
+    const [nextTagValue, setNextTagValue] = useState('');
 
-    useEffect(()=>{
-        if(comp!=null){
-            setTimeout(()=>comp.onResize(),300);
+    useEffect(() => {
+        if (comp != null) {
+            setTimeout(() => comp.onResize(), 300);
         }
-    },[refresh,comp])
+    }, [refresh, comp])
 
-    useEffect(()=>{
-        loadPeoplesTag().then(data=>setContextSelect(ctx=>setProperty(ctx,"peoples",data.data)))
-        if(canAdmin){
-            window.addEventListener('keydown',e=>{
-                if(e.key === "t"){
+    useEffect(() => {
+        loadPeoplesTag().then(data => setContextSelect(ctx => setProperty(ctx, "peoples", data.data)))
+        if (canAdmin) {
+            window.addEventListener('keydown', e => {
+                if (e.key === "t") {
                     // Switch thumbnail
-                    setShowThumbnails(s=> !s);
+                    setShowThumbnails(s => !s);
                 }
                 setKey(e.key)
             });
         }
-    },[canAdmin,setShowThumbnails]);
+    }, [canAdmin, setShowThumbnails]);
 
-    useEffect(()=>{
-        if(lightboxVisible && key === "Delete"){
-            images[currentImage].isSelected=!images[currentImage].isSelected;
+    useEffect(() => {
+        if (lightboxVisible && key === "Delete") {
+            images[currentImage].isSelected = !images[currentImage].isSelected;
             setKey("");
         }
-    },[currentImage,key,lightboxVisible,images]);
+    }, [currentImage, key, lightboxVisible, images]);
 
-    const saveTag = (tag,callback) => {
+    const saveTag = (tag, callback) => {
         axios({
-            method:'POST',
-            url:urlFolder.tags,
-            data:JSON.stringify(tag),
+            method: 'POST',
+            url: urlFolder.tags,
+            data: JSON.stringify(tag),
         }).then(callback);
     };
 
-    const memLoadImages = useCallback(()=> {
-        if(urlFolder === '' || urlFolder.load === ''){return;}
+    // Check if pictures contains many foldesr
+    const isMultipleFolders = images => images.map(img=>img.HdLink.replace(img.Name,'')).reduce((s,value)=>s.add(value),new Set()).size > 1;
+
+    const memLoadImages = useCallback(() => {
+        if (urlFolder === '' || urlFolder.load === '') {
+            return;
+        }
         axios({
-            method:'GET',
-            url:urlFolder.load,
-        }).then(d=>{
+            method: 'GET',
+            url: urlFolder.load,
+        }).then(d => {
+
             // Filter image by time before
             setUpdateUrl(d.data.UpdateUrl);
             setUpdateExifUrl(d.data.UpdateExifUrl);
             setRemoveFolderUrl(d.data.RemoveFolderUrl);
             setCurrentFolder(d.data.FolderPath);
-            setContextSelect(ctx=>setProperty(ctx,"id",d.data.Id))
-            loadTagsOfFolder(d.data.Id).then(data=>setContextSelect(ctx=>setProperty(ctx,"originalPaths",data.data)))
-            let photos = d.data.Files != null ? d.data.Files:d.data;
-            setTags(d.data.Tags.map(t=>{return {value:t.Value,color:t.Color}}));
-            setImages(()=>{
-                let p = adaptImages(photos)
-                setContextSelect(ctx=>setProperty(ctx,"allImages",p))
+            setContextSelect(ctx => setProperty(ctx, "id", d.data.Id))
+            loadTagsOfFolder(d.data.Id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
+            let photos = d.data.Files != null ? d.data.Files : d.data;
+            setShowTimeline(isMultipleFolders(photos))
+            setTags(d.data.Tags.map(t => {
+                return {value: t.Value, color: t.Color}
+            }));
+            let p = adaptImages(photos)
+            setImages(() => {
+                setOriginalImages(p);
+                setContextSelect(ctx => setProperty(ctx, "allImages", p))
                 return p
             });
         })
-    },[urlFolder,setCurrentFolder]);
+    }, [urlFolder, setCurrentFolder]);
 
-    useEffect(()=>memLoadImages(urlFolder),[urlFolder,memLoadImages,update]);
+    useEffect(() => memLoadImages(urlFolder), [urlFolder, memLoadImages, update]);
 
-    const selectImage = index=>{
-        selectMode.select(index,images[index])
+    const selectImage = index => {
+        selectMode.select(index, images[index])
     };
 
-    const removeFolder = ()=> {
+    const removeFolder = () => {
         axios({
-            method:'DELETE',
-            url:baseUrl + removeFolderUrl
-        }).then(r=>{
-            if(r.data === 'success') {
-                notification["success"]({message:"Succès",description:`Le répertoire a été bien supprimé`});
+            method: 'DELETE',
+            url: `${baseUrl}${removeFolderUrl}`
+        }).then(r => {
+            if (r.data === 'success') {
+                notification["success"]({message: "Succès", description: `Le répertoire a été bien supprimé`});
                 setUpdateUrl('');
-                setUrlFolder({load:'',tags:''});
+                setUrlFolder({load: '', tags: ''});
                 setUpdate(!update);
             }
         });
     };
 
-    const deleteSelection = ()=>{
+    const deleteSelection = () => {
         axios({
-            method:'POST',
-            url:baseUrl + '/delete',
-            data:JSON.stringify(images.filter(i=>i.isSelected).map(i=>i.path))
-        }).then(r=>{
-            if(r.data.errors === 0) {
+            method: 'POST',
+            url: `${baseUrl}/delete`,
+            data: JSON.stringify(images.filter(i => i.isSelected).map(i => i.path))
+        }).then(r => {
+            if (r.data.errors === 0) {
                 let count = images.filter(i => i.isSelected).length;
                 setImages(images.filter(i => !i.isSelected));
-                notification["success"]({message:"Succès",description:`${count} images ont été bien supprimées`});
+                notification["success"]({message: "Succès", description: `${count} images ont été bien supprimées`});
             }
         });
     };
 
-    const updateFolder = ()=> {
-        if(canAdmin && updateUrl !==""){
+    const updateFolder = () => {
+        if (canAdmin && updateUrl !== "") {
             setUpdateRunning(true);
             axios({
-                method:'POST',
-                url:baseUrl + updateUrl,
-            }).then(()=>{
+                method: 'POST',
+                url: `${baseUrl}${updateUrl}`,
+            }).then(() => {
                 // Reload folder
                 memLoadImages(urlFolder);
                 setUpdateRunning(false);
@@ -418,13 +468,13 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
         }
     };
 
-    const updateExifFolder = ()=> {
-        if(canAdmin && updateExifUrl !==""){
+    const updateExifFolder = () => {
+        if (canAdmin && updateExifUrl !== "") {
             setUpdateExifRunning(true);
             axios({
-                method:'GET',
-                url:baseUrl + updateExifUrl,
-            }).then(()=>{
+                method: 'GET',
+                url: `${baseUrl}${updateExifUrl}`,
+            }).then(() => {
                 // Reload folder
                 memLoadImages(urlFolder);
                 setUpdateExifRunning(false);
@@ -433,149 +483,162 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
     };
 
     // Show informations about selected images
-    const showSelected = ()=>{
-        const selected = images.filter(i=>i.isSelected).length;
+    const showSelected = () => {
+        const selected = images.filter(i => i.isSelected).length;
         return selected > 0 && selectMode.showFullMenu() && !filterEnable ? <>
             <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ces photos"}
                         onConfirm={deleteSelection} okText="Oui" cancelText="Non">
-                <Tooltip key={"image-info"} placement="top" title={"Supprimer la sélection"} overlayStyle={{zIndex:20000}}>
+                <Tooltip key={"image-info"} placement="top" title={"Supprimer la sélection"}
+                         overlayStyle={{zIndex: 20000}}>
                     <DeleteFilled className={"button"}/>
                 </Tooltip>
-                <span style={{marginLeft:10+'px'}}>{selected}</span>
+                <span style={{marginLeft: 10 + 'px'}}>{selected}</span>
             </Popconfirm>
-        </>:''
+        </> : ''
     };
 
-    const addPhotosToFolder = ()=> {
+    const addPhotosToFolder = () => {
         setIsAddFolderPanelVisible(true);
     };
 
-    const resetSelectedImage = ()=> {
+    const resetSelectedImage = () => {
         selectMode.reset();
-        setImages(list=>list.map(i=>{
+        setImages(list => list.map(i => {
                 i.isSelected = false;
                 return i;
             })
         )
     }
 
-    const showUpdateLink = ()=> {
-        return !canAdmin || updateUrl === '' || updateUrl ==null ? <></> :
+    const showUpdateLink = () => {
+        return !canAdmin || updateUrl === '' || updateUrl == null ? <></> :
             selectMode.showFullMenu() ?
                 <>
                     <Tooltip key={"image-share"} placement="top" title={"Partager le répertoire"}>
-                        <ShareAltOutlined onClick={()=>setShowSharePanel(true)} className={"button"}/>
+                        <ShareAltOutlined onClick={() => setShowSharePanel(true)} className={"button"}/>
                     </Tooltip>
-                    {isFolderEmpty() && !filterEnable ? <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
-                                                   onConfirm={removeFolder} okText="Oui" cancelText="Non">
-                        <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
-                            <DeleteTwoTone style={{cursor:'pointer',padding:'4px',backgroundColor:'#ff8181'}} twoToneColor={"#b32727"}/>
-                        </Tooltip>
-                    </Popconfirm>:<></>}
+                    {isFolderEmpty() && !filterEnable ?
+                        <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
+                                    onConfirm={removeFolder} okText="Oui" cancelText="Non">
+                            <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
+                                <DeleteTwoTone style={{cursor: 'pointer', padding: '4px', backgroundColor: '#ff8181'}}
+                                               twoToneColor={"#b32727"}/>
+                            </Tooltip>
+                        </Popconfirm> : <></>}
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
                                 onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
                         <Tooltip key={"image-info"} placement="top" title={"Mettre à jour les Exifs"}>
-                            <ChromeOutlined style={{marginLeft:10}} spin={updateExifRunning} className={"button"}/>
+                            <ChromeOutlined style={{marginLeft: 10}} spin={updateExifRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
                                 onConfirm={updateFolder} okText="Oui" cancelText="Non">
                         <Tooltip key={"image-info"} placement="top" title={"Mettre à jour le répertoire"}>
-                            <ReloadOutlined style={{marginLeft:10}} spin={updateRunning} className={"button"}/>
+                            <ReloadOutlined style={{marginLeft: 10}} spin={updateRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
                     <Tooltip key={"image-info"} placement="top" title={"Ajouter des photos"}>
-                        <PlusCircleOutlined className={"button"} style={{marginLeft:10}} onClick={addPhotosToFolder}/>
+                        <PlusCircleOutlined className={"button"} style={{marginLeft: 10}} onClick={addPhotosToFolder}/>
                     </Tooltip>
                     <Tooltip key={"image-info"} placement="top" title={"Tagger des photos"}>
-                        <UserAddOutlined className={"button"} style={{marginLeft:10}} onClick={()=>{
-                            loadTagsOfFolder(contextSelect.id).then(data=>setContextSelect(ctx=>setProperty(ctx,"originalPaths",data.data)))
+                        <UserAddOutlined className={"button"} style={{marginLeft: 10}} onClick={() => {
+                            loadTagsOfFolder(contextSelect.id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
                             setSelectMode(tMode)
                         }}/>
                     </Tooltip>
                     <Tooltip key={"image-info"} placement="top" title={"Filter"}>
-                        <FilterOutlined className={"button"} style={{marginLeft:10,backgroundColor:filterEnable?'green':''}} onClick={()=>{
-                            if(filterEnable){
-                                setImages(()=>contextSelect.allImages);
-                                setContextSelect(ctx=>setProperty(ctx,"currentTag",null));
-                            }
-                            setFilterEnable(v=>!v)
-                        }}/>
+                        <FilterOutlined className={"button"}
+                                        style={{marginLeft: 10, backgroundColor: filterEnable ? 'green' : ''}}
+                                        onClick={() => {
+                                            if (filterEnable) {
+                                                setImages(() => contextSelect.allImages);
+                                                setContextSelect(ctx => setProperty(ctx, "currentTag", null));
+                                            }
+                                            setFilterEnable(v => !v)
+                                        }}/>
                     </Tooltip>
-                </>:<>
-                    <Tag color="gray" style={{cursor:'pointer'}} onClick={()=>{resetSelectedImage();setSelectMode(dMode)}}>Close</Tag>
+                </> : <>
+                    <Tag color="gray" style={{cursor: 'pointer'}} onClick={() => {
+                        resetSelectedImage();
+                        setSelectMode(dMode)
+                    }}>Close</Tag>
                 </>;
     };
 
-    const showTagsBloc = ()=>{
+    const showTagsBloc = () => {
         return (
             <>{tags
-                .sort((a,b)=>a.value < b.value ? -1:1)
-                .map(t=>
+                .sort((a, b) => a.value < b.value ? -1 : 1)
+                .map(t =>
                     <Tooltip key={`tp${t.value}`} trigger={"click"} title={
-                        <CirclePicker width={'250px'} onChange={color=>updateColor(color,t)} circleSize={26} circleSpacing={8}/>
-                    }><Tag key={t.value} color={t.color} closable={true} onClose={()=>removeTag(t)}>{t.value}</Tag>
+                        <CirclePicker width={'250px'} onChange={color => updateColor(color, t)} circleSize={26}
+                                      circleSpacing={8}/>
+                    }><Tag key={t.value} color={t.color} closable={true} onClose={() => removeTag(t)}>{t.value}</Tag>
                     </Tooltip>
                 )}
-                {!showInputTag && canAdmin && urlFolder.load !== ''?<Tag color="gray" onClick={()=>setShowInputTag(true)}><PlusOutlined /> tag</Tag>:<></>}
-                {showInputTag ? <Input size={"small"} style={{width:78+'px'}} onKeyUp={updateText} autoFocus={true} />:<></>}
+                {!showInputTag && canAdmin && urlFolder.load !== '' ?
+                    <Tag color="gray" onClick={() => setShowInputTag(true)}><PlusOutlined/> tag</Tag> : <></>}
+                {showInputTag ?
+                    <Input size={"small"} style={{width: 78 + 'px'}} onKeyUp={updateText} autoFocus={true}/> : <></>}
             </>);
     }
 
-    const updateText = value=>{
-        switch(value.key){
+    const updateText = value => {
+        switch (value.key) {
             case 'Enter':
-                let tag = {value:nextTagValue,color:'green'};
+                let tag = {value: nextTagValue, color: 'green'};
                 setShowInputTag(false);
                 setNextTagValue('');
-                saveTag(tag,()=>setTags(list=>[...list,tag]));
+                saveTag(tag, () => setTags(list => [...list, tag]));
                 break;
             default:
                 setNextTagValue(value.target.value);
         }
     };
 
-    const updateColor = (color,tag)=>{
-        let newTag = {value:tag.value,color:color.hex};
-        saveTag(newTag,()=>setTags(tgs=>[...tgs.filter(n=>n.value !== tag.value),newTag]))
+    const updateColor = (color, tag) => {
+        let newTag = {value: tag.value, color: color.hex};
+        saveTag(newTag, () => setTags(tgs => [...tgs.filter(n => n.value !== tag.value), newTag]))
     };
 
-    const removeTag = tag=>saveTag({Value:tag.value,Color:tag.color,ToRemove:true});
+    const removeTag = tag => saveTag({Value: tag.value, Color: tag.color, ToRemove: true});
 
     // Add behaviour when show image in lightbox
-    const getCustomActions = ()=> {
+    const getCustomActions = () => {
         return [
-            <div style={{paddingTop:5+'px'}} key={"detail-lightbox"}>
-                {images!=null && currentImage !== -1 && images[currentImage].isSelected? <DeleteTwoTone twoToneColor={"red"} style={{color:'red',fontSize:22+'px'}} />:''}
-                <Tooltip key={"image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex:20000}}>
+            <div style={{paddingTop: 5 + 'px'}} key={"detail-lightbox"}>
+                {images != null && currentImage !== -1 && images[currentImage].isSelected ?
+                    <DeleteTwoTone twoToneColor={"red"} style={{color: 'red', fontSize: 22 + 'px'}}/> : ''}
+                <Tooltip key={"image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex: 20000}}>
                     <a target={"_blank"} rel="noopener noreferrer"
-                       download={images != null && currentImage !== -1 ? images[currentImage].Name:''}
-                       href={images != null && currentImage !== -1 ? images[currentImage].hdLink:''} >
-                        <FileImageOutlined style={{color:'white',fontSize:22+'px'}}/>
+                       download={images != null && currentImage !== -1 ? images[currentImage].Name : ''}
+                       href={images != null && currentImage !== -1 ? images[currentImage].hdLink : ''}>
+                        <FileImageOutlined style={{color: 'white', fontSize: 22 + 'px'}}/>
                     </a>
                 </Tooltip>
-                <Tooltip key={"image-info"} placement="top" title={"Zoom"} overlayStyle={{zIndex:20000}}>
-                    <PlusCircleOutlined style={{color:'white',fontSize:22+'px',marginLeft:5}} onClick={()=>setZoomEnable(true)}/>
+                <Tooltip key={"image-info"} placement="top" title={"Zoom"} overlayStyle={{zIndex: 20000}}>
+                    <PlusCircleOutlined style={{color: 'white', fontSize: 22 + 'px', marginLeft: 5}}
+                                        onClick={() => setZoomEnable(true)}/>
                 </Tooltip>
-                <span style={{color:'white',paddingLeft:20+'px'}}>
-                   {images!=null && currentImage!==-1 ? images[currentImage].Date:''}
-                    {images!=null && currentImage!==-1 ? ' - ' + images[currentImage].folder:''}
+                <span style={{color: 'white', paddingLeft: 20 + 'px'}}>
+                   {images != null && currentImage !== -1 ? images[currentImage].Date : ''}
+                    {images != null && currentImage !== -1 ? ' - ' + images[currentImage].folder : ''}
                </span>
                 {/* Show peoples on image ?*/}
             </div>
         ]
     };
 
-    const showGallery = ()=> {
+    const showGallery = () => {
         return (
-            <Gallery ref={node=>{setComp(node);window.t = node}}
+            <Gallery ref={setComp}
                      images={images}
                      showImageCount={false}
-                     lightboxWillClose={()=>setLightboxVisible(false)}
-                     lightboxWillOpen={()=>setLightboxVisible(true)}
+                     lightboxWillClose={() => setLightboxVisible(false)}
+                     lightboxWillOpen={() => setLightboxVisible(true)}
                      onSelectImage={selectImage}
-                     enableImageSelection={canAdmin===true}
-                     currentImageWillChange={indexImage=>{
+                     enableImageSelection={canAdmin === true}
+                     currentImageWillChange={indexImage => {
                          setCurrentImage(indexImage)
                          setImageToZoom(images[indexImage].hdLink);
                      }}
@@ -585,18 +648,20 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
         );
     };
 
-    const isFolderEmpty = ()=>{
-        return urlFolder !=="" && urlFolder.load !== "" && images.length === 0;
+    const isFolderEmpty = () => {
+        return urlFolder !== "" && urlFolder.load !== "" && images.length === 0;
     };
 
-    const showEmptyMessage = ()=> {
+    const showEmptyMessage = () => {
         return (
-            urlFolder === '' || urlFolder.load === '' ? <></>:
-                <Empty style={{marginTop:'40vh'}} description={<span style={{color:'white',fontWeight:'bold'}}>Pas de photos</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            urlFolder === '' || urlFolder.load === '' ? <></> :
+                <Empty style={{marginTop: '40vh'}}
+                       description={<span style={{color: 'white', fontWeight: 'bold'}}>Pas de photos</span>}
+                       image={Empty.PRESENTED_IMAGE_SIMPLE}/>
         );
     };
 
-    const showPeopleTagDrawer = ()=>{
+    const showPeopleTagDrawer = () => {
         return <Drawer
             title="Identify people"
             placement="right"
@@ -609,7 +674,7 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
         </Drawer>
     }
 
-    const showFilterTagDrawer = ()=>{
+    const showFilterTagDrawer = () => {
         return <Drawer
             title="Filter people"
             placement="right"
@@ -622,15 +687,15 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
         </Drawer>
     }
 
-    const [scale,setScale] = useState(1);
-    const [posX,setPosX] = useState(1);
-    const [posY,setPosY] = useState(1);
+    const [scale, setScale] = useState(1);
+    const [posX, setPosX] = useState(1);
+    const [posY, setPosY] = useState(1);
     return (
         <>
             <Row className={"options"}>
                 <Col flex={"200px"}>
                     {titleGallery}
-                    {images.length} <PictureOutlined />
+                    {images.length} <PictureOutlined/>
                 </Col>
                 <Col flex={"100px"}>
                     {showSelected()}
@@ -640,20 +705,35 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
                 </Col>
                 <Col flex={"auto"}>{showTagsBloc()}</Col>
             </Row>
+
+            {showTimeline?
+                <Row>
+                    <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
+                         style={{marginTop: 40 + 'px', backgroundColor: 'rgb(0,21,41)'}}>
+                        <Timeline images={originalImages} setImages={imgs => {
+                            setImages(() => {
+                                setContextSelect(ctx => setProperty(ctx, "allImages", imgs))
+                                return imgs
+                            })
+                        }}/>
+                    </Col>
+                </Row>:<></>}
             <Row className={"gallery"}>
-                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%':'85%'}`}  style={{marginTop:36+'px'}}>
-                    {images.length === 0 ? showEmptyMessage():showGallery()}
+                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
+                     style={{marginTop: `${showTimeline?'30':'72'}px`}}>
+                    {images.length === 0 ? showEmptyMessage() : showGallery()}
                 </Col>
                 <Modal visible={zoomEnable}
-                       onCancel={()=>{
+                       onCancel={() => {
                            setScale(1);
                            setPosX(0);
                            setPosY(0);
-                           setZoomEnable(false)}}
-                       width={90+'%'}
-                       style={{top:20}}
+                           setZoomEnable(false)
+                       }}
+                       width={90 + '%'}
+                       style={{top: 20}}
                        footer={[]}
-                       closeIcon={<CloseOutlined style={{color:'white',fontSize:20}}/>}
+                       closeIcon={<CloseOutlined style={{color: 'white', fontSize: 20}}/>}
                        wrapClassName={"modal-zoom"}>
                     <TransformWrapper scale={scale} positionX={posX} positionY={posY}>
                         <TransformComponent>
@@ -661,7 +741,8 @@ export default function MyGallery({setUrlFolder,urlFolder,refresh,titleGallery,c
                         </TransformComponent>
                     </TransformWrapper>
                 </Modal>
-                <SharePanel showSharePanel={showSharePanel} hide={()=>setShowSharePanel(false)} path={urlFolder.path} />
+                <SharePanel showSharePanel={showSharePanel} hide={() => setShowSharePanel(false)}
+                            path={urlFolder.path}/>
                 {showPeopleTagDrawer()}
                 {showFilterTagDrawer()}
             </Row>

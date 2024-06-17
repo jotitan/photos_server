@@ -283,7 +283,8 @@ func (s Server) getPeoples(w http.ResponseWriter, r *http.Request) {
 	if peoples, err := people_tag.GetPeoplesAsByte(getTagPath()); err == nil {
 		w.Write(peoples)
 	} else {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.Write([]byte("[]"))
+		//http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 }
 
