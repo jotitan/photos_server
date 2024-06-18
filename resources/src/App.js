@@ -12,6 +12,7 @@ import axios from "axios";
 import ConnectPanel from "./pages/security";
 import VideoDisplay from "./pages/video";
 import UploadVideos from "./pages/upload-video";
+import './i18n';
 
 export const history = createBrowserHistory({
     basename: process.env.PUBLIC_URL

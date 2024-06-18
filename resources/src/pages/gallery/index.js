@@ -25,6 +25,7 @@ import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
 import {CirclePicker} from 'react-color';
 import Timeline from "../../components/timeline";
+import {useTranslation} from "react-i18next";
 
 
 const setProperty = (ctx, property, value) => {
@@ -64,11 +65,13 @@ class mode {
     setImages;
     context;
     setContext;
+    t;
 
-    constructor(setImages, context, setContext) {
+    constructor(setImages, context, setContext, t) {
         this.setImages = setImages;
         this.context = context;
         this.setContext = setContext;
+        this.t = t;
     }
 
     defaultSelect(index) {
@@ -242,9 +245,9 @@ class tagMode extends mode {
                                     style={{backgroundColor: '#427a10'}}/>
                 </p>) : ''}
             <Tag style={{cursor: 'pointer'}} onClick={() => this.setContext(ctx => setProperty(ctx, "flag", true))}>
-                <UserAddOutlined/>+ New people
+                <UserAddOutlined/>+ {this.t('people.add')}
             </Tag>
-            <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> Save tags</Tag>
+            <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> {this.t('people.save')}</Tag>
             {context.flag ?
                 <p>
                     People :
@@ -337,11 +340,12 @@ export default function MyGallery({
     const [showThumbnails, setShowThumbnails] = useState(false);
     const [comp, setComp] = useState(null);
     const [showTimeline, setShowTimeline] = useState(false);
+    const {t} = useTranslation();
 
     const [input, setInput] = useState('');
     const [contextSelect, setContextSelect] = useState({input: input, setInput: setInput, flag: false});
-    const dMode = new deleteMode(setImages, contextSelect, setContextSelect);
-    const tMode = new tagMode(setImages, contextSelect, setContextSelect);
+    const dMode = new deleteMode(setImages, contextSelect, setContextSelect,t);
+    const tMode = new tagMode(setImages, contextSelect, setContextSelect,t);
     const [selectMode, setSelectMode] = useState(dMode)
 
     const [filterEnable, setFilterEnable] = useState(false);
@@ -371,6 +375,8 @@ export default function MyGallery({
             });
         }
     }, [canAdmin, setShowThumbnails]);
+
+    //console.log(t('test'), t('autre.premier'))
 
     useEffect(() => {
         if (lightboxVisible && key === "Delete") {
@@ -415,7 +421,7 @@ export default function MyGallery({
             setImages(() => {
                 setOriginalImages(p);
                 setContextSelect(ctx => setProperty(ctx, "allImages", p))
-                return p
+                return isMultipleFolders(photos) ? [] : p
             });
         })
     }, [urlFolder, setCurrentFolder]);
@@ -561,7 +567,7 @@ export default function MyGallery({
                     <Tag color="gray" style={{cursor: 'pointer'}} onClick={() => {
                         resetSelectedImage();
                         setSelectMode(dMode)
-                    }}>Close</Tag>
+                    }}>{t('people.close')}</Tag>
                 </>;
     };
 
@@ -663,7 +669,7 @@ export default function MyGallery({
 
     const showPeopleTagDrawer = () => {
         return <Drawer
-            title="Identify people"
+            title={t('people.title-panel')}
             placement="right"
             closable={false}
             mask={false}
