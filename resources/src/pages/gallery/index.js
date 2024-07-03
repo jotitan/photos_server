@@ -330,7 +330,7 @@ export default function MyGallery({
     const [originalImages, setOriginalImages] = useState([]);
     const [imageToZoom, setImageToZoom] = useState('');
     const [zoomEnable, setZoomEnable] = useState(false);
-    const [updateUrl, setUpdateUrl] = useState('');
+    //const [updateUrl, setUpdateUrl] = useState('');
     const [showSharePanel, setShowSharePanel] = useState(false);
     const [updateExifUrl, setUpdateExifUrl] = useState('');
     const [details, setDetails] = useState('');
