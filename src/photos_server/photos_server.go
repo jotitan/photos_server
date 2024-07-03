@@ -343,12 +343,27 @@ func error404(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Unknown resource", 404)
 }
 
+func (s Server) getFoldersDetails(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	data, _ := io.ReadAll(r.Body)
+	var folders []string
+	json.Unmarshal(data, &folders)
+	if data, err := json.Marshal(s.foldersManager.FindNodes(folders)); err == nil {
+		w.Write(data)
+	} else {
+		http.Error(w, "Bad", http.StatusBadRequest)
+	}
+}
+
 func (s Server) addFolder(w http.ResponseWriter, r *http.Request) {
 	folder := r.FormValue("folder")
 	forceRotate := r.FormValue("forceRotate") == "true"
 	logger.GetLogger2().Info("Add folder", folder, "and forceRotate :", forceRotate)
 	p := s.foldersManager.uploadProgressManager.AddUploader(0)
-	s.foldersManager.AddFolder(folder, forceRotate, p)
+	s.foldersManager.AddFolder(folder, forceRotate, detailUploadFolder{}, p)
 }
 
 func (s Server) video(w http.ResponseWriter, r *http.Request) {
@@ -585,21 +600,21 @@ func (s Server) uploadFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pathFolder := r.FormValue("path")
+	details := detailUploadFolder{r.FormValue("path"), r.FormValue("title"), r.FormValue("description")}
 	addToFolder := strings.EqualFold(r.FormValue("addToFolder"), "true")
 	if r.MultipartForm == nil {
-		logger.GetLogger2().Error("impossible to upload photos in " + pathFolder)
-		http.Error(w, "impossible to upload photos in "+pathFolder, 400)
+		logger.GetLogger2().Error("impossible to upload photos in " + details.path)
+		http.Error(w, "impossible to upload photos in "+details.path, 400)
 		return
 	}
-	if strings.EqualFold("", pathFolder) {
+	if strings.EqualFold("", details.path) {
 		http.Error(w, "need to specify a path", 400)
 		return
 	}
 	files, names := extractFiles(r)
-	logger.GetLogger2().Info("Launch upload folder :", pathFolder)
+	logger.GetLogger2().Info("Launch upload folder :", details.path)
 
-	if progresser, err := s.foldersManager.UploadFolder(pathFolder, files, names, addToFolder); err != nil {
+	if progresser, err := s.foldersManager.UploadFolder(details, files, names, addToFolder); err != nil {
 		http.Error(w, "Bad request "+err.Error(), 400)
 		logger.GetLogger2().Error("Impossible to upload folder : ", err.Error())
 	} else {
@@ -666,6 +681,19 @@ func (s Server) updateFolder(w http.ResponseWriter, r *http.Request) {
 	logger.GetLogger2().Info("Launch update folder :", folder)
 	up := s.foldersManager.uploadProgressManager.AddUploader(0)
 	treatError(s.foldersManager.UpdateFolder(folder, up), folder, w)
+}
+
+// Update a specific folder, faster than all folders
+func (s Server) editDetails(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method != "POST" {
+		http.Error(w, "Only post is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	data, _ := io.ReadAll(r.Body)
+	var details FolderDto
+	json.Unmarshal(data, &details)
+	treatError(s.foldersManager.UpdateDetails(details), details.Path, w)
 }
 
 // move a specific folder
@@ -775,14 +803,20 @@ func (s Server) browseRestful(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.GetLogger2().Info("Browse restfull receive request", path)
-	if files, id, err := s.foldersManager.Browse(path); err == nil {
+	if files, node, err := s.foldersManager.Browse(path); err == nil {
 		formatedFiles := s.convertPaths(files, false)
 		tags := s.foldersManager.tagManger.GetTagsByFolder(path[1:])
-		imgResponse := imagesResponse{Id: id, Files: formatedFiles, UpdateExifUrl: "/photo/folder/exif?folder=" + path[1:], UpdateUrl: "/photo/folder/update?folder=" + path[1:], FolderPath: path[1:], Tags: tags}
+		folderResponse := imagesResponse{Id: node.Id,
+			Files:         formatedFiles,
+			UpdateExifUrl: fmt.Sprintf("/photo/folder/exif?folder=%s", path[1:]),
+			UpdateUrl:     fmt.Sprintf("/photo/folder/update?folder=%s", path[1:]),
+			FolderPath:    path[1:], Tags: tags,
+			Title:       node.Title,
+			Description: node.Description}
 		if s.canAccessAdmin(r) {
-			imgResponse.RemoveFolderUrl = "/removeNode" + path
+			folderResponse.RemoveFolderUrl = "/removeNode" + path
 		}
-		if data, err := json.Marshal(imgResponse); err == nil {
+		if data, err := json.Marshal(folderResponse); err == nil {
 			write(data, w)
 		}
 	} else {
@@ -841,6 +875,8 @@ type imagesResponse struct {
 	FolderPath      string
 	Tags            []*Tag
 	Id              int
+	Description     string
+	Title           string
 }
 
 // Restful representation : real link instead real path
@@ -996,6 +1032,7 @@ func (s Server) Launch(conf *config.Config) {
 func (s Server) updateRoutes(server *http.ServeMux) {
 	server.HandleFunc("/update", s.buildHandler(s.needAdmin, s.update))
 	server.HandleFunc("/photo/folder/update", s.buildHandler(s.needAdmin, s.updateFolder))
+	server.HandleFunc("/photo/folder/edit-details", s.buildHandler(s.needAdmin, s.editDetails))
 	server.HandleFunc("/photo/folder/move", s.buildHandler(s.needAdmin, s.moveFolder))
 	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.needAdmin, s.updateExifFolder))
 	server.HandleFunc("/photo", s.buildHandler(s.needAdmin, s.uploadFolder))
@@ -1008,6 +1045,7 @@ func (s Server) photoRoutes(server *http.ServeMux) {
 	server.HandleFunc("/delete", s.buildHandler(s.needAdmin, s.delete))
 	server.HandleFunc("/addFolder", s.buildHandler(s.needAdmin, s.addFolder))
 	server.HandleFunc("/statUploadRT", s.buildHandler(s.needAdmin, s.statUploadRT))
+	server.HandleFunc("/getFoldersDetails", s.buildHandler(s.needConnected, s.getFoldersDetails))
 	server.HandleFunc("/count", s.count)
 	//server.HandleFunc("/indexFolder",s.indexFolder)
 }

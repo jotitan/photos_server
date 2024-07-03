@@ -16,6 +16,47 @@ import (
 	"time"
 )
 
+func TestFindSub(t *testing.T) {
+	node := &Node{Files: map[string]*Node{
+		"path1": {
+			IsFolder: true,
+			Files: map[string]*Node{
+				"sub1": {
+					IsFolder: true,
+					Files: map[string]*Node{
+						"subsub1": {},
+						"subsub2": {},
+						"subsub3": {},
+					},
+				},
+				"sub2": {
+					IsFolder: true,
+					Files: map[string]*Node{
+						"subsub1": {},
+						"subsub4": {},
+					},
+				},
+			},
+		},
+		"path2": {
+			IsFolder: true,
+			Files: map[string]*Node{
+				"sub3": {
+					IsFolder: true,
+					Files: map[string]*Node{
+						"subsub1": {},
+						"subsub5": {},
+						"subsub6": {},
+					},
+				},
+			},
+		},
+	}}
+	if _, _, err := findNodeFromList(node.Files, "path1/sub1/subsub2"); err != nil {
+		t.Error("Should find node", err)
+	}
+}
+
 func TestCompare(t *testing.T) {
 	oldFiles := Files{}
 	oldFiles["folder1"] = createFolderNode("/home/folder1")

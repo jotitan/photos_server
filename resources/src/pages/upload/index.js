@@ -28,6 +28,8 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const [path,setPath] = useState('');
     const [waitUpload,setWaitUpload] = useState(false);
     const [progress,setProgress] = useState(0);
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
     const [selectDirectory,setSelectDirectory] = useState(false);
     let limitImages = 10;
 
@@ -46,6 +48,8 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
         setWaitUpload(true);
         let data = new FormData();
         data.append("path",singleFolderDisplay ? defaultPath:path);
+        data.append("title",title);
+        data.append("description",description);
         // Mode to upload only few images in existing folder
         if(singleFolderDisplay){
             data.append("addToFolder","true");
@@ -55,7 +59,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
 
         axios({
             method:'POST',
-            url:getBaseUrl()+'/photo',
+            url:`${getBaseUrl()}/photo`,
             data:data,
             // Progress count for 25%
             onUploadProgress:info=>setProgress(Math.round((info.loaded / info.total)*25))
@@ -134,13 +138,21 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
                     {!singleFolderDisplay ?
                         <>
                             <Row>
-                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Chemin : </Col>
-                                <Col><Input onChange={changePath} style={{minWidth:350+'px'}} value={path} placeholder={"Ex : 2019/current"}/></Col>
+                                <Col style={{paddingTop:5,paddingRight:5,width:100}}>Chemin : </Col>
+                                <Col><Input onChange={changePath} style={{minWidth:350}} value={path} placeholder={"Ex : 2019/current"}/></Col>
                             </Row>
-                            <Row style={{padding:5+'px'}}>
-                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode photos</Col>
-                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}><Switch onChange={value=>setSelectDirectory(value)}/></Col>
-                                <Col style={{paddingTop:5+'px',paddingRight:5+'px'}}>Mode répertoire</Col>
+                            <Row>
+                                <Col style={{paddingTop:5,paddingRight:5,width:100}}>Titre : </Col>
+                                <Col><Input onChange={v=>setTitle(v.target.value)} style={{minWidth:350}} value={title}/></Col>
+                            </Row>
+                            <Row>
+                                <Col style={{paddingTop:5,paddingRight:5,width:100}}>Description : </Col>
+                                <Col><Input onChange={v=>setDescription(v.target.value)} style={{minWidth:350}} value={description}/></Col>
+                            </Row>
+                            <Row style={{padding:5}}>
+                                <Col style={{paddingTop:5,paddingRight:5}}>Mode photos</Col>
+                                <Col style={{paddingTop:5,paddingRight:5}}><Switch onChange={value=>setSelectDirectory(value)}/></Col>
+                                <Col style={{paddingTop:5,paddingRight:5}}>Mode répertoire</Col>
                             </Row>
                         </>:<></>
                     }

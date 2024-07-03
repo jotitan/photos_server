@@ -4,5 +4,10 @@
     "add": "Ajouter",
     "save": "Sauvegarder",
     "close": "Fermer"
+  },
+  "details": {
+    "title": "Titre",
+    "description": "Description",
+    "edit": "Editer les détails"
   }
 }

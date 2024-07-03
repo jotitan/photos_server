@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react'
-import {Badge, Col, Drawer, Empty, Input, Modal, notification, Popconfirm, Row, Tag, Tooltip} from 'antd'
+import {Badge, Col, Drawer, Empty, Input, Modal, notification, Popconfirm, Popover, Row, Tag, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import axios from "axios";
 import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
@@ -19,13 +19,15 @@ import {
     ReloadOutlined,
     SaveOutlined,
     ShareAltOutlined,
-    UserAddOutlined
+    UserAddOutlined,
+    EditOutlined
 } from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
 import {CirclePicker} from 'react-color';
 import Timeline from "../../components/timeline";
 import {useTranslation} from "react-i18next";
+import EditTitle from "../../components/edit-title";
 
 
 const setProperty = (ctx, property, value) => {
@@ -331,6 +333,7 @@ export default function MyGallery({
     const [updateUrl, setUpdateUrl] = useState('');
     const [showSharePanel, setShowSharePanel] = useState(false);
     const [updateExifUrl, setUpdateExifUrl] = useState('');
+    const [details, setDetails] = useState('');
     const [removeFolderUrl, setRemoveFolderUrl] = useState('');
     const [currentImage, setCurrentImage] = useState(-1);
     const [updateRunning, setUpdateRunning] = useState(false);
@@ -340,6 +343,7 @@ export default function MyGallery({
     const [showThumbnails, setShowThumbnails] = useState(false);
     const [comp, setComp] = useState(null);
     const [showTimeline, setShowTimeline] = useState(false);
+    const [editDetails, setEditDetails] = useState(false);
     const {t} = useTranslation();
 
     const [input, setInput] = useState('');
@@ -351,7 +355,6 @@ export default function MyGallery({
     const [filterEnable, setFilterEnable] = useState(false);
 
     let baseUrl = getBaseUrl();
-
     // Gestion du tag
     const [showInputTag, setShowInputTag] = useState(false);
     const [tags, setTags] = useState([]);
@@ -376,7 +379,6 @@ export default function MyGallery({
         }
     }, [canAdmin, setShowThumbnails]);
 
-    //console.log(t('test'), t('autre.premier'))
 
     useEffect(() => {
         if (lightboxVisible && key === "Delete") {
@@ -406,7 +408,8 @@ export default function MyGallery({
         }).then(d => {
 
             // Filter image by time before
-            setUpdateUrl(d.data.UpdateUrl);
+            setDetails(d.data);
+            //setUpdateUrl(d.data.UpdateUrl);
             setUpdateExifUrl(d.data.UpdateExifUrl);
             setRemoveFolderUrl(d.data.RemoveFolderUrl);
             setCurrentFolder(d.data.FolderPath);
@@ -439,7 +442,12 @@ export default function MyGallery({
         }).then(r => {
             if (r.data === 'success') {
                 notification["success"]({message: "Succès", description: `Le répertoire a été bien supprimé`});
-                setUpdateUrl('');
+                setDetails(t => {
+                    const copy = [...t];
+                    copy.UpdateUrl = '';
+                    return copy;
+                })
+                //setUpdateUrl('');
                 setUrlFolder({load: '', tags: ''});
                 setUpdate(!update);
             }
@@ -461,11 +469,11 @@ export default function MyGallery({
     };
 
     const updateFolder = () => {
-        if (canAdmin && updateUrl !== "") {
+        if (canAdmin && details.UpdateUrl !== "") {
             setUpdateRunning(true);
             axios({
                 method: 'POST',
-                url: `${baseUrl}${updateUrl}`,
+                url: `${baseUrl}${details.UpdateUrl}`,
             }).then(() => {
                 // Reload folder
                 memLoadImages(urlFolder);
@@ -517,7 +525,7 @@ export default function MyGallery({
     }
 
     const showUpdateLink = () => {
-        return !canAdmin || updateUrl === '' || updateUrl == null ? <></> :
+        return !canAdmin || details.UpdateUrl === '' || details.UpdateUrl == null ? <></> :
             selectMode.showFullMenu() ?
                 <>
                     <Tooltip key={"image-share"} placement="top" title={"Partager le répertoire"}>
@@ -693,6 +701,13 @@ export default function MyGallery({
         </Drawer>
     }
 
+    const showTitle = () => {
+        if(details.Title && details.Title !== ''){
+            return <Popover title={<span>{details.Title} {canAdmin ? <EditOutlined onClick={()=>setEditDetails(true)} />:''}</span>} content={<pre>{details.Description}</pre>}><span style={{cursor:'pointer'}} >{details.Title}</span></Popover>
+        }
+        return titleGallery
+    }
+
     const [scale, setScale] = useState(1);
     const [posX, setPosX] = useState(1);
     const [posY, setPosY] = useState(1);
@@ -700,7 +715,8 @@ export default function MyGallery({
         <>
             <Row className={"options"}>
                 <Col flex={"200px"}>
-                    {titleGallery}
+                    {showTitle()}
+                    <span style={{paddingLeft:5,paddingRight:5}}>-</span>
                     {images.length} <PictureOutlined/>
                 </Col>
                 <Col flex={"100px"}>
@@ -724,6 +740,7 @@ export default function MyGallery({
                         }}/>
                     </Col>
                 </Row>:<></>}
+            {canAdmin && editDetails ? <EditTitle folder={urlFolder.path} initialValues={details} close={()=>setEditDetails(false)}/>:''}
             <Row className={"gallery"}>
                 <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
                      style={{marginTop: `${showTimeline?'30':'72'}px`}}>

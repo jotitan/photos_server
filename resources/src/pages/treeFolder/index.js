@@ -116,7 +116,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
     };
 
     const onSelect = (e,f)=>{
-        setTitleGallery('');
+        setTitleGallery(f.node.title);
         if(f.node.children == null || f.node.children.length === 0) {
             setUrlFolder({load:e[0],tags:f.node.tags,path:f.node.path})
         }else{
