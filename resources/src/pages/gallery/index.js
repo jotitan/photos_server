@@ -705,7 +705,7 @@ export default function MyGallery({
         if(details.Title && details.Title !== ''){
             return <Popover title={<span>{details.Title} {canAdmin ? <EditOutlined onClick={()=>setEditDetails(true)} />:''}</span>} content={<pre>{details.Description}</pre>}><span style={{cursor:'pointer'}} >{details.Title}</span></Popover>
         }
-        return titleGallery
+        return <Popover title={<span>{titleGallery} {canAdmin ? <EditOutlined onClick={()=>setEditDetails(true)} />:''}</span>} content={'Ajouter un titre et une description'}><span style={{cursor:'pointer'}} >{titleGallery}</span></Popover>
     }
 
     const [scale, setScale] = useState(1);
