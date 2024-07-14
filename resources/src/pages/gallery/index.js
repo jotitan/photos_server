@@ -11,6 +11,7 @@ import {
     CloseOutlined,
     DeleteFilled,
     DeleteTwoTone,
+    EditOutlined,
     FileImageOutlined,
     FilterOutlined,
     PictureOutlined,
@@ -19,8 +20,7 @@ import {
     ReloadOutlined,
     SaveOutlined,
     ShareAltOutlined,
-    UserAddOutlined,
-    EditOutlined
+    UserAddOutlined
 } from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
@@ -249,7 +249,8 @@ class tagMode extends mode {
             <Tag style={{cursor: 'pointer'}} onClick={() => this.setContext(ctx => setProperty(ctx, "flag", true))}>
                 <UserAddOutlined/>+ {this.t('people.add')}
             </Tag>
-            <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> {this.t('people.save')}</Tag>
+            <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> {this.t('people.save')}
+            </Tag>
             {context.flag ?
                 <p>
                     People :
@@ -348,8 +349,8 @@ export default function MyGallery({
 
     const [input, setInput] = useState('');
     const [contextSelect, setContextSelect] = useState({input: input, setInput: setInput, flag: false});
-    const dMode = new deleteMode(setImages, contextSelect, setContextSelect,t);
-    const tMode = new tagMode(setImages, contextSelect, setContextSelect,t);
+    const dMode = new deleteMode(setImages, contextSelect, setContextSelect, t);
+    const tMode = new tagMode(setImages, contextSelect, setContextSelect, t);
     const [selectMode, setSelectMode] = useState(dMode)
 
     const [filterEnable, setFilterEnable] = useState(false);
@@ -396,7 +397,7 @@ export default function MyGallery({
     };
 
     // Check if pictures contains many foldesr
-    const isMultipleFolders = images => images.map(img=>img.HdLink.replace(img.Name,'')).reduce((s,value)=>s.add(value),new Set()).size > 1;
+    const isMultipleFolders = images => images.filter(img => img.HdLink).map(img => img.HdLink.replace(img.Name, '')).reduce((s, value) => s.add(value), new Set()).size > 1;
 
     const memLoadImages = useCallback(() => {
         if (urlFolder === '' || urlFolder.load === '') {
@@ -702,10 +703,16 @@ export default function MyGallery({
     }
 
     const showTitle = () => {
-        if(details.Title && details.Title !== ''){
-            return <Popover title={<span>{details.Title} {canAdmin ? <EditOutlined onClick={()=>setEditDetails(true)} />:''}</span>} content={<pre>{details.Description}</pre>}><span style={{cursor:'pointer'}} >{details.Title}</span></Popover>
+        if (details.Title && details.Title !== '') {
+            return <Popover title={<span>{details.Title} {canAdmin ?
+                <EditOutlined onClick={() => setEditDetails(true)}/> : ''}</span>}
+                            content={<pre>{details.Description}</pre>}><span
+                style={{cursor: 'pointer'}}>{details.Title}</span></Popover>
         }
-        return <Popover title={<span>{titleGallery} {canAdmin ? <EditOutlined onClick={()=>setEditDetails(true)} />:''}</span>} content={'Ajouter un titre et une description'}><span style={{cursor:'pointer'}} >{titleGallery}</span></Popover>
+        return <Popover
+            title={<span>{titleGallery} {canAdmin ? <EditOutlined onClick={() => setEditDetails(true)}/> : ''}</span>}
+            content={'Ajouter un titre et une description'}><span
+            style={{cursor: 'pointer'}}>{titleGallery}</span></Popover>
     }
 
     const [scale, setScale] = useState(1);
@@ -716,7 +723,7 @@ export default function MyGallery({
             <Row className={"options"}>
                 <Col flex={"200px"}>
                     {showTitle()}
-                    <span style={{paddingLeft:5,paddingRight:5}}>-</span>
+                    <span style={{paddingLeft: 5, paddingRight: 5}}>-</span>
                     {images.length} <PictureOutlined/>
                 </Col>
                 <Col flex={"100px"}>
@@ -728,7 +735,7 @@ export default function MyGallery({
                 <Col flex={"auto"}>{showTagsBloc()}</Col>
             </Row>
 
-            {showTimeline?
+            {showTimeline ?
                 <Row>
                     <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
                          style={{marginTop: 35 + 'px', backgroundColor: 'rgb(0,21,41)'}}>
@@ -739,11 +746,12 @@ export default function MyGallery({
                             })
                         }}/>
                     </Col>
-                </Row>:<></>}
-            {canAdmin && editDetails ? <EditTitle folder={urlFolder.path} initialValues={details} close={()=>setEditDetails(false)}/>:''}
+                </Row> : <></>}
+            {canAdmin && editDetails ?
+                <EditTitle folder={urlFolder.path} initialValues={details} close={() => setEditDetails(false)}/> : ''}
             <Row className={"gallery"}>
                 <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
-                     style={{marginTop: `${showTimeline?'30':'72'}px`}}>
+                     style={{marginTop: `${showTimeline ? '30' : '72'}px`}}>
                     {images.length === 0 ? showEmptyMessage() : showGallery()}
                 </Col>
                 <Modal visible={zoomEnable}
