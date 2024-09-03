@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 type AccessProvider interface {
 	// Connect with provider. Return success and if true, list of additional parameter (for jwt token)
 	Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{})
+	//CanConnect If a mecanism is implemented to authenticated user
+	CanConnect() bool
 	CheckReadAccess(token *jwt.Token) bool
 	CheckRegularReadAccess(token *jwt.Token) bool
 	CheckGuestAccess(token *jwt.Token) bool
@@ -26,11 +29,105 @@ type AccessProvider interface {
 	CheckShareMailValid(email string) bool
 }
 
-type OAuth2AccessProvider struct {
+type externalProxyIdentityProvider struct {
+	suffixEmails []string
+}
+
+func newExternalProxyIdentityProvider(conf config.SecurityConfig) externalProxyIdentityProvider {
+	return externalProxyIdentityProvider{suffixEmails: conf.SuffixEmailShare}
+}
+
+func (eip externalProxyIdentityProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
+	// Not implemented cause manage outside (proxy)
+	return true, nil
+}
+
+func (eip externalProxyIdentityProvider) CanConnect() bool {
+	return false
+}
+
+func (eip externalProxyIdentityProvider) CheckReadAccess(token *jwt.Token) bool {
+	// Return true if email exist or guest exist
+	return eip.CheckRegularReadAccess(token) || eip.CheckGuestAccess(token)
+}
+
+func (eip externalProxyIdentityProvider) CheckRegularReadAccess(token *jwt.Token) bool {
+	// return true if email exist (proxy already check access)
+	if email, exist := token.Claims.(jwt.MapClaims)["email"]; exist && email != "" {
+		return true
+	}
+	return false
+}
+
+func (eip externalProxyIdentityProvider) CheckGuestAccess(token *jwt.Token) bool {
+	if isGuest, exist := token.Claims.(jwt.MapClaims)["guest"]; exist {
+		return isGuest.(bool)
+	}
+	return false
+}
+
+func (eip externalProxyIdentityProvider) GetId(token *jwt.Token) string {
+	return token.Claims.(jwt.MapClaims)["email"].(string)
+}
+
+func (eip externalProxyIdentityProvider) CheckAdminAccess(token *jwt.Token) bool {
+	if isAdmin, exist := token.Claims.(jwt.MapClaims)["is_admin"]; exist {
+		return isAdmin.(bool)
+	}
+	return false
+}
+
+func (eip externalProxyIdentityProvider) Info() string {
+	return "{\"name\":\"PROXY\"}"
+}
+
+func (eip externalProxyIdentityProvider) CheckShareMailValid(email string) bool {
+	if eip.suffixEmails == nil || len(eip.suffixEmails) == 0 {
+		return false
+	}
+	for _, suffix := range eip.suffixEmails {
+		if strings.HasSuffix(email, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+type oAuth2AccessProvider struct {
 	provider Provider
 	// Authorized emails
 	authorizedEmails map[string]struct{}
 	adminEmails      map[string]struct{}
+}
+
+func NewAccessProvider(conf config.SecurityConfig) AccessProvider {
+	switch {
+	case conf.UrlPublicKeys != "":
+		return newExternalProxyIdentityProvider(conf)
+	case !strings.EqualFold("", conf.BasicConfig.Username):
+		return newBasicProvider(conf.BasicConfig.Username, conf.BasicConfig.Password)
+	case !strings.EqualFold("", conf.OAuth2Config.Provider):
+		if provider := NewProvider(conf.OAuth2Config); provider != nil {
+			return newOAuth2AccessProvider(provider, conf.OAuth2Config.AuthorizedEmails, conf.OAuth2Config.AdminEmails)
+		} else {
+			return nil
+		}
+	default:
+		return nil
+	}
+}
+
+func newOAuth2AccessProvider(provider Provider, emails, emailsAdmin []string) oAuth2AccessProvider {
+	mapEmails := make(map[string]struct{}, len(emails))
+	for _, email := range emails {
+		mapEmails[email] = struct{}{}
+	}
+	mapEmailsAdmin := make(map[string]struct{}, len(emailsAdmin))
+	for _, email := range emailsAdmin {
+		mapEmailsAdmin[email] = struct{}{}
+	}
+	logger.GetLogger2().Info("Use oauth2 access provider")
+	return oAuth2AccessProvider{provider: provider, authorizedEmails: mapEmails, adminEmails: mapEmailsAdmin}
 }
 
 func extractCode(r *http.Request) (string, error) {
@@ -51,11 +148,15 @@ func extractCode(r *http.Request) (string, error) {
 
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckShareMailValid(email string) bool {
+func (oauth2ap oAuth2AccessProvider) CanConnect() bool {
+	return true
+}
+
+func (oauth2ap oAuth2AccessProvider) CheckShareMailValid(email string) bool {
 	return oauth2ap.provider.CheckEmail(email)
 }
 
-func (oauth2ap OAuth2AccessProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
+func (oauth2ap oAuth2AccessProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
 	// Extract parameter code
 	if code, err := extractCode(r); err == nil {
 		if token, err := oauth2ap.provider.GetTokenFromCode(code); err == nil {
@@ -84,24 +185,11 @@ func (oauth2ap OAuth2AccessProvider) Connect(r *http.Request, isGuest func(user 
 	return false, nil
 }
 
-func NewOAuth2AccessProvider(provider Provider, emails, emailsAdmin []string) OAuth2AccessProvider {
-	mapEmails := make(map[string]struct{}, len(emails))
-	for _, email := range emails {
-		mapEmails[email] = struct{}{}
-	}
-	mapEmailsAdmin := make(map[string]struct{}, len(emailsAdmin))
-	for _, email := range emailsAdmin {
-		mapEmailsAdmin[email] = struct{}{}
-	}
-	logger.GetLogger2().Info("Use oauth2 access provider")
-	return OAuth2AccessProvider{provider: provider, authorizedEmails: mapEmails, adminEmails: mapEmailsAdmin}
-}
-
-func (oauth2ap OAuth2AccessProvider) Info() string {
+func (oauth2ap oAuth2AccessProvider) Info() string {
 	return fmt.Sprintf("{\"name\":\"oauth2\",\"url\":\"%s\"}", oauth2ap.provider.GenerateUrlConnection())
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckAdminAccess(token *jwt.Token) bool {
+func (oauth2ap oAuth2AccessProvider) CheckAdminAccess(token *jwt.Token) bool {
 	if !oauth2ap.CheckReadAccess(token) {
 		return false
 	}
@@ -111,7 +199,7 @@ func (oauth2ap OAuth2AccessProvider) CheckAdminAccess(token *jwt.Token) bool {
 	return false
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckReadAccess(token *jwt.Token) bool {
+func (oauth2ap oAuth2AccessProvider) CheckReadAccess(token *jwt.Token) bool {
 	email := token.Claims.(jwt.MapClaims)["email"].(string)
 	if _, exist := oauth2ap.authorizedEmails[email]; exist {
 		return true
@@ -119,7 +207,7 @@ func (oauth2ap OAuth2AccessProvider) CheckReadAccess(token *jwt.Token) bool {
 	return oauth2ap.CheckGuestAccess(token)
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckRegularReadAccess(token *jwt.Token) bool {
+func (oauth2ap oAuth2AccessProvider) CheckRegularReadAccess(token *jwt.Token) bool {
 	email := token.Claims.(jwt.MapClaims)["email"].(string)
 	if _, exist := oauth2ap.authorizedEmails[email]; exist {
 		return true
@@ -127,7 +215,7 @@ func (oauth2ap OAuth2AccessProvider) CheckRegularReadAccess(token *jwt.Token) bo
 	return false
 }
 
-func (oauth2ap OAuth2AccessProvider) CheckGuestAccess(token *jwt.Token) bool {
+func (oauth2ap oAuth2AccessProvider) CheckGuestAccess(token *jwt.Token) bool {
 	// Check if a share exist
 	if isGuest, exist := token.Claims.(jwt.MapClaims)["guest"]; exist {
 		return isGuest.(bool)
@@ -135,20 +223,20 @@ func (oauth2ap OAuth2AccessProvider) CheckGuestAccess(token *jwt.Token) bool {
 	return false
 }
 
-func (oauth2ap OAuth2AccessProvider) GetId(token *jwt.Token) string {
+func (oauth2ap oAuth2AccessProvider) GetId(token *jwt.Token) string {
 	return token.Claims.(jwt.MapClaims)["email"].(string)
 }
 
-type BasicProvider struct {
+type basicProvider struct {
 	username string
 	password string
 }
 
-func (bp BasicProvider) CheckShareMailValid(email string) bool {
+func (bp basicProvider) CheckShareMailValid(email string) bool {
 	return true
 }
 
-func (bp BasicProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
+func (bp basicProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
 	if username, password, ok := r.BasicAuth(); ok && !strings.EqualFold("", username) {
 		success := strings.EqualFold(username, bp.username) && strings.EqualFold(password, bp.password)
 		extras := make(map[string]interface{})
@@ -164,16 +252,16 @@ func (bp BasicProvider) Connect(r *http.Request, isGuest func(user string) bool)
 	return false, map[string]interface{}{}
 }
 
-func NewBasicProvider(username, password string) BasicProvider {
+func newBasicProvider(username, password string) basicProvider {
 	logger.GetLogger2().Info("Use basic access provider")
-	return BasicProvider{username, password}
+	return basicProvider{username, password}
 }
 
-func (bp BasicProvider) Info() string {
+func (bp basicProvider) Info() string {
 	return "{\"name\":\"basic\"}"
 }
 
-func (bp BasicProvider) CheckAdminAccess(token *jwt.Token) bool {
+func (bp basicProvider) CheckAdminAccess(token *jwt.Token) bool {
 	if !bp.CheckReadAccess(token) {
 		return false
 	}
@@ -183,24 +271,28 @@ func (bp BasicProvider) CheckAdminAccess(token *jwt.Token) bool {
 	return false
 }
 
-func (bp BasicProvider) CheckRegularReadAccess(token *jwt.Token) bool {
+func (bp basicProvider) CheckRegularReadAccess(token *jwt.Token) bool {
 	if strings.EqualFold(bp.username, token.Claims.(jwt.MapClaims)["username"].(string)) {
 		return true
 	}
 	return false
 }
 
-func (bp BasicProvider) CheckReadAccess(token *jwt.Token) bool {
+func (bp basicProvider) CanConnect() bool {
+	return true
+}
+
+func (bp basicProvider) CheckReadAccess(token *jwt.Token) bool {
 	if strings.EqualFold(bp.username, token.Claims.(jwt.MapClaims)["username"].(string)) {
 		return true
 	}
 	return false
 }
 
-func (bp BasicProvider) CheckGuestAccess(token *jwt.Token) bool {
+func (bp basicProvider) CheckGuestAccess(token *jwt.Token) bool {
 	return false
 }
 
-func (bp BasicProvider) GetId(token *jwt.Token) string {
+func (bp basicProvider) GetId(token *jwt.Token) string {
 	return token.Claims.(jwt.MapClaims)["username"].(string)
 }

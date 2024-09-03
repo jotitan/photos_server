@@ -21,14 +21,14 @@ export const history = createBrowserHistory({
 function checkReadAccess(){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/security/canAccess',
+        url: `${getBaseUrl()}/security/canAccess`,
     })
 }
 
 function checkAdminAccess(setCanAdmin){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/security/canAdmin',
+        url: `${getBaseUrl()}/security/canAdmin`,
     }).then(() =>
         // If 200, can admin, otherwise, 403
         setCanAdmin(true)
@@ -38,7 +38,7 @@ function checkAdminAccess(setCanAdmin){
 function checkIsGuest(){
     return axios({
         method: 'GET',
-        url: getBaseUrl() + '/security/isGuest',
+        url: `${getBaseUrl()}/security/isGuest`,
     });
 }
 
@@ -110,7 +110,7 @@ function App() {
                     checkAdminAccess(setCanAdmin);
                     axios({
                         method: 'GET',
-                        url: getBaseUrl() + '/count',
+                        url: `${getBaseUrl()}/count`,
                     }).then(d => {
                         setNbPhotos(d.data.photos)
                         setNbVideos(d.data.videos)

@@ -8,9 +8,14 @@ import './treeFolder.css'
 export const getBaseUrlHref = ()=>getBaseUrl(window.location.href);
 
 export const getBaseUrl = (defaultValue=window.location.origin)=>{
+    const hr = window.location.href;
     switch (window.location.hostname) {
         case 'localhost':
-            return 'http://localhost:9006';
+            // To manage also proxy locally and remove last / if necessary
+            if(hr.endsWith("/")){
+                return hr.substring(0, hr.length -1)
+            }
+            return hr;
         default : return defaultValue;
     }
 }

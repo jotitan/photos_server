@@ -29,10 +29,12 @@ type BasicConfig struct {
 }
 
 type SecurityConfig struct {
-	MaskForAdmin   string       `yaml:"mask-admin"`
-	HS256SecretKey string       `yaml:"secret"`
-	BasicConfig    BasicConfig  `yaml:"basic"`
-	OAuth2Config   OAuth2Config `yaml:"oauth2"`
+	MaskForAdmin     string       `yaml:"mask-admin"`
+	HS256SecretKey   string       `yaml:"secret"`
+	UrlPublicKeys    string       `yaml:"url_public_keys"`
+	SuffixEmailShare []string     `yaml:"suffix_email_share"`
+	BasicConfig      BasicConfig  `yaml:"basic"`
+	OAuth2Config     OAuth2Config `yaml:"oauth2"`
 }
 
 type PhotoConfig struct {

@@ -35,17 +35,9 @@ type Server struct {
 // Create security access from good provider
 func (s *Server) setSecurityAccess(conf *config.Config) {
 	if s.foldersManager.garbageManager != nil {
-		s.securityAccess = security.NewSecurityAccess(conf.Security.MaskForAdmin, []byte(conf.Security.HS256SecretKey))
+		s.securityAccess = security.NewSecurityAccess(conf.Security, conf.Security.MaskForAdmin, []byte(conf.Security.HS256SecretKey))
 		// Check if basic or provider is enabled
-		if !strings.EqualFold("", conf.Security.BasicConfig.Username) {
-			s.securityAccess.SetAccessProvider(security.NewBasicProvider(conf.Security.BasicConfig.Username, conf.Security.BasicConfig.Password))
-		} else {
-			if !strings.EqualFold("", conf.Security.OAuth2Config.Provider) {
-				if provider := security.NewProvider(conf.Security.OAuth2Config); provider != nil {
-					s.securityAccess.SetAccessProvider(security.NewOAuth2AccessProvider(provider, conf.Security.OAuth2Config.AuthorizedEmails, conf.Security.OAuth2Config.AdminEmails))
-				}
-			}
-		}
+		s.securityAccess.SetAccessProvider(security.NewAccessProvider(conf.Security))
 	}
 }
 
