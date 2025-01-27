@@ -29,6 +29,7 @@ type Server struct {
 	resources             string
 	// Exist only if garbage exist
 	securityAccess *security.SecurityAccess
+	securityServer security.SecurityServer
 	pathRoutes     map[string]func(w http.ResponseWriter, r *http.Request)
 }
 
@@ -36,6 +37,7 @@ type Server struct {
 func (s *Server) setSecurityAccess(conf *config.Config) {
 	if s.foldersManager.garbageManager != nil {
 		s.securityAccess = security.NewSecurityAccess(conf.Security, conf.Security.MaskForAdmin, []byte(conf.Security.HS256SecretKey))
+		s.securityServer = security.NewSecurityServer(s.securityAccess)
 		// Check if basic or provider is enabled
 		s.securityAccess.SetAccessProvider(security.NewAccessProvider(conf.Security))
 	}
@@ -57,14 +59,6 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 	return s
 }
 
-func (s Server) canAccessAdmin(r *http.Request) bool {
-	return s.securityAccess != nil && s.securityAccess.CheckJWTTokenAdminAccess(r)
-}
-
-func (s Server) canAccessUser(r *http.Request) bool {
-	return s.securityAccess != nil && s.securityAccess.CheckJWTTokenRegularAccess(r)
-}
-
 func (s Server) updateExifOfDate(w http.ResponseWriter, r *http.Request) {
 	if updates, err := s.foldersManager.updateExifOfDate(r.FormValue("date")); err != nil {
 		http.Error(w, err.Error(), 400)
@@ -79,30 +73,6 @@ func (s Server) getSecurityConfig(w http.ResponseWriter, r *http.Request) {
 		write([]byte(s.securityAccess.GetTypeSecurity()), w)
 	} else {
 		write([]byte("{\"name\":\"none\"}"), w)
-	}
-}
-
-func (s Server) canAdmin(w http.ResponseWriter, r *http.Request) {
-	header(w)
-	if !s.canAccessAdmin(r) {
-		http.Error(w, "access denied, only admin", 403)
-	}
-}
-
-// Can access is enable if oauth2 is configured, otherwise, only admin is checked
-func (s Server) canAccess(w http.ResponseWriter, r *http.Request) {
-	header(w)
-	if s.securityAccess != nil {
-		if !s.securityAccess.CheckJWTTokenAccess(r) {
-			http.Error(w, "access denied", 401)
-		}
-	}
-}
-
-func (s Server) isGuest(w http.ResponseWriter, r *http.Request) {
-	header(w)
-	if s.securityAccess != nil {
-		write([]byte(fmt.Sprintf("{\"guest\":%t}", s.securityAccess.IsGuest(r))), w)
 	}
 }
 
@@ -493,15 +463,11 @@ func (s Server) getCover(w http.ResponseWriter, r *http.Request) {
 
 func (s Server) image(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[7:]
-	if !s.canReadPath(getCleanPath(path), r) {
+	if !s.securityServer.CanReadPath(getCleanPath(path), r) {
 		error403(w, r)
 		return
 	}
 	s.writeImage(w, filepath.Join(s.foldersManager.reducer.cache, path))
-}
-
-func (s Server) canReadPath(path string, r *http.Request) bool {
-	return s.canAccessUser(r) || s.securityAccess.ShareFolders.CanRead(s.securityAccess.GetUserId(r), path)
 }
 
 func getCleanPath(path string) string {
@@ -541,7 +507,7 @@ func (s Server) removeNode(w http.ResponseWriter, r *http.Request) {
 // Return original image
 func (s Server) imageHD(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[9:]
-	if !s.canReadPath(getCleanPath(path), r) {
+	if !s.securityServer.CanReadPath(getCleanPath(path), r) {
 		error403(w, r)
 		return
 	}
@@ -770,7 +736,7 @@ func (s Server) browseRestfulVideo(w http.ResponseWriter, r *http.Request) {
 			nodes = append(nodes, file)
 		}
 		folder := folderRestFul{Name: node.Name, Children: s.convertVideoPaths(nodes, false)}
-		if s.canAccessAdmin(r) {
+		if s.securityServer.CanAccessAdmin(r) {
 			folder.RemoveFolderUrl = fmt.Sprintf("/video/folder?path=%s", path[1:])
 			folder.UpdateExifFolderUrl = fmt.Sprintf("/video/folder/exif?path=%s", path[1:])
 		}
@@ -790,7 +756,7 @@ func (s Server) browseRestful(w http.ResponseWriter, r *http.Request) {
 	// Return all tree
 	header(w)
 	path := r.URL.Path[9:]
-	if !s.canReadPath(path[1:], r) {
+	if !s.securityServer.CanReadPath(path[1:], r) {
 		error403(w, r)
 		return
 	}
@@ -805,7 +771,7 @@ func (s Server) browseRestful(w http.ResponseWriter, r *http.Request) {
 			FolderPath:    path[1:], Tags: tags,
 			Title:       node.Title,
 			Description: node.Description}
-		if s.canAccessAdmin(r) {
+		if s.securityServer.CanAccessAdmin(r) {
 			folderResponse.RemoveFolderUrl = "/removeNode" + path
 		}
 		if data, err := json.Marshal(folderResponse); err == nil {
@@ -1013,8 +979,8 @@ func (s Server) Launch(conf *config.Config) {
 	s.dateRoutes(&server)
 	s.securityRoutes(&server)
 
-	server.HandleFunc("/share", s.buildHandler(s.needAdmin, s.manageShare))
-	server.HandleFunc("/", s.buildHandler(s.needNoAccess, s.defaultHandle))
+	server.HandleFunc("/share", s.buildHandler(s.securityServer.NeedAdmin, s.manageShare))
+	server.HandleFunc("/", s.buildHandler(s.securityServer.NeedNoAccess, s.defaultHandle))
 
 	logger.GetLogger2().Info("Start server on port " + conf.Port)
 	err := http.ListenAndServe(":"+conf.Port, &server)
@@ -1022,93 +988,72 @@ func (s Server) Launch(conf *config.Config) {
 }
 
 func (s Server) updateRoutes(server *http.ServeMux) {
-	server.HandleFunc("/update", s.buildHandler(s.needAdmin, s.update))
-	server.HandleFunc("/photo/folder/update", s.buildHandler(s.needAdmin, s.updateFolder))
-	server.HandleFunc("/photo/folder/edit-details", s.buildHandler(s.needAdmin, s.editDetails))
-	server.HandleFunc("/photo/folder/move", s.buildHandler(s.needAdmin, s.moveFolder))
-	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.needAdmin, s.updateExifFolder))
-	server.HandleFunc("/photo", s.buildHandler(s.needAdmin, s.uploadFolder))
-	server.HandleFunc("/updateExifOfDate", s.buildHandler(s.needAdmin, s.updateExifOfDate))
+	server.HandleFunc("/update", s.buildHandler(s.securityServer.NeedAdmin, s.update))
+	server.HandleFunc("/photo/folder/update", s.buildHandler(s.securityServer.NeedAdmin, s.updateFolder))
+	server.HandleFunc("/photo/folder/edit-details", s.buildHandler(s.securityServer.NeedAdmin, s.editDetails))
+	server.HandleFunc("/photo/folder/move", s.buildHandler(s.securityServer.NeedAdmin, s.moveFolder))
+	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifFolder))
+	server.HandleFunc("/photo", s.buildHandler(s.securityServer.NeedAdmin, s.uploadFolder))
+	server.HandleFunc("/updateExifOfDate", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifOfDate))
 }
 
 func (s Server) photoRoutes(server *http.ServeMux) {
-	server.HandleFunc("/rootFolders", s.buildHandler(s.needConnected, s.getRootFolders))
-	server.HandleFunc("/analyse", s.buildHandler(s.needAdmin, s.analyse))
-	server.HandleFunc("/delete", s.buildHandler(s.needAdmin, s.delete))
-	server.HandleFunc("/addFolder", s.buildHandler(s.needAdmin, s.addFolder))
-	server.HandleFunc("/statUploadRT", s.buildHandler(s.needAdmin, s.statUploadRT))
-	server.HandleFunc("/getFoldersDetails", s.buildHandler(s.needConnected, s.getFoldersDetails))
+	server.HandleFunc("/rootFolders", s.buildHandler(s.securityServer.NeedConnected, s.getRootFolders))
+	server.HandleFunc("/analyse", s.buildHandler(s.securityServer.NeedAdmin, s.analyse))
+	server.HandleFunc("/delete", s.buildHandler(s.securityServer.NeedAdmin, s.delete))
+	server.HandleFunc("/addFolder", s.buildHandler(s.securityServer.NeedAdmin, s.addFolder))
+	server.HandleFunc("/statUploadRT", s.buildHandler(s.securityServer.NeedAdmin, s.statUploadRT))
+	server.HandleFunc("/getFoldersDetails", s.buildHandler(s.securityServer.NeedConnected, s.getFoldersDetails))
 	server.HandleFunc("/count", s.count)
 	//server.HandleFunc("/indexFolder",s.indexFolder)
 }
 
 func (s Server) videoRoutes(server *http.ServeMux) {
-	server.HandleFunc("/video", s.buildHandler(s.needAdmin, s.video))
-	server.HandleFunc("/video/folder", s.buildHandler(s.needAdmin, s.videoFolder))
-	server.HandleFunc("/video/folder/exif", s.buildHandler(s.needAdmin, s.updateVideoFolderExif))
-	server.HandleFunc("/video/date", s.buildHandler(s.needUser, s.getVideosByDate))
-	server.HandleFunc("/video/search", s.buildHandler(s.needUser, s.searchVideos))
+	server.HandleFunc("/video", s.buildHandler(s.securityServer.NeedAdmin, s.video))
+	server.HandleFunc("/video/folder", s.buildHandler(s.securityServer.NeedAdmin, s.videoFolder))
+	server.HandleFunc("/video/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateVideoFolderExif))
+	server.HandleFunc("/video/date", s.buildHandler(s.securityServer.NeedUser, s.getVideosByDate))
+	server.HandleFunc("/video/search", s.buildHandler(s.securityServer.NeedUser, s.searchVideos))
 }
 
 func (s Server) tagRoutes(server *http.ServeMux) {
-	server.HandleFunc("/tag/tag_folder", s.buildHandler(s.needAdmin, s.tagFolder))
-	server.HandleFunc("/tag/search", s.buildHandler(s.needUser, s.searchTag))
-	server.HandleFunc("/tag/filter_folder", s.buildHandler(s.needUser, s.filterFolder))
-	server.HandleFunc("/tag/search_folder", s.buildHandler(s.needUser, s.searchTagsOfFolder))
-	server.HandleFunc("/tag/peoples", s.buildHandler(s.needUser, s.getPeoples))
-	server.HandleFunc("/tag/add_people", s.buildHandler(s.needAdmin, s.addPeopleTag))
+	server.HandleFunc("/tag/tag_folder", s.buildHandler(s.securityServer.NeedAdmin, s.tagFolder))
+	server.HandleFunc("/tag/search", s.buildHandler(s.securityServer.NeedUser, s.searchTag))
+	server.HandleFunc("/tag/filter_folder", s.buildHandler(s.securityServer.NeedUser, s.filterFolder))
+	server.HandleFunc("/tag/search_folder", s.buildHandler(s.securityServer.NeedUser, s.searchTagsOfFolder))
+	server.HandleFunc("/tag/peoples", s.buildHandler(s.securityServer.NeedUser, s.getPeoples))
+	server.HandleFunc("/tag/add_people", s.buildHandler(s.securityServer.NeedAdmin, s.addPeopleTag))
 }
 
 func (s Server) dateRoutes(server *http.ServeMux) {
-	server.HandleFunc("/allDates", s.buildHandler(s.needUser, s.getAllDates))
-	server.HandleFunc("/videos/allDates", s.buildHandler(s.needUser, s.getAllVideosDates))
-	server.HandleFunc("/getByDate", s.buildHandler(s.needUser, s.getPhotosByDate))
-	server.HandleFunc("/flushTags", s.buildHandler(s.needAdmin, s.flushTags))
-	server.HandleFunc("/filterTagsFolder", s.buildHandler(s.needUser, s.filterTagsFolder))
-	server.HandleFunc("/filterTagsDate", s.buildHandler(s.needUser, s.filterTagsDate))
+	server.HandleFunc("/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllDates))
+	server.HandleFunc("/videos/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllVideosDates))
+	server.HandleFunc("/getByDate", s.buildHandler(s.securityServer.NeedUser, s.getPhotosByDate))
+	server.HandleFunc("/flushTags", s.buildHandler(s.securityServer.NeedAdmin, s.flushTags))
+	server.HandleFunc("/filterTagsFolder", s.buildHandler(s.securityServer.NeedUser, s.filterTagsFolder))
+	server.HandleFunc("/filterTagsDate", s.buildHandler(s.securityServer.NeedUser, s.filterTagsDate))
 }
 
 func (s Server) securityRoutes(server *http.ServeMux) {
-	server.HandleFunc("/security/canAdmin", s.buildHandler(s.needNoAccess, s.canAdmin))
-	server.HandleFunc("/security/canAccess", s.buildHandler(s.needNoAccess, s.canAccess))
-	server.HandleFunc("/security/isGuest", s.buildHandler(s.needNoAccess, s.isGuest))
-	server.HandleFunc("/security/connect", s.buildHandler(s.needNoAccess, s.connect))
-	server.HandleFunc("/security/config", s.buildHandler(s.needNoAccess, s.getSecurityConfig))
+	server.HandleFunc("/security/canAdmin", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAdmin))
+	server.HandleFunc("/security/canAccess", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAccess))
+	server.HandleFunc("/security/isGuest", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.IsGuest))
+	server.HandleFunc("/security/connect", s.buildHandler(s.securityServer.NeedNoAccess, s.connect))
+	server.HandleFunc("/security/config", s.buildHandler(s.securityServer.NeedNoAccess, s.getSecurityConfig))
 }
 
 func (s *Server) loadPathRoutes() {
 	s.pathRoutes = map[string]func(w http.ResponseWriter, r *http.Request){
-		"/browserf":         s.buildHandler(s.needConnected, s.browseRestful),
-		"/imagehd":          s.buildHandler(s.needConnected, s.imageHD),
-		"/image":            s.buildHandler(s.needConnected, s.image),
-		"/removeNode":       s.buildHandler(s.needAdmin, s.removeNode),
-		"/tagsByFolder":     s.buildHandler(s.needAdmin, s.updateTagsByFolder),
-		"/tagsByDate":       s.buildHandler(s.needAdmin, s.updateTagsByDate),
-		"/browse_videos_rf": s.buildHandler(s.needUser, s.browseRestfulVideo),
-		"/video_stream":     s.buildHandler(s.needUser, s.getVideoStream),
-		"/cover":            s.buildHandler(s.needUser, s.getCover),
+		"/browserf":         s.buildHandler(s.securityServer.NeedConnected, s.browseRestful),
+		"/imagehd":          s.buildHandler(s.securityServer.NeedConnected, s.imageHD),
+		"/image":            s.buildHandler(s.securityServer.NeedConnected, s.image),
+		"/removeNode":       s.buildHandler(s.securityServer.NeedAdmin, s.removeNode),
+		"/tagsByFolder":     s.buildHandler(s.securityServer.NeedAdmin, s.updateTagsByFolder),
+		"/tagsByDate":       s.buildHandler(s.securityServer.NeedAdmin, s.updateTagsByDate),
+		"/browse_videos_rf": s.buildHandler(s.securityServer.NeedUser, s.browseRestfulVideo),
+		"/video_stream":     s.buildHandler(s.securityServer.NeedUser, s.getVideoStream),
+		"/cover":            s.buildHandler(s.securityServer.NeedUser, s.getCover),
 	}
-}
-
-func (s Server) needNoAccess(_ *http.Request) bool {
-	return true
-}
-
-func (s Server) needAdmin(r *http.Request) bool {
-	return s.canAccessAdmin(r)
-}
-
-func (s Server) needUser(r *http.Request) bool {
-	return s.canAccessUser(r)
-}
-
-func (s Server) needShare(r *http.Request) bool {
-	id := s.securityAccess.GetUserId(r)
-	return s.securityAccess.IsGuest(r) && s.securityAccess.ShareFolders.Exist(id)
-}
-
-func (s Server) needConnected(r *http.Request) bool {
-	return s.needUser(r) || s.needShare(r)
 }
 
 func (s Server) buildHandler(checkAccess func(r *http.Request) bool, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
