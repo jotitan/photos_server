@@ -71,7 +71,7 @@ func (eip externalProxyIdentityProvider) GetId(token *jwt.Token) string {
 }
 
 func (eip externalProxyIdentityProvider) CheckAdminAccess(token *jwt.Token) bool {
-	if isAdmin, exist := token.Claims.(jwt.MapClaims)["is_admin"]; exist {
+	if isAdmin, exist := token.Claims.(jwt.MapClaims)["admin_drobo-images"]; exist {
 		return isAdmin.(bool)
 	}
 	return false
