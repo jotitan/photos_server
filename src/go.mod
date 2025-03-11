@@ -18,6 +18,6 @@ require (
 	github.com/dsoprea/go-logging v0.0.0-20190624164917-c4f10aab7696 // indirect
 	github.com/dsoprea/go-utility v0.0.0-20200322154813-27f0b0d142d7 // indirect
 	github.com/golang/geo v0.0.0-20190916061304-5b978397cfec // indirect
-	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
+	golang.org/x/image v0.5.0 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 )
