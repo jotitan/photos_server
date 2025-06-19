@@ -23,7 +23,14 @@ import (
 
 //Manage reducing pictures
 
-type Reducer struct {
+type Reducer interface {
+	GetCache() string
+	CreateJpegFile(folder, basePath string, size uint) string
+	GetSizes() []uint
+	AddImage(path, relativePath string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool)
+}
+
+type ImageReducer struct {
 	// Where reduced images are created
 	cache string
 	// Differents sizes to produce
@@ -34,8 +41,8 @@ type Reducer struct {
 	totalCount     int
 }
 
-func NewReducer(conf config.Config, sizes []uint) Reducer {
-	r := Reducer{
+func NewReducer(conf config.Config, sizes []uint) ImageReducer {
+	r := ImageReducer{
 		cache:          conf.CacheFolder,
 		sizes:          sizes,
 		imagesToResize: make(chan ImageToResize, 100),
@@ -52,12 +59,10 @@ func NewReducer(conf config.Config, sizes []uint) Reducer {
 type ImageToResize struct {
 	path         string
 	relativePath string
-	// Override cache resize folder by adding the folder
-	overrideOutput string
-	node           *Node
-	waiter         *progress.UploadProgress
-	forceRotate    bool
-	existings      map[string]struct{}
+	node         *Node
+	waiter       *progress.UploadProgress
+	forceRotate  bool
+	existings    map[string]struct{}
 }
 
 func setExif(path string, orientation int, date time.Time) bool {
@@ -94,22 +99,30 @@ func (itr ImageToResize) update(h, w uint, datePhoto time.Time, orientation int,
 	itr.waiter.Done()
 }
 
-func (r Reducer) AddImage(path, relativePath, overrideOutput string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool) {
-	r.imagesToResize <- ImageToResize{path, relativePath, overrideOutput, node, progresser, forceRotate, existings}
+func (r ImageReducer) GetCache() string {
+	return r.cache
+}
+
+func (r ImageReducer) GetSizes() []uint {
+	return r.sizes
+}
+
+func (r ImageReducer) AddImage(path, relativePath string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool) {
+	r.imagesToResize <- ImageToResize{path, relativePath, node, progresser, forceRotate, existings}
 }
 
 // Return number of images wating to reduce and number of images reduced
-func (r *Reducer) Stat() (int, int) {
+func (r *ImageReducer) Stat() (int, int) {
 	return len(r.imagesToResize), r.totalCount
 }
 
-func (r *Reducer) listenAndResize() {
+func (r *ImageReducer) listenAndResize() {
 	go func() {
 		for {
 			imageToResize := <-r.imagesToResize
 			r.totalCount++
 			targetFolder := filepath.Dir(imageToResize.relativePath)
-			folder := filepath.Join(r.cache, imageToResize.overrideOutput, targetFolder)
+			folder := filepath.Join(r.cache, targetFolder)
 			if r.createPathInCache(folder) == nil {
 				r.resizeMultiformat(imageToResize, folder)
 			}
@@ -171,7 +184,7 @@ func getExifValue(infos *exif.Exif, field exif.FieldName) string {
 	return ""
 }
 
-func (r Reducer) resizeMultiformat(imageToResize ImageToResize, folder string) {
+func (r ImageReducer) resizeMultiformat(imageToResize ImageToResize, folder string) {
 	// Reuse computed image to accelerate
 	from := imageToResize.path
 	datePhoto, orientation := GetExif(from)
@@ -195,11 +208,11 @@ func (r Reducer) resizeMultiformat(imageToResize ImageToResize, folder string) {
 	r.resize.ResizeAsync(from, orientation, conversions, callback)
 }
 
-func (r Reducer) checkAlreadyExist(folder string, imageToResize ImageToResize) ([]resize.ImageToResize, bool) {
+func (r ImageReducer) checkAlreadyExist(folder string, imageToResize ImageToResize) ([]resize.ImageToResize, bool) {
 	conversions := make([]resize.ImageToResize, len(r.sizes))
 	nbExist := 0
 	for i, size := range r.sizes {
-		conversions[i] = resize.ImageToResize{To: r.createJpegFile(folder, imageToResize.path, size), Width: 0, Height: size}
+		conversions[i] = resize.ImageToResize{To: r.CreateJpegFile(folder, imageToResize.path, size), Width: 0, Height: size}
 		if _, exist := imageToResize.existings[conversions[i].To]; exist {
 			nbExist++
 		}
@@ -207,7 +220,7 @@ func (r Reducer) checkAlreadyExist(folder string, imageToResize ImageToResize) (
 	return conversions, nbExist == len(r.sizes)
 }
 
-func (r Reducer) treatAlreadyExist(conversions []resize.ImageToResize, datePhoto time.Time, orientation int, imageToResize ImageToResize) {
+func (r ImageReducer) treatAlreadyExist(conversions []resize.ImageToResize, datePhoto time.Time, orientation int, imageToResize ImageToResize) {
 	// All exist, get Size of little one and return
 	w, h := resize.GetSize(conversions[len(conversions)-1].To)
 	logger.GetLogger2().Info("Image already exist", imageToResize.path, "extract infos", w, h, orientation, datePhoto)
@@ -226,7 +239,7 @@ func (r Reducer) treatAlreadyExist(conversions []resize.ImageToResize, datePhoto
 	imageToResize.update(h, w, datePhoto, orientation, conversions, true)
 }
 
-func (r Reducer) rotateImage(path string, orientation int) {
+func (r ImageReducer) rotateImage(path string, orientation int) {
 	if f, err := os.Open(path); err == nil {
 		logger.GetLogger2().Info("Launch rotate image", path, orientation)
 		img, _ := jpeg.Decode(f)
@@ -241,7 +254,7 @@ func (r Reducer) rotateImage(path string, orientation int) {
 	}
 }
 
-func (r Reducer) createPathInCache(path string) error {
+func (r ImageReducer) createPathInCache(path string) error {
 	if f, err := os.Open(path); err != nil {
 		// Create folder
 		return os.MkdirAll(path, os.ModePerm)
@@ -254,12 +267,12 @@ func (r Reducer) createPathInCache(path string) error {
 	return nil
 }
 
-func (r Reducer) createJpegFile(folder, basePath string, size uint) string {
+func (r ImageReducer) CreateJpegFile(folder, basePath string, size uint) string {
 	return filepath.Join(folder, r.CreateJpegName(filepath.Base(basePath), size))
 }
 
 // Generate a jpeg name from size
-func (r Reducer) CreateJpegName(name string, size uint) string {
+func (r ImageReducer) CreateJpegName(name string, size uint) string {
 	extension := filepath.Ext(name)
 	baseName := name[:len(name)-len(extension)]
 	return fmt.Sprintf("%s-%d%s", baseName, size, ".jpg")

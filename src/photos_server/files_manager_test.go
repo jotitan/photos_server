@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/progress"
 	"io"
 	"log"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +17,34 @@ import (
 	"testing"
 	"time"
 )
+
+type EmptyReducer struct {
+	cache string
+}
+
+func (e EmptyReducer) GetCache() string {
+	return e.cache
+}
+
+func (e EmptyReducer) CreateJpegFile(folder, basePath string, size uint) string {
+	return ""
+}
+
+func (e EmptyReducer) GetSizes() []uint {
+	return []uint{200, 600}
+}
+
+func (e EmptyReducer) AddImage(path, relativePath string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool) {
+	input, _ := os.Open(path)
+	defer input.Close()
+	outputPath := filepath.Join(e.cache, relativePath)
+	os.MkdirAll(filepath.Dir(outputPath), os.ModePerm)
+
+	output, _ := os.OpenFile(filepath.Join(e.cache, relativePath), os.O_RDWR|os.O_CREATE, os.ModePerm)
+	defer output.Close()
+	io.Copy(output, input)
+	progresser.Done()
+}
 
 func TestFindSub(t *testing.T) {
 	node := &Node{Files: map[string]*Node{
@@ -110,6 +140,37 @@ func newImage(folder, path, name, date string) *Node {
 	return img
 }
 
+func TestFilePath(t *testing.T) {
+	fmt.Println(filepath.Join("C:\\Projets\\PERSO\\DATA\\PHOTOS_SERVER\\", "/SOURCE/PENTECOTE/SAMEDI"))
+}
+
+func TestUploadFolder(t *testing.T) {
+	// GIVEN
+	fm, _, cache := createFakeStructure()
+	upload, _ := os.MkdirTemp("", "upload-images")
+	fm.reducer = EmptyReducer{cache: cache}
+	createOriginalFile(upload, "", "file1.jpg", Files{})
+	createOriginalFile(upload, "", "file2.jpg", Files{})
+	f1, _ := os.Open(filepath.Join(upload, "file1.jpg"))
+	f2, _ := os.Open(filepath.Join(upload, "file1.jpg"))
+	files := []multipart.File{f1, f2}
+
+	// WHEN
+	_, err := fm.UploadFolder(detailUploadFolder{source: "root", path: "folder1/test-upload-new"}, files, []string{"file1.jpg", "file2.jpg"}, false)
+	if err != nil {
+		t.Error("Error during upload", err)
+	}
+
+	time.Sleep(time.Second)
+
+	// THEN
+	cacheDir, _ := os.Open(filepath.Join(cache, "root/folder1/test-upload-new"))
+	list, _ := cacheDir.Readdirnames(-1)
+	if len(list) != 2 {
+		t.Error("Need 2 files in folder")
+	}
+}
+
 func TestMoveFolder(t *testing.T) {
 	fm, folder, cache := createFakeStructure()
 	err := fm.MoveFolder("root/folder1", "root/move/folder1")
@@ -171,11 +232,12 @@ func createFakeStructure() (*FoldersManager, string, string) {
 	root["folder1"] = f1
 	root["folder2"] = f2
 
-	r := NewFolder(folder, folder, filepath.Dir(folder), root, false)
+	//r := NewFolder(folder, folder, filepath.Dir(folder), root, false)
 
-	fm := NewFoldersManager(config.Config{Security: config.SecurityConfig{}, UploadedFolder: folder, CacheFolder: cache}, nil)
+	fm := NewFoldersManager(config.Config{Security: config.SecurityConfig{}, CacheFolder: cache}, progress.NewUploadProgressManager())
 	fm.tagManger = NewTagManager(fm)
-	fm.Folders["root"] = r
+	//fm.Folders["root"] = r
+	fm.Sources["root"] = &SourceNode{Folder: filepath.Join(folder, "root"), Files: root}
 	return fm, folder, cache
 }
 
@@ -214,7 +276,8 @@ func createStructure() *FoldersManager {
 	sub1 := NewFolder("/home", "/home/folder1", "folder1", filesSub1, false)
 	filesRoot := Files{}
 	filesRoot["folder1"] = sub1
-	fm.Folders["root"] = NewFolder("/home", "/home/folder1", "folder1", filesRoot, false)
+	fm.Sources["root"] = &SourceNode{Folder: "root", Files: filesRoot}
+	//fm.Folders["root"] = NewFolder("/home", "/home/folder1", "folder1", filesRoot, false)
 	return fm
 }
 
@@ -241,7 +304,7 @@ func TestTimer(t *testing.T) {
 
 }
 
-func TestReq(t *testing.T) {
+func TesReq(t *testing.T) {
 	// Force mode insecure
 	req, _ := http.NewRequest("GET", "https://chainesetcardans.hopto.org/image/PHOTOS/COURANT/2022/20221001_TRI_BAYMAN/IMG_9824_DxO-250.jpg", nil)
 	req.Header.Add("referer", "https://chainesetcardans.hopto.org/drobo-images")
@@ -273,9 +336,9 @@ func TestGroupByDate(t *testing.T) {
 	filesRoot["f5"] = &Node{Name: "f5", IsFolder: false, Date: time.Date(2020, 3, 12, 23, 59, 12, 0, time.Local)}
 	filesRoot["f6"] = &Node{Name: "f6", IsFolder: false, Date: time.Date(2020, 4, 12, 23, 59, 12, 0, time.Local)}
 
-	fm.Folders["root"] = NewFolder("/home", "/home/folder1", "folder1", filesRoot, false)
+	fm.Sources["root"] = &SourceNode{Name: "root", Files: map[string]*Node{"home": NewFolder("/home", "/home/folder1", "folder1", filesRoot, false)}}
 	ff := make(map[string]common.INode)
-	for key, value := range fm.Folders {
+	for key, value := range filesRoot {
 		ff[key] = value
 	}
 	byDate := common.ComputeNodeByDate(ff)
@@ -355,12 +418,12 @@ func TestRemoveNode(t *testing.T) {
 
 func createFolderNode(path string) *Node {
 	name := filepath.Base(path)
-	dir := filepath.Dir(path)
-	return &Node{AbsolutePath: dir, RelativePath: name, IsFolder: true, Name: name}
+	//dir := filepath.Dir(path)
+	return &Node{RelativePath: name, IsFolder: true, Name: name}
 }
 
 func createImageNode(rootFolder, path string) *Node {
 	name := filepath.Base(path)
 	dir := filepath.Dir(path)
-	return &Node{AbsolutePath: dir, RelativePath: strings.ReplaceAll(dir, rootFolder, ""), IsFolder: false, Name: name, Width: int(rand.Int31() % 400), Height: int(rand.Int31() % 200), ImagesResized: true}
+	return &Node{RelativePath: strings.ReplaceAll(dir, rootFolder, ""), IsFolder: false, Name: name, Width: int(rand.Int31() % 400), Height: int(rand.Int31() % 200), ImagesResized: true}
 }

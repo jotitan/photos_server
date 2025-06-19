@@ -155,6 +155,10 @@ currentVideo.VideosPath {
   width:120px;
 }
 
+.video-gallery {
+  background-color:#001529;
+}
+
 .video-gallery .video .play:hover {
   color:orange;
 }
