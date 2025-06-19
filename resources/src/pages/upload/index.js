@@ -152,7 +152,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
                         <>
                             <Row>
                                 <Col style={{paddingTop:5,paddingRight:5,width:100}}>Source : </Col>
-                                <Col><Select onChange={setSource} options={sources.map(d=>{return {value:d,label:d}})} style={{minWidth:350}}/></Col>
+                                <Col><Select value={source} onChange={setSource} options={sources.map(d=>{return {value:d,label:d}})} style={{minWidth:350}}/></Col>
                             </Row>
                             <Row>
                                 <Col style={{paddingTop:5,paddingRight:5,width:100}}>Chemin : </Col>

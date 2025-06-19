@@ -49,7 +49,7 @@ func NewFoldersManager(conf config.Config, uploadProgressManager *progress.Uploa
 	fm := &FoldersManager{reducer: NewReducer(conf, []uint{1080, 250}),
 		UploadedFolder:        conf.UploadedFolder,
 		uploadProgressManager: uploadProgressManager}
-	fm.load2(conf.Sources)
+	fm.load(conf.Sources)
 	fm.updateNextFolderId()
 	logger.GetLogger2().Info("Next folder id", fm.nextFolderId)
 	fm.detectMissingFoldersId()
@@ -517,9 +517,7 @@ func (fm *FoldersManager) AddFolderToNode(folderPath, relativePath string, force
 	rootFolder := filepath.Dir(relativePath)
 	if strings.EqualFold("", rootFolder) || strings.EqualFold(".", rootFolder) {
 		// Impossible to add new source
-		return errors.New("Impossible to create new source")
-		// Add folder as usual (new one)
-		//fm.AddFolder(folderPath, forceRotate, detail, p)
+		return errors.New("impossible to create new source")
 	}
 	// Find the node of root folder
 	if node, _, err := fm.FindNode(rootFolder); err == nil {
@@ -535,10 +533,6 @@ func (fm *FoldersManager) AddFolderToNode(folderPath, relativePath string, force
 func (fm *FoldersManager) AddFolderToSource(folderPath string, src *SourceNode, forceRotate bool, detail detailUploadFolder, p *progress.UploadProgress) {
 
 }
-
-/*func (fm *FoldersManager) AddFolder(folderPath string, forceRotate bool, detail detailUploadFolder, p *progress.UploadProgress) {
-	fm.AddFolderWithNode(fm.Folders, "", folderPath, forceRotate, detail, p)
-}*/
 
 // GetNextId return the current id and increase it
 func (fm *FoldersManager) GetNextId() int {
@@ -640,19 +634,7 @@ func (fm *FoldersManager) detectMissingFoldersId() {
 	}
 }
 
-/*func (fm *FoldersManager) load() {
-	if f, err := os.Open(getSavePath()); err == nil {
-		defer f.Close()
-		data, _ := io.ReadAll(f)
-		folders := make(map[string]*Node, 0)
-		json.Unmarshal(data, &folders)
-		fm.Folders = folders
-	} else {
-		logger.GetLogger2().Error("Impossible to read saved config", getSavePath(), err)
-	}
-}*/
-
-func (fm *FoldersManager) load2(sources []config.Source) {
+func (fm *FoldersManager) load(sources []config.Source) {
 	folders := make(map[string]*SourceNode, 0)
 	if f, err := os.Open(getSavePath()); err == nil {
 		defer f.Close()
