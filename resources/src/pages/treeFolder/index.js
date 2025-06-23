@@ -56,8 +56,8 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
             method:'GET',
             url:`${getBaseUrl()}${rootUrl}`,
         }).then(d=>{
-            if(d.data.Children != null) {
-                let data = d.data.Children.map(adapt);
+            if(d != null) {
+                let data = d.data.map(adapt);
                 setTree(data);
                 setOriginalTree(data);
             }

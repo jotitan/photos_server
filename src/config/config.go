@@ -22,7 +22,6 @@ type OAuth2Config struct {
 	AdminEmails      []string `yaml:"admin_emails"`
 	SuffixEmailShare []string `yaml:"suffix_email_share"`
 }
-
 type BasicConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
@@ -50,18 +49,26 @@ type VideoConfig struct {
 	HLSUploadedFolder      string `yaml:"hls-upload-folder"`
 }
 
+// Source represent a source like a folder somewhere
+type Source struct {
+	Name   string `yaml:"name"`
+	Folder string `yaml:"folder"`
+}
+
 type Config struct {
-	CacheFolder          string          `yaml:"cache"`     // mandatory to specify where pictures are resized
-	WebResources         string          `yaml:"resources"` //mandatory to specify where web resources are
-	Port                 string          `yaml:"port"`      // default 9006
-	VideoConfig          VideoConfig     `yaml:"video"`
-	PhotoConfig          PhotoConfig     `yaml:"photo"`
-	Garbage              string          `yaml:"garbage"`
-	UploadedFolder       string          `yaml:"upload-folder"`
-	OverrideUploadFolder string          `yaml:"override-upload"`
-	Security             SecurityConfig  `yaml:"security"`
-	Tasks                CronTasks       `yaml:"tasks"`
-	Mirroring            MirroringConfig `yaml:"mirroring"`
+	CacheFolder  string      `yaml:"cache"`     // mandatory to specify where pictures are resized
+	WebResources string      `yaml:"resources"` //mandatory to specify where web resources are
+	Port         string      `yaml:"port"`      // default 9006
+	VideoConfig  VideoConfig `yaml:"video"`
+	PhotoConfig  PhotoConfig `yaml:"photo"`
+	Garbage      string      `yaml:"garbage"`
+	// @Deprecated
+	UploadedFolder string   `yaml:"upload-folder"`
+	Sources        []Source `yaml:"sources"`
+	//OverrideUploadFolder string          `yaml:"override-upload"`
+	Security  SecurityConfig  `yaml:"security"`
+	Tasks     CronTasks       `yaml:"tasks"`
+	Mirroring MirroringConfig `yaml:"mirroring"`
 }
 
 type MirroringConfig struct {

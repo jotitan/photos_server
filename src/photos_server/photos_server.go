@@ -320,12 +320,20 @@ func (s Server) getFoldersDetails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Deprecated
 func (s Server) addFolder(w http.ResponseWriter, r *http.Request) {
-	folder := r.FormValue("folder")
+	/*folder := r.FormValue("folder")
+	*source := r.FormValue("source")
+	src, err := s.foldersManager.Sources.getSource(source)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}*
 	forceRotate := r.FormValue("forceRotate") == "true"
 	logger.GetLogger2().Info("Add folder", folder, "and forceRotate :", forceRotate)
 	p := s.foldersManager.uploadProgressManager.AddUploader(0)
-	s.foldersManager.AddFolder(folder, forceRotate, detailUploadFolder{}, p)
+	//s.foldersManager.AddFolderToSource(folder, src, forceRotate, detailUploadFolder{}, p)
+	s.foldersManager.AddFolder(folder, forceRotate, detailUploadFolder{}, p)*/
 }
 
 func (s Server) video(w http.ResponseWriter, r *http.Request) {
@@ -387,12 +395,13 @@ func (s Server) deleteVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) delete(w http.ResponseWriter, r *http.Request) {
+	// TODO add delete METHOD
 	header(w)
 	if s.foldersManager.garbageManager == nil {
 		error403(w, r)
 		return
 	}
-	data, _ := ioutil.ReadAll(r.Body)
+	data, _ := io.ReadAll(r.Body)
 	deletions := make([]string, 0)
 	if json.Unmarshal(data, &deletions) == nil {
 		imagesPath := make([]string, len(deletions))
@@ -467,7 +476,7 @@ func (s Server) image(w http.ResponseWriter, r *http.Request) {
 		error403(w, r)
 		return
 	}
-	s.writeImage(w, filepath.Join(s.foldersManager.reducer.cache, path))
+	s.writeImage(w, filepath.Join(s.foldersManager.reducer.GetCache(), path))
 }
 
 func getCleanPath(path string) string {
@@ -515,7 +524,7 @@ func (s Server) imageHD(w http.ResponseWriter, r *http.Request) {
 	if node, _, err := s.foldersManager.FindNode(path); err != nil {
 		http.Error(w, "Impossible to find image", 404)
 	} else {
-		s.writeImage(w, node.AbsolutePath)
+		s.writeImage(w, node.GetAbsolutePath(s.foldersManager.Sources))
 	}
 }
 
@@ -549,6 +558,12 @@ func (s Server) uploadVideo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s Server) getSources(w http.ResponseWriter, r *http.Request) {
+	sources := s.foldersManager.Sources.getSources()
+	data, _ := json.Marshal(sources)
+	w.Write(data)
+}
+
 // Update a specific folder, faster than all folders
 // Return an id to monitor upload
 func (s Server) uploadFolder(w http.ResponseWriter, r *http.Request) {
@@ -558,7 +573,7 @@ func (s Server) uploadFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	details := detailUploadFolder{r.FormValue("path"), r.FormValue("title"), r.FormValue("description")}
+	details := detailUploadFolder{r.FormValue("source"), r.FormValue("path"), r.FormValue("title"), r.FormValue("description")}
 	addToFolder := strings.EqualFold(r.FormValue("addToFolder"), "true")
 	if r.MultipartForm == nil {
 		logger.GetLogger2().Error("impossible to upload photos in " + details.path)
@@ -665,7 +680,7 @@ func (s Server) moveFolder(w http.ResponseWriter, r *http.Request) {
 }
 
 // Index an existing folder
-func (s Server) indexFolder(w http.ResponseWriter, r *http.Request) {
+/*func (s Server) indexFolder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	path := r.FormValue("path")
 	folder := r.FormValue("folder")
@@ -676,7 +691,7 @@ func (s Server) indexFolder(w http.ResponseWriter, r *http.Request) {
 		logger.GetLogger2().Info("End update folder", folder)
 		write([]byte("success"), w)
 	}
-}
+}*/
 
 func (s Server) getSharesFolder(w http.ResponseWriter, r *http.Request) {
 	id := s.securityAccess.GetUserId(r)
@@ -707,12 +722,17 @@ func (s Server) getRootFolders(w http.ResponseWriter, r *http.Request) {
 
 	logger.GetLogger2().Info("Get root folders")
 	header(w)
-	nodes := make([]*Node, 0, len(s.foldersManager.Folders))
+	/*nodes := make([]*Node, 0, len(s.foldersManager.Folders))
 	for _, node := range s.foldersManager.Folders {
 		nodes = append(nodes, node)
+	}*/
+	nodes := make([]*Node, 0, len(s.foldersManager.Sources))
+	for _, src := range s.foldersManager.Sources {
+		nodes = append(nodes, &Node{Name: src.Name, RelativePath: src.Name, Files: src.Files, IsFolder: true})
 	}
-	root := folderRestFul{Name: "Racine", Link: "", Children: s.convertPaths(nodes, true)}
-	if data, err := json.Marshal(root); err == nil {
+	//root := folderRestFul{Name: "Racine", Link: "", Children: s.convertPaths(nodes, true)}
+	//if data, err := json.Marshal(root); err == nil {
+	if data, err := json.Marshal(s.convertPaths(nodes, true)); err == nil {
 		write(data, w)
 	}
 }
@@ -721,8 +741,8 @@ func (s Server) getRootVideoFolders(w http.ResponseWriter, r *http.Request) {
 	logger.GetLogger2().Info("Get root videos folders")
 	header(w)
 	nodes := s.videoManager.GetSortedFolders()
-	root := folderRestFul{Name: "Racine", Link: "", Children: s.convertVideoPaths(nodes, true)}
-	if data, err := json.Marshal(root); err == nil {
+	//root := folderRestFul{Name: "Racine", Link: "", Children: s.convertVideoPaths(nodes, true)}
+	if data, err := json.Marshal(s.convertVideoPaths(nodes, true)); err == nil {
 		write(data, w)
 	}
 }
@@ -987,75 +1007,6 @@ func (s Server) Launch(conf *config.Config) {
 	logger.GetLogger2().Error("Server stopped cause", err)
 }
 
-func (s Server) updateRoutes(server *http.ServeMux) {
-	server.HandleFunc("/update", s.buildHandler(s.securityServer.NeedAdmin, s.update))
-	server.HandleFunc("/photo/folder/update", s.buildHandler(s.securityServer.NeedAdmin, s.updateFolder))
-	server.HandleFunc("/photo/folder/edit-details", s.buildHandler(s.securityServer.NeedAdmin, s.editDetails))
-	server.HandleFunc("/photo/folder/move", s.buildHandler(s.securityServer.NeedAdmin, s.moveFolder))
-	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifFolder))
-	server.HandleFunc("/photo", s.buildHandler(s.securityServer.NeedAdmin, s.uploadFolder))
-	server.HandleFunc("/updateExifOfDate", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifOfDate))
-}
-
-func (s Server) photoRoutes(server *http.ServeMux) {
-	server.HandleFunc("/rootFolders", s.buildHandler(s.securityServer.NeedConnected, s.getRootFolders))
-	server.HandleFunc("/analyse", s.buildHandler(s.securityServer.NeedAdmin, s.analyse))
-	server.HandleFunc("/delete", s.buildHandler(s.securityServer.NeedAdmin, s.delete))
-	server.HandleFunc("/addFolder", s.buildHandler(s.securityServer.NeedAdmin, s.addFolder))
-	server.HandleFunc("/statUploadRT", s.buildHandler(s.securityServer.NeedAdmin, s.statUploadRT))
-	server.HandleFunc("/getFoldersDetails", s.buildHandler(s.securityServer.NeedConnected, s.getFoldersDetails))
-	server.HandleFunc("/count", s.count)
-	//server.HandleFunc("/indexFolder",s.indexFolder)
-}
-
-func (s Server) videoRoutes(server *http.ServeMux) {
-	server.HandleFunc("/video", s.buildHandler(s.securityServer.NeedAdmin, s.video))
-	server.HandleFunc("/video/folder", s.buildHandler(s.securityServer.NeedAdmin, s.videoFolder))
-	server.HandleFunc("/video/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateVideoFolderExif))
-	server.HandleFunc("/video/date", s.buildHandler(s.securityServer.NeedUser, s.getVideosByDate))
-	server.HandleFunc("/video/search", s.buildHandler(s.securityServer.NeedUser, s.searchVideos))
-}
-
-func (s Server) tagRoutes(server *http.ServeMux) {
-	server.HandleFunc("/tag/tag_folder", s.buildHandler(s.securityServer.NeedAdmin, s.tagFolder))
-	server.HandleFunc("/tag/search", s.buildHandler(s.securityServer.NeedUser, s.searchTag))
-	server.HandleFunc("/tag/filter_folder", s.buildHandler(s.securityServer.NeedUser, s.filterFolder))
-	server.HandleFunc("/tag/search_folder", s.buildHandler(s.securityServer.NeedUser, s.searchTagsOfFolder))
-	server.HandleFunc("/tag/peoples", s.buildHandler(s.securityServer.NeedUser, s.getPeoples))
-	server.HandleFunc("/tag/add_people", s.buildHandler(s.securityServer.NeedAdmin, s.addPeopleTag))
-}
-
-func (s Server) dateRoutes(server *http.ServeMux) {
-	server.HandleFunc("/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllDates))
-	server.HandleFunc("/videos/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllVideosDates))
-	server.HandleFunc("/getByDate", s.buildHandler(s.securityServer.NeedUser, s.getPhotosByDate))
-	server.HandleFunc("/flushTags", s.buildHandler(s.securityServer.NeedAdmin, s.flushTags))
-	server.HandleFunc("/filterTagsFolder", s.buildHandler(s.securityServer.NeedUser, s.filterTagsFolder))
-	server.HandleFunc("/filterTagsDate", s.buildHandler(s.securityServer.NeedUser, s.filterTagsDate))
-}
-
-func (s Server) securityRoutes(server *http.ServeMux) {
-	server.HandleFunc("/security/canAdmin", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAdmin))
-	server.HandleFunc("/security/canAccess", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAccess))
-	server.HandleFunc("/security/isGuest", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.IsGuest))
-	server.HandleFunc("/security/connect", s.buildHandler(s.securityServer.NeedNoAccess, s.connect))
-	server.HandleFunc("/security/config", s.buildHandler(s.securityServer.NeedNoAccess, s.getSecurityConfig))
-}
-
-func (s *Server) loadPathRoutes() {
-	s.pathRoutes = map[string]func(w http.ResponseWriter, r *http.Request){
-		"/browserf":         s.buildHandler(s.securityServer.NeedConnected, s.browseRestful),
-		"/imagehd":          s.buildHandler(s.securityServer.NeedConnected, s.imageHD),
-		"/image":            s.buildHandler(s.securityServer.NeedConnected, s.image),
-		"/removeNode":       s.buildHandler(s.securityServer.NeedAdmin, s.removeNode),
-		"/tagsByFolder":     s.buildHandler(s.securityServer.NeedAdmin, s.updateTagsByFolder),
-		"/tagsByDate":       s.buildHandler(s.securityServer.NeedAdmin, s.updateTagsByDate),
-		"/browse_videos_rf": s.buildHandler(s.securityServer.NeedUser, s.browseRestfulVideo),
-		"/video_stream":     s.buildHandler(s.securityServer.NeedUser, s.getVideoStream),
-		"/cover":            s.buildHandler(s.securityServer.NeedUser, s.getCover),
-	}
-}
-
 func (s Server) buildHandler(checkAccess func(r *http.Request) bool, handler func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !checkAccess(r) {
@@ -1070,4 +1021,9 @@ func write(data []byte, w http.ResponseWriter) {
 	if _, err := w.Write(data); err != nil {
 		logger.GetLogger2().Error("Error when write data", err)
 	}
+}
+
+func writeError(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(message))
 }

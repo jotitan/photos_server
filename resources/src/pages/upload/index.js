@@ -1,5 +1,5 @@
-import React, {useState} from 'react';
-import {Button, Input, Modal, Upload, Spin, Row, Col, Switch, notification, Progress} from 'antd';
+import React, {useEffect, useState} from 'react';
+import {Button, Input, Modal, Upload, Spin, Row, Col, Switch, notification, Progress, Select} from 'antd';
 import {UploadOutlined} from "@ant-design/icons";
 import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
@@ -26,6 +26,7 @@ const stopRequest = ({ file, onSuccess }) => {
 export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelVisible,singleFolderDisplay=false,defaultPath='',callbackAfterUpload=()=>{}}) {
 
     const [path,setPath] = useState('');
+    const [source,setSource] = useState('');
     const [waitUpload,setWaitUpload] = useState(false);
     const [progress,setProgress] = useState(0);
     const [title, setTitle] = useState('');
@@ -34,6 +35,17 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     let limitImages = 10;
 
     const [images,setImages] = useState([]);
+    const [sources,setSources] = useState([]);
+
+    useEffect(()=>{
+        axios({
+            method:'GET',
+            url:`${getBaseUrl()}/sources`
+        }).then(d => {
+            setSources(d.data)
+            setSource(d.data[0])
+        })
+    },[])
 
     const updateImages = ({fileList,file}) => {
         if(file != null && file.status === "done"){
@@ -48,6 +60,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
         setWaitUpload(true);
         let data = new FormData();
         data.append("path",singleFolderDisplay ? defaultPath:path);
+        data.append("source",source);
         data.append("title",title);
         data.append("description",description);
         // Mode to upload only few images in existing folder
@@ -137,6 +150,10 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
                 <Spin spinning={waitUpload}>
                     {!singleFolderDisplay ?
                         <>
+                            <Row>
+                                <Col style={{paddingTop:5,paddingRight:5,width:100}}>Source : </Col>
+                                <Col><Select value={source} onChange={setSource} options={sources.map(d=>{return {value:d,label:d}})} style={{minWidth:350}}/></Col>
+                            </Row>
                             <Row>
                                 <Col style={{paddingTop:5,paddingRight:5,width:100}}>Chemin : </Col>
                                 <Col><Input onChange={changePath} style={{minWidth:350}} value={path} placeholder={"Ex : 2019/current"}/></Col>

@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jotitan/photos_server/common"
-	"github.com/jotitan/photos_server/config"
-	"github.com/jotitan/photos_server/logger"
-	"github.com/jotitan/photos_server/progress"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -19,6 +15,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jotitan/photos_server/common"
+	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/progress"
 )
 
 type VideoFiles map[string]*VideoNode
@@ -199,7 +200,7 @@ func NewVideoManager(conf config.Config) *VideoManager {
 		hlsUploadFolder:      conf.VideoConfig.HLSUploadedFolder,
 		originalUploadFolder: conf.VideoConfig.OriginalUploadedFolder,
 		Folders:              make(map[string]*VideoNode),
-		VideosByDate:         nil,
+		VideosByDate:         make(map[time.Time][]common.INode),
 		hlsManager:           GetHLSManager(conf)}
 }
 
@@ -226,11 +227,13 @@ func (vm VideoManager) GetSortedFolders() []*VideoNode {
 
 func (vm *VideoManager) Load() error {
 	path := getSaveVideoPath()
+	vm.Folders = make(map[string]*VideoNode)
+	defer func() {
+		vm.index = NewVideoMetadataIndex(vm.Folders)
+	}()
 	if data, err := ioutil.ReadFile(path); err == nil {
-		vm.Folders = make(map[string]*VideoNode)
 		if err := json.Unmarshal(data, &vm.Folders); err == nil {
 			// Load index
-			vm.index = NewVideoMetadataIndex(vm.Folders)
 			vm.loadDates()
 		} else {
 			return err
@@ -238,6 +241,7 @@ func (vm *VideoManager) Load() error {
 	} else {
 		return err
 	}
+
 	return nil
 }
 
@@ -285,7 +289,7 @@ func (sf sortVideosByDate) Less(i, j int) bool {
 }
 func (sf sortVideosByDate) Swap(i, j int) { sf[i], sf[j] = sf[j], sf[i] }
 
-//Search return founded video node sort by date
+// Search return founded video node sort by date
 func (vm VideoManager) Search(query string) []*VideoNode {
 	if strings.EqualFold(strings.Trim(query, " "), "") {
 		return []*VideoNode{}
