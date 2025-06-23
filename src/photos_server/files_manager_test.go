@@ -326,6 +326,43 @@ func TesReq(t *testing.T) {
 	fmt.Println(err, r.StatusCode, string(data))
 }
 
+func Test(t *testing.T) {
+	// GIVEN
+	fm := FoldersManager{Sources: SourceNodes{
+		"SOURCE1": &SourceNode{Name: "SOURCE1", Files: make(map[string]*Node)},
+		"SOURCE2": &SourceNode{Name: "SOURCE2", Files: make(map[string]*Node)},
+	}}
+	//WHEN-THEN
+	if n, err := fm.FindOrCreateNode("SOURCE3/TEST"); err == nil || n != nil {
+		t.Error("SOURCE3/TEST must fail, no source")
+	}
+
+	if n, err := fm.FindOrCreateNode("SOURCE1/TEST1/SUBTEST1/SUBSUBTEST1"); err != nil || n == nil {
+		t.Error("SOURCE1/TEST1/SUBTEST1/SUBSUBTEST1 must succeded")
+	}
+	if _, _, err := fm.FindNode("SOURCE1/TEST1"); err != nil {
+		t.Error("SOURCE1/TEST1 must exists")
+	}
+
+	if n, err := fm.FindOrCreateNode("SOURCE2/TEST2/SUBTEST2/SUBSUBTEST2"); err != nil || n == nil {
+		t.Error("SOURCE2/TEST2/SUBTEST2/SUBSUBTEST2 must succeded")
+	}
+
+	if _, _, err := fm.FindNode("SOURCE2/TEST2/SUBTEST2/SUBSUBTEST2"); err != nil {
+		t.Error("SOURCE2/TEST2/SUBTEST2/SUBSUBTEST2 must exists")
+	}
+
+	if n, err := fm.FindOrCreateNode("SOURCE2/TEST3"); err != nil || n == nil {
+		t.Error("SOURCE2/TEST3 must succeded")
+	}
+	if n, err := fm.FindOrCreateNode("SOURCE2/TEST3/SUBTEST3"); err != nil || n == nil {
+		t.Error("SOURCE2/TEST3/SUBTEST3 must succeded")
+	}
+
+	if _, _, err := fm.FindNode("SOURCE2/TEST3/SUBTEST3"); err != nil {
+		t.Error("SOURCE2/TEST3/SUBTEST3 must exists")
+	}
+}
 func TestGroupByDate(t *testing.T) {
 	fm := NewFoldersManager(config.Config{Security: config.SecurityConfig{}}, nil)
 	filesRoot := Files{}
