@@ -305,6 +305,14 @@ func error404(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Unknown resource", 404)
 }
 
+func (s Server) checkPhotoResizer(w http.ResponseWriter, r *http.Request) {
+	if s.foldersManager.reducer.CheckResizer() {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
 func (s Server) getFoldersDetails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

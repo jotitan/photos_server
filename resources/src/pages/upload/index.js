@@ -31,6 +31,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const [progress,setProgress] = useState(0);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [statusReducer, setStatusReducer] = useState(false);
     const [selectDirectory,setSelectDirectory] = useState(false);
     let limitImages = 10;
 
@@ -38,6 +39,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     const [sources,setSources] = useState([]);
 
     useEffect(()=>{
+        checkResizerStatus()
         axios({
             method:'GET',
             url:`${getBaseUrl()}/sources`
@@ -57,6 +59,10 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
     };
 
     const uploadPhotos = ()=>{
+        if(!statusReducer){
+            notification["error"]({message:"Sauvegarde impossible",description:`Le service de redimensionnement n\'est pas accessible`});
+            return
+        }
         setWaitUpload(true);
         let data = new FormData();
         data.append("path",singleFolderDisplay ? defaultPath:path);
@@ -68,7 +74,6 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
             data.append("addToFolder","true");
         }
         images.forEach((img,i)=>data.append(`file_${i}`,img.image));
-        // Open notification
 
         axios({
             method:'POST',
@@ -125,9 +130,20 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
 
     const changePath = field=>setPath(field.target.value);
 
+    const checkResizerStatus = () => {
+        axios({
+            url:`${getBaseUrl()}/photo/check-resizer`
+        }).then(()=>setStatusReducer(true))
+            .catch(()=>setStatusReducer(false));
+    }
+
+    const getTitle = () => <>Ajouter des photos {formatStatusReducer()}</>
+
+    const formatStatusReducer = ()=>statusReducer ? '✅': '⚠️';
+
     return (
         <Modal
-            title="Ajouter des photos"
+            title={getTitle()}
             className={"upload-photos-modal"}
             visible={isAddPanelVisible}
             onOk={uploadPhotos}

@@ -721,7 +721,7 @@ export default function MyGallery({
     return (
         <>
             <Row className={"options"}>
-                <Col flex={"200px"}>
+                <Col flex={"300px"}>
                     {showTitle()}
                     <span style={{paddingLeft: 5, paddingRight: 5}}>-</span>
                     {images.length} <PictureOutlined/>
@@ -751,7 +751,7 @@ export default function MyGallery({
                 <EditTitle folder={urlFolder.path} initialValues={details} close={() => setEditDetails(false)}/> : ''}
             <Row className={"gallery"}>
                 <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
-                     style={{marginTop: `${showTimeline ? '30' : '72'}px`}}>
+                     style={{marginTop: `${showTimeline ? '30' : '36'}px`}}>
                     {images.length === 0 ? showEmptyMessage() : showGallery()}
                 </Col>
                 <Modal visible={zoomEnable}

@@ -26,6 +26,10 @@ func (e EmptyReducer) GetCache() string {
 	return e.cache
 }
 
+func (e EmptyReducer) CheckResizer() bool {
+	return true
+}
+
 func (e EmptyReducer) CreateJpegFile(folder, basePath string, size uint) string {
 	return ""
 }

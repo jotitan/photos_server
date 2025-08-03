@@ -435,7 +435,7 @@ func (fm FoldersManager) FindNodes(paths []string) []FolderDto {
 	results := make([]FolderDto, len(paths))
 	for i, path := range paths {
 		if node, _, err := fm.FindNode(path); err == nil {
-			results[i] = FolderDto{Path: path, Title: node.Title, Description: node.Description}
+			results[i] = FolderDto{Path: path, Title: node.Name, Description: node.Description}
 		} else {
 			results[i] = FolderDto{}
 		}
@@ -575,42 +575,6 @@ func (fm *FoldersManager) GetNextId() int {
 	return id
 }
 
-// AddFolderWithNode add a folder to a parent node (root folder)
-func (fm *FoldersManager) AddFolderWithNode(files Files, rootFolder, folderPath string, forceRotate bool, detail detailUploadFolder, p *progress.UploadProgress) {
-	if strings.EqualFold("", rootFolder) {
-		rootFolder = filepath.Dir(folderPath)
-	}
-	// Return always one node
-	name, node := fm.AnalyseAsOne(rootFolder, folderPath)
-	if node == nil {
-		logger.GetLogger2().Error("Impossible to have more that one node")
-		return
-	}
-	// Define id, title and description to the new uploaded folder
-
-	if node.Id == 0 {
-		node.Id = fm.GetNextId()
-	}
-	// Define id if not exist in subtree
-	fm.detectMissingFoldersIdOfFolder(node.Files)
-
-	logger.GetLogger2().Info("Add folder", folderPath)
-	// Check if images already exists to improve computing
-	existings := fm.searchExistingReducedImages(node.RelativePath)
-	logger.GetLogger2().Info("Found existing", len(existings))
-	p.EnableWaiter()
-	files[name] = node
-	// Update title and description of the new uploaded node, only when tree is complete
-	// Search in source
-	if n, _, err := fm.FindNode(detail.source + "/" + detail.path); err == nil {
-		n.Title = detail.title
-		n.Description = detail.description
-	}
-	fm.launchImageResize(node, detail.source, p, existings, forceRotate)
-
-	fm.save()
-}
-
 func (fm *FoldersManager) searchExistingReducedImages(folderPath string) map[string]struct{} {
 	// Find the folder in cache
 	folder := filepath.Join(fm.reducer.GetCache(), folderPath)
@@ -674,7 +638,7 @@ func (fm *FoldersManager) load(sources []config.Source) {
 	if f, err := os.Open(getSavePath()); err == nil {
 		defer f.Close()
 		data, _ := io.ReadAll(f)
-		json.Unmarshal(data, &folders)
+		log.Println(json.Unmarshal(data, &folders))
 		fm.Sources = folders
 		// Check if new sources are available
 		for _, source := range sources {

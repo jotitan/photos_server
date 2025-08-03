@@ -43,9 +43,9 @@ export default function Timeline({images, setImages}) {
         document.querySelector(":root").style.setProperty('--width-timeline-black',`${newSizeBlock}px`)
     }
 
-    useEffect(() => {
+    /*useEffect(() => {
         updateSize(details.map(v=>v.Title))
-    },[details])
+    },[details])*/
 
     useEffect(() => {
         if(selected === -1){

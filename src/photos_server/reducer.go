@@ -28,6 +28,7 @@ type Reducer interface {
 	CreateJpegFile(folder, basePath string, size uint) string
 	GetSizes() []uint
 	AddImage(path, relativePath string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool)
+	CheckResizer() bool
 }
 
 type ImageReducer struct {
@@ -109,6 +110,10 @@ func (r ImageReducer) GetSizes() []uint {
 
 func (r ImageReducer) AddImage(path, relativePath string, node *Node, progresser *progress.UploadProgress, existings map[string]struct{}, forceRotate bool) {
 	r.imagesToResize <- ImageToResize{path, relativePath, node, progresser, forceRotate, existings}
+}
+
+func (r ImageReducer) CheckResizer() bool {
+	return r.resize.CheckStatus()
 }
 
 // Return number of images wating to reduce and number of images reduced

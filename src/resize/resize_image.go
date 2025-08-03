@@ -32,7 +32,7 @@ func (gor ImageMagickResizer) ToString() string {
 	return "ImageMagick"
 }
 
-func (gor ImageMagickResizer) Resize(from, to string, width, height uint) (error, uint, uint) {
+func (gor ImageMagickResizer) Resize(from, to string, _, height uint) (error, uint, uint) {
 	cmd := exec.Command("convert", from, "-resize", fmt.Sprintf("x%d", height), "-auto-orient", "-interpolate", "bicubic", "-quality", "80", to)
 	_, err := cmd.Output()
 
@@ -49,8 +49,7 @@ func (gor GoResizer) Resize(from, to string, width, height uint) (error, uint, u
 	// Check if image already exist
 	if f, err := os.Open(to); err == nil {
 		// Already exist, close and return, open the light one to get size ? Return 0,0 for now
-		f.Close()
-		return nil, 0, 0
+		return f.Close(), 0, 0
 	}
 
 	if img, err := openImage(from); err == nil {
@@ -92,7 +91,7 @@ type AsyncGoResizer struct {
 	chanSaveImage chan imageWrapper
 }
 
-func NewAsyncGoResize() AsyncGoResizer {
+func NewAsyncGoResize() GoResizerManager {
 	agor := AsyncGoResizer{
 		goResizer:       GoResizer{},
 		chanOpenImage:   make(chan imageWrapper, 18),
@@ -117,6 +116,10 @@ func (agor AsyncGoResizer) runOpener() {
 			pathWrapper.callback(err, 0, 0, 1)
 		}
 	}
+}
+
+func (agor AsyncGoResizer) CheckStatus() bool {
+	return true
 }
 
 func (agor AsyncGoResizer) runResizer() {
@@ -164,7 +167,7 @@ func (agor AsyncGoResizer) ResizeAsync(from string, orientation int, conversions
 func saveImage(img image.Image, path string) error {
 	if f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, os.ModePerm); err == nil {
 		defer f.Close()
-		return jpeg.Encode(f, img, &(jpeg.Options{75}))
+		return jpeg.Encode(f, img, &(jpeg.Options{Quality: 75}))
 	} else {
 		return err
 	}

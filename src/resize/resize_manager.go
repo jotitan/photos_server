@@ -11,6 +11,7 @@ import (
 
 type GoResizerManager interface {
 	ResizeAsync(from string, orientation int, conversions []ImageToResize, callback func(err error, w uint, h uint, o int))
+	CheckStatus() bool
 }
 
 type ConversionRequest struct {
@@ -29,9 +30,17 @@ type HttpGoResizer struct {
 	url string
 }
 
-func NewHttpGoResizer(url string) HttpGoResizer {
+func NewHttpGoResizer(url string) GoResizerManager {
 	logger.GetLogger2().Info("Use http go resizer with", url)
 	return HttpGoResizer{url: url}
+}
+
+func (hgr HttpGoResizer) CheckStatus() bool {
+	r, err := http.Get(fmt.Sprintf("%s/status", hgr.url))
+	if err == nil && r.StatusCode == http.StatusOK {
+		return true
+	}
+	return false
 }
 
 func (hgr HttpGoResizer) ResizeAsync(from string, orientation int, conversions []ImageToResize, callback func(err error, w uint, h uint, o int)) {
