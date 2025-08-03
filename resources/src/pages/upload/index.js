@@ -60,7 +60,7 @@ export default function UploadFolder({setUpdate,isAddPanelVisible,setIsAddPanelV
 
     const uploadPhotos = ()=>{
         if(!statusReducer){
-            notification["error"]({message:"Sauvegarde impossible",description:`Le service de redimensionnement n\'est pas accessible`});
+            notification["error"]({message:"Sauvegarde impossible",description:`Le service de redimensionnement n'est pas accessible`});
             return
         }
         setWaitUpload(true);
