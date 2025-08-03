@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-var agor resize.AsyncGoResizer
+var agor resize.GoResizerManager
 
 func main() {
 	// Get path of ffmpeg from parameter
@@ -18,11 +18,13 @@ func main() {
 	s.HandleFunc("/convert", convertPhoto)
 	s.HandleFunc("/status", statusPhoto)
 	logger.GetLogger2().Info("Start server on 9013")
-	http.ListenAndServe(":9013", s)
+	logger.GetLogger2().Error(http.ListenAndServe(":9013", s))
 }
 
 func statusPhoto(w http.ResponseWriter, _ *http.Request) {
-	w.Write([]byte("up"))
+	if _, err := w.Write([]byte("up")); err != nil {
+		logger.GetLogger2().Error(err)
+	}
 }
 
 type conversionResponse struct {
@@ -47,7 +49,9 @@ func convertPhoto(w http.ResponseWriter, r *http.Request) {
 		logger.GetLogger2().Error("Impossible to convert", resp.err)
 		http.Error(w, resp.err.Error(), 400)
 	} else {
-		w.Write([]byte(fmt.Sprintf("{\"width\":%d,\"height\":%d,\"orientation\":%d}", resp.width, resp.height, resp.orientation)))
+		if _, err := w.Write([]byte(fmt.Sprintf("{\"width\":%d,\"height\":%d,\"orientation\":%d}", resp.width, resp.height, resp.orientation))); err != nil {
+			logger.GetLogger2().Error(err)
+		}
 	}
 }
 
