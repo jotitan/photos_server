@@ -19,5 +19,5 @@ require (
 	github.com/dsoprea/go-utility v0.0.0-20200322154813-27f0b0d142d7 // indirect
 	github.com/golang/geo v0.0.0-20190916061304-5b978397cfec // indirect
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
+	golang.org/x/net v0.7.0 // indirect
 )
