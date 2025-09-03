@@ -312,7 +312,7 @@ func getOnlyElementFromMap(files Files) *Node {
 	return nil
 }
 
-func (fm *FoldersManager) UpdateExif(path string) error {
+func (fm *FoldersManager) UpdateExif(path string, forceSize bool) error {
 	if node, _, err := fm.FindNode(path); err != nil {
 		return err
 	} else {
@@ -324,7 +324,7 @@ func (fm *FoldersManager) UpdateExif(path string) error {
 			for _, file := range noChanges {
 				datePhoto, _ := GetExif(file.GetAbsolutePath(fm.Sources))
 				file.Date = datePhoto
-				if file.Width == 0 {
+				if forceSize || file.Width == 0 {
 					path := filepath.Join(fm.reducer.GetCache(), fm.GetSmallImageName(*file))
 					file.Width, file.Height = resize.GetSizeAsInt(path)
 					logger.GetLogger2().Info("Update exif size", path, file.Width, file.Height)
@@ -461,7 +461,7 @@ func (fm FoldersManager) FindOrCreateNode(path string) (*Node, error) {
 		return node, nil
 	}
 	parent, _ := fm.FindOrCreateNode(filepath.Dir(path))
-	node := &Node{Name: filepath.Base(subPath), RelativePath: createRelativePath(source.Name, subPath), Id: fm.GetNextId(), Files: make(map[string]*Node)}
+	var node = &Node{Name: filepath.Base(subPath), RelativePath: createRelativePath(source.Name, subPath), Id: fm.GetNextId(), Files: make(map[string]*Node)}
 	parent.Files[node.Name] = node
 	parent.IsFolder = true
 

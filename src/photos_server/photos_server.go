@@ -642,8 +642,9 @@ func extractFiles(r *http.Request) ([]multipart.File, []string) {
 func (s Server) updateExifFolder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	folder := r.FormValue("folder")
+	forceSize := r.FormValue("force") == "true"
 	logger.GetLogger2().Info("Launch update exif folder :", folder)
-	treatError(s.foldersManager.UpdateExif(folder), folder, w)
+	treatError(s.foldersManager.UpdateExif(folder, forceSize), folder, w)
 }
 
 func treatError(err error, folder string, w http.ResponseWriter) {
