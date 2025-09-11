@@ -349,7 +349,8 @@ func (fm *FoldersManager) compareAndCleanFolder(files Files, folderPath string, 
 		}
 	}
 	delta, deletions, noChanges := files.Compare(folders)
-	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove and no changes", len(noChanges))
+	existings := fm.searchExistingReducedImages(folderPath)
+	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove and no changes", len(noChanges), "(existings :", len(existings), ")")
 	// Launch indexation of new images,
 	if len(delta) > 0 {
 		progresser.EnableWaiter()
@@ -357,7 +358,7 @@ func (fm *FoldersManager) compareAndCleanFolder(files Files, folderPath string, 
 		for _, node := range delta {
 			absolutePath := node.GetAbsolutePath(fm.Sources)
 			logger.GetLogger2().Info("Launch update image resize", absolutePath)
-			fm.reducer.AddImage(absolutePath, node.RelativePath, node, progresser, make(map[string]struct{}), false)
+			fm.reducer.AddImage(absolutePath, node.RelativePath, node, progresser, existings, false)
 		}
 		progresser.Wait()
 		logger.GetLogger2().Info("All pictures have been resized")
@@ -578,7 +579,6 @@ func (fm *FoldersManager) GetNextId() int {
 func (fm *FoldersManager) searchExistingReducedImages(folderPath string) map[string]struct{} {
 	// Find the folder in cache
 	folder := filepath.Join(fm.reducer.GetCache(), folderPath)
-	//folder := filepath.Join(fm.reducer.GetCache(), strings.ReplaceAll(folderPath, strings.ReplaceAll(fm.UploadedFolder, "\\\\", "\\"), ""))
 	tree := fm.Analyse(fm.reducer.GetCache(), folder)
 	// Browse all files
 	files := make(map[string]struct{})
