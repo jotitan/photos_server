@@ -218,6 +218,7 @@ func (r ImageReducer) checkAlreadyExist(folder string, imageToResize ImageToResi
 	nbExist := 0
 	for i, size := range r.sizes {
 		conversions[i] = resize.ImageToResize{To: r.CreateJpegFile(folder, imageToResize.path, size), Width: 0, Height: size}
+		logger.GetLogger2().Info("Check exists", conversions[i].To)
 		if _, exist := imageToResize.existings[conversions[i].To]; exist {
 			nbExist++
 		}

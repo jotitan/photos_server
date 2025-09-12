@@ -351,6 +351,7 @@ func (fm *FoldersManager) compareAndCleanFolder(files Files, folderPath string, 
 	delta, deletions, noChanges := files.Compare(folders)
 	existings := fm.searchExistingReducedImages(folderPath)
 	logger.GetLogger2().Info("After update", len(delta), "new pictures and", len(deletions), "to remove and no changes", len(noChanges), "(existings :", len(existings), ")")
+	logger.GetLogger2().Info(existings)
 	// Launch indexation of new images,
 	if len(delta) > 0 {
 		progresser.EnableWaiter()
