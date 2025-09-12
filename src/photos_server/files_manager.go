@@ -584,11 +584,25 @@ func (fm *FoldersManager) searchExistingReducedImages(folderPath string) map[str
 	// Browse all files
 	files := make(map[string]struct{})
 	for _, node := range tree {
-		for file, value := range extractImages(node, fm.Sources) {
+		for file, value := range extractReducedImages(node, fm.reducer.GetCache()) {
 			files[file] = value
 		}
 	}
 	return files
+}
+
+func extractReducedImages(node *Node, cacheFolder string) map[string]struct{} {
+	m := make(map[string]struct{})
+	if node.IsFolder {
+		for _, subNode := range node.Files {
+			for file := range extractReducedImages(subNode, cacheFolder) {
+				m[file] = struct{}{}
+			}
+		}
+	} else {
+		m[filepath.Join(cacheFolder, node.RelativePath)] = struct{}{}
+	}
+	return m
 }
 
 func extractImages(node *Node, sn SourceNodes) map[string]struct{} {
