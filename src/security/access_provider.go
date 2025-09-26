@@ -31,10 +31,14 @@ type AccessProvider interface {
 
 type externalProxyIdentityProvider struct {
 	suffixEmails []string
+	appName      string
 }
 
 func newExternalProxyIdentityProvider(conf config.SecurityConfig) externalProxyIdentityProvider {
-	return externalProxyIdentityProvider{suffixEmails: conf.SuffixEmailShare}
+	return externalProxyIdentityProvider{
+		suffixEmails: conf.SuffixEmailShare,
+		appName:      conf.AppName,
+	}
 }
 
 func (eip externalProxyIdentityProvider) Connect(r *http.Request, isGuest func(user string) bool) (bool, map[string]interface{}) {
@@ -71,7 +75,7 @@ func (eip externalProxyIdentityProvider) GetId(token *jwt.Token) string {
 }
 
 func (eip externalProxyIdentityProvider) CheckAdminAccess(token *jwt.Token) bool {
-	if isAdmin, exist := token.Claims.(jwt.MapClaims)["admin_drobo-images"]; exist {
+	if isAdmin, exist := token.Claims.(jwt.MapClaims)["admin_"+eip.appName]; exist {
 		return isAdmin.(bool)
 	}
 	return false

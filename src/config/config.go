@@ -34,6 +34,7 @@ type SecurityConfig struct {
 	SuffixEmailShare []string     `yaml:"suffix_email_share"`
 	BasicConfig      BasicConfig  `yaml:"basic"`
 	OAuth2Config     OAuth2Config `yaml:"oauth2"`
+	AppName          string       `yaml:"app_name"`
 }
 
 type PhotoConfig struct {
