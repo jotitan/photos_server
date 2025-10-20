@@ -1026,6 +1026,10 @@ func (s Server) buildHandler(checkAccess func(r *http.Request) bool, handler fun
 	}
 }
 
+func (s *Server) HealthCheck(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(200)
+}
+
 func write(data []byte, w http.ResponseWriter) {
 	if _, err := w.Write(data); err != nil {
 		logger.GetLogger2().Error("Error when write data", err)

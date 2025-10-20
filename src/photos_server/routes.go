@@ -54,6 +54,7 @@ func (s Server) dateRoutes(server *http.ServeMux) {
 }
 
 func (s Server) securityRoutes(server *http.ServeMux) {
+	server.HandleFunc("/healthcheck", s.buildHandler(s.securityServer.NeedNoAccess, s.HealthCheck))
 	server.HandleFunc("/security/canAdmin", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAdmin))
 	server.HandleFunc("/security/canAccess", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.CanAccess))
 	server.HandleFunc("/security/isGuest", s.buildHandler(s.securityServer.NeedNoAccess, s.securityServer.IsGuest))
