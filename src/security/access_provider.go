@@ -8,6 +8,7 @@ import (
 	"github.com/jotitan/photos_server/config"
 	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -35,6 +36,7 @@ type externalProxyIdentityProvider struct {
 }
 
 func newExternalProxyIdentityProvider(conf config.SecurityConfig) externalProxyIdentityProvider {
+	log.Println("Use external security provider")
 	return externalProxyIdentityProvider{
 		suffixEmails: conf.SuffixEmailShare,
 		appName:      conf.AppName,
@@ -75,6 +77,7 @@ func (eip externalProxyIdentityProvider) GetId(token *jwt.Token) string {
 }
 
 func (eip externalProxyIdentityProvider) CheckAdminAccess(token *jwt.Token) bool {
+	log.Println("CLAIMS", token.Claims)
 	if isAdmin, exist := token.Claims.(jwt.MapClaims)["admin_"+eip.appName]; exist {
 		return isAdmin.(bool)
 	}
