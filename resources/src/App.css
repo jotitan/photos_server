@@ -80,6 +80,10 @@ body {
   text-transform: uppercase;
 }
 
+.logo a {
+  color:white !important;
+}
+
 .ant-picker-calendar-full .ant-picker-panel .ant-picker-calendar-date-content {
   height:22px;
 }

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Photos mobile</title>
+
+    <style>
+        body {
+            margin: 0;
+            background-color: #001529;
+            color:white;
+        }
+        a {
+            color:white;
+        }
+        div.folder {
+            margin-left: 10px;
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: solid 1px;
+            font-size:8vw
+        }
+
+        div.content {
+            position: relative;
+            z-index: 1;
+        }
+
+        img.thumbnail {
+            cursor: pointer;
+            margin-right: 2px;
+        }
+
+        div.viewer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(50, 50, 50, 0.9);
+            top: 0px;
+            z-index: 10;
+            text-align: center;
+            line-height:100vh;
+        }
+
+        div.viewer img {
+            vertical-align:middle;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="content"></div>
+<div class="viewer hidden"></div>
+</body>
+</html>
+
+<script>
+    const content = document.getElementsByClassName("content").item(0);
+    const viewer = document.getElementsByClassName("viewer").item(0);
+    const baseUrl = location.href.substring(0,location.href.indexOf("/mobile"))
+    const stack = [];
+    const showFolders = data => {
+        content.innerHTML = '';
+        data.sort((a, b) => a.Name.localeCompare(b.Name))
+        data.forEach(e => {
+            const div = document.createElement("div");
+            div.classList.add('folder')
+            const a = document.createElement("a")
+            a.href = "#";
+            a.append(`${e.Name}`)
+            a.addEventListener('click', () => e.HasImages && e.Children.length === 0 ? showImages(e.Link,data) : showSubFolders(e,data))
+            div.append(a);
+            content.append(div)
+        })
+    }
+    const showSubFolders = (element,data) => {
+        stack.push({children:data})
+        showFolders(element.Children)
+    }
+
+    const minHeight = 150;
+    let buffer = [];
+    let currentWidth = 0;
+    let screenSize;
+
+    const showImages = (url,data) => {
+        stack.push({children:data})
+        // Load images
+        let counter = 0;
+        fetch(`${baseUrl}${url}`).then(d => d.json()).then(data => {
+                data.Files.sort((a,b)=>a.Date.localeCompare(b.Date))
+                content.innerHTML = '';
+                screenSize = document.getElementsByTagName('body')[0].offsetWidth - 15;
+                data.Files.forEach(img => {
+                    if (img.Height !== 0) {
+                        const estimatedWidth = minHeight * (img.Width / img.Height);
+                        if (currentWidth + estimatedWidth > screenSize) {
+                            showBufferImages();
+                        }
+                        currentWidth += estimatedWidth
+                        buffer.push({
+                            realWidth: estimatedWidth,
+                            src: `${baseUrl}/${img.ThumbnailLink}`,
+                            hd: `${baseUrl}/${img.ImageLink}`,
+                            height:img.Height,
+                            width:img.Width,
+                            pos: counter++
+                        });
+                    }
+                });
+                showBufferImages()
+            }
+        )
+    }
+    let images = [];
+    let currentImage = -1;
+    showBufferImages = () => {
+        if (buffer.length === 0) {
+            return
+        }
+        const actualWidth = buffer.reduce((count, i) => count + i.realWidth, 0);
+        const delta = screenSize - actualWidth;
+        const ratio = (1 + (delta / actualWidth));
+        const adjustedHeight = minHeight * ratio;
+        buffer.forEach(imgInfo => {
+            const img = createImage(imgInfo.src);
+            img.classList.add('thumbnail')
+            img.height = adjustedHeight;
+            img.width = Math.floor(imgInfo.realWidth * ratio) - 2;
+            img.addEventListener('click', () => showImage(imgInfo))
+            content.append(img)
+            images.push(imgInfo)
+        })
+        buffer = [];
+        currentWidth = 0;
+    }
+
+    const createImage = src => {
+        const i = document.createElement('img')
+        i.src = src;
+        return i;
+    }
+
+    const showImage = imgInfo => {
+        touchDetector.detach(["left"])
+        content.classList.add('hidden')
+        currentImage = imgInfo.pos;
+        viewer.classList.remove('hidden');
+        viewer.innerHTML = '';
+        const img = createImage(imgInfo.hd);
+        const ratioImg = (imgInfo.height / imgInfo.width)
+        const ratioScreen = (window.screen.height / window.screen.width)
+        img.style.setProperty(ratioImg < ratioScreen ? "width" : "height", "100%")
+
+        viewer.append(img);
+
+        touchDetector.attachLeft(previous)
+        touchDetector.attachRight(next)
+        touchDetector.attachTop(hideImage)
+    }
+
+    const hideImage = () => {
+        viewer.classList.add('hidden');
+        content.classList.remove('hidden')
+        touchDetector.detach(["left","right","top"])
+        touchDetector.attachLeft(previousFolder)
+    }
+
+    const previousFolder = () => {
+        const previousPage = stack.pop()
+        showFolders(previousPage.children)
+    }
+
+    const previous = () => {
+        if (currentImage === 0) {
+            return;
+        }
+        showImage(images[currentImage - 1])
+    }
+    const next = () => {
+        if (currentImage >= images.length - 1) {
+            return;
+        }
+        showImage(images[currentImage + 1])
+    }
+
+    class DetectTouch {
+        startTouchH;
+        startTouchV;
+        currentTouchH;
+        currentTouchV;
+        started = false;
+        actions = {};
+
+        constructor() {}
+        attachLeft(fct) {
+            this.attach("left", fct);
+        }
+        attachRight(fct) {
+            this.attach("right", fct);
+        }
+        attachTop(fct) {
+            this.attach("top", fct);
+        }
+
+        attach(kind, fct) {
+            this.actions[kind] = fct;
+            this.startDetection();
+        }
+        startDetection(){
+            if(this.started){
+                return;
+            }
+            this.started = true;
+            document.addEventListener("touchstart", e => this.start(e))
+            document.addEventListener("touchmove", e => this.move(e))
+            document.addEventListener("touchend", () => this.end())
+        }
+        stopDetection(){
+            if(Object.values(this.actions).filter(d=>d!=null).length > 0){
+                return;
+            }
+            document.removeEventListener("touchstart", () => {})
+            document.removeEventListener("touchmove", () => {})
+            document.removeEventListener("touchend", () => {})
+        }
+        action(kind){
+            const act = this.actions[kind];
+            if(act != null){
+                act.apply();
+            }
+        }
+        detach(kinds) {
+            kinds.forEach(kind => this.actions[kind] = null)
+            this.stopDetection();
+        }
+
+        start(e) {
+            this.startTouchH = e.touches[0].clientX;
+            this.startTouchV = e.touches[0].clientY;
+        }
+
+        move(e) {
+            this.currentTouchH = e.touches[0].clientX;
+            this.currentTouchV = e.touches[0].clientY;
+        }
+
+        end() {
+            if (this.currentTouchV - this.startTouchV < -300) {
+                return this.action("top");
+            }
+            if (this.currentTouchH - this.startTouchH < -300) {
+                return this.action("right");
+            }
+            if (this.currentTouchH - this.startTouchH > 300) {
+                return this.action("left");
+            }
+            this.reset();
+        }
+        reset(){
+            this.currentTouchH = 0;
+            this.currentTouchV = 0;
+            this.startTouchH = 0;
+            this.startTouchV = 0;
+        }
+    }
+
+    const touchDetector = new DetectTouch();
+    touchDetector.attachLeft(previousFolder)
+
+    fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(showFolders)
+</script>

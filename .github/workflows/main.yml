@@ -50,6 +50,7 @@ jobs:
         cd resources
         npm install
         npm run-script build
+        cp -R src/mobile build
         tar -cvzf build.tar.gz build
         mv build.tar.gz ../artifacts
 

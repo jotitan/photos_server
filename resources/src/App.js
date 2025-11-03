@@ -6,7 +6,7 @@ import MyCalendar from "./pages/calendar";
 import TreeFolder, {getBaseUrl} from "./pages/treeFolder";
 import UploadFolder from "./pages/upload";
 import {Layout, Menu, Switch} from 'antd';
-import {HddFilled, PlusCircleOutlined,PictureOutlined,VideoCameraOutlined} from "@ant-design/icons";
+import {HddFilled, PlusCircleOutlined,PictureOutlined,VideoCameraOutlined, TrophyOutlined} from "@ant-design/icons";
 import {createBrowserHistory} from 'history';
 import axios from "axios";
 import ConnectPanel from "./pages/security";
@@ -136,6 +136,8 @@ function App() {
                     <MyCalendar setUrlFolder={setUrlVideoFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/videos/allDates',getByDate:'/video/date'}}/>
                 </div>:<></>):<></>;
 
+    const getMobileUrl = () => <a href={`${document.location.href}mobile`}><TrophyOutlined /></a>;
+
     return (
         // Hide during check access
         hideAll ? <></>:
@@ -145,7 +147,7 @@ function App() {
                         <Content style={{height:100+'%'}}>
                             <Menu theme={"dark"}>
                                 <Menu.Item className={"logo"}>
-                                    <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos} / {nbVideos}</span>
+                                    <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos} / {nbVideos} {getMobileUrl()}</span>
                                 </Menu.Item>
                                 {canAdmin?
                                     videoMode ?
