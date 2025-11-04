@@ -49,18 +49,32 @@
         .hidden {
             display: none;
         }
+        .open-hd {
+            position:absolute;
+            right:0;
+            top:0;
+            font-size:10vw;
+            z-index:10;
+        }
+
+        .open-hd a{
+            text-decoration:none;
+            cursor:pointer;
+        }
     </style>
 </head>
 <body>
 
 <div class="content"></div>
 <div class="viewer hidden"></div>
+<div class="hidden open-hd"><a target="_blank">🚀</a></div>
 </body>
 </html>
 
 <script>
     const content = document.getElementsByClassName("content").item(0);
     const viewer = document.getElementsByClassName("viewer").item(0);
+    const hdLink = document.getElementsByClassName("open-hd").item(0);
     const baseUrl = location.href.substring(0,location.href.indexOf("/mobile"))
     const stack = [];
     const showFolders = data => {
@@ -88,6 +102,7 @@
     let screenSize;
 
     const showImages = (url,data) => {
+        images = [];
         stack.push({children:data})
         // Load images
         let counter = 0;
@@ -106,6 +121,7 @@
                             realWidth: estimatedWidth,
                             src: `${baseUrl}/${img.ThumbnailLink}`,
                             hd: `${baseUrl}/${img.ImageLink}`,
+                            uhd: `${baseUrl}/${img.HdLink}`,
                             height:img.Height,
                             width:img.Width,
                             pos: counter++
@@ -150,7 +166,9 @@
         content.classList.add('hidden')
         currentImage = imgInfo.pos;
         viewer.classList.remove('hidden');
+        hdLink.classList.remove('hidden');
         viewer.innerHTML = '';
+        hdLink.getElementsByTagName('a').item(0).href=imgInfo.uhd;
         const img = createImage(imgInfo.hd);
         const ratioImg = (imgInfo.height / imgInfo.width)
         const ratioScreen = (window.screen.height / window.screen.width)
@@ -165,6 +183,7 @@
 
     const hideImage = () => {
         viewer.classList.add('hidden');
+        hdLink.classList.add('hidden');
         content.classList.remove('hidden')
         touchDetector.detach(["left","right","top"])
         touchDetector.attachLeft(previousFolder)
