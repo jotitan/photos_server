@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 )
 
 type JWTManager interface {
@@ -55,10 +56,11 @@ func (jwts JWTSecretKeyManager) canSign() bool {
 type JWTIdentityKeysManager struct {
 	publicKeysCache map[string]*rsa.PublicKey
 	urlGetPublicKey string
+	lock            *sync.Mutex
 }
 
 func newSecurity(url string) JWTIdentityKeysManager {
-	return JWTIdentityKeysManager{make(map[string]*rsa.PublicKey), url}
+	return JWTIdentityKeysManager{make(map[string]*rsa.PublicKey), url, &sync.Mutex{}}
 }
 
 func (s JWTIdentityKeysManager) canSign() bool {
@@ -91,7 +93,9 @@ func (s *JWTIdentityKeysManager) findPublicKey(kid string) (*rsa.PublicKey, erro
 		if err != nil {
 			return nil, err
 		}
+		s.lock.Lock()
 		s.publicKeysCache[kid] = key
+		s.lock.Unlock()
 	}
 	return key, nil
 }

@@ -44,6 +44,16 @@ func (s Server) tagRoutes(server *http.ServeMux) {
 	server.HandleFunc("/tag/add_people", s.buildHandler(s.securityServer.NeedAdmin, s.addPeopleTag))
 }
 
+func (s Server) remoteRoutes(server *http.ServeMux) {
+	server.HandleFunc("/remote/connect", s.buildHandler(s.securityServer.NeedAdmin, s.connectRemoteControl))
+	server.HandleFunc("/remote/send", s.buildHandler(s.securityServer.NeedAdmin, s.receiveRemoteControl))
+	server.HandleFunc("/remote/set-status", s.buildHandler(s.securityServer.NeedAdmin, s.statusRemote))
+	server.HandleFunc("/remote/status", s.buildHandler(s.securityServer.NeedAdmin, s.getStatusRemote))
+	server.HandleFunc("/remote/list", s.buildHandler(s.securityServer.NeedAdmin, s.listRemoteControl))
+	server.HandleFunc("/remote/challenge", s.buildHandler(s.securityServer.NeedNoAccess, s.challengeCode))
+	server.HandleFunc("/remote/answer-challenge", s.buildHandler(s.securityServer.NeedAdmin, s.answerChallenge))
+}
+
 func (s Server) dateRoutes(server *http.ServeMux) {
 	server.HandleFunc("/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllDates))
 	server.HandleFunc("/videos/allDates", s.buildHandler(s.securityServer.NeedUser, s.getAllVideosDates))

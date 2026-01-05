@@ -1,0 +1,262 @@
+<html>
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            background-color: red;
+        }
+
+        body.connected {
+            margin: 0;
+            background-color: black;
+        }
+
+        .di {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            text-align: center;
+        }
+
+        .di img {
+            height: 100%;
+        }
+
+        .left {
+            left: 0;
+            transition: left 1s;
+        }
+
+        .left2 {
+            left: 100vw;
+        }
+
+        .right {
+            left: 100vw;
+            transition: left 1s;
+        }
+
+        .right2 {
+            left: 0;
+        }
+
+        body {
+            overflow-x: hidden;
+        }
+
+        .footer {
+            position: absolute;
+            height: 5px;
+            z-index: 2;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .message {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            background-color: black;
+            text-align: center;
+            color: white;
+            font-size: 5vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+    <script>
+        function isFirst() {
+            return document.getElementsByClassName("left").item(0).classList.contains("left2");
+        }
+
+        function swap() {
+            if (isFirst()) {
+                document.getElementsByClassName("left").item(0).classList.remove('left2')
+                document.getElementsByClassName("right").item(0).classList.remove('right2')
+            } else {
+                document.getElementsByClassName("left").item(0).classList.add('left2')
+                document.getElementsByClassName("right").item(0).classList.add('right2')
+            }
+        }
+
+        function next() {
+            if (current + 1 < data.length) {
+                current++;
+                show();
+            }
+        }
+
+        function previous() {
+            if (current > 0) {
+                current--;
+                show();
+            }
+        }
+
+        function show() {
+            if (!isFirst()) {
+                document.getElementsByClassName("right").item(0).getElementsByTagName("img").item(0).src = data[current];
+            } else {
+                document.getElementsByClassName("left").item(0).getElementsByTagName("img").item(0).src = data[current];
+            }
+            pourcent()
+        }
+
+        function pourcent() {
+            const value = Math.ceil(((current + 1) / data.length) * 100);
+            document.getElementsByClassName("footer").item(0).style.backgroundImage = `linear-gradient(to right,lightcoral ${value}%,green ${value}%)`
+        }
+
+        let data = [];
+        let current = -1;
+        let currentFolder = '';
+
+        function load(url) {
+            //const url = 'http://localhost:9000/drobo-images/browserf/PHOTOS/TEST/UPLOAD';
+            fetch(url).then(d => d.json()).then(d => {
+                d.Files.sort((a, b) => a.Date.localeCompare(b.Date))
+                data = d.Files.map(i => `${baseUrl}${i.ImageLink}`);
+                current = 0;
+                show();
+            })
+        }
+
+        function connected() {
+            document.getElementsByTagName('body').item(0).classList.add('connected')
+        }
+
+        function loadFolder(data) {
+            currentFolder = data.data;
+            load(`${baseUrl}${data.data}`)
+        }
+
+        function selectImage(data) {
+            current = parseInt(data.data);
+            show();
+        }
+
+        // Return current folder, length and current
+        function getStatus() {
+            fetch(`${baseUrl}/remote/set-status?name=diapo&source=${currentFolder}&current=${current}&size=${data.length}`)
+        }
+
+        const baseUrl = location.href.substring(0, location.href.indexOf("/diapo"))
+
+        function initiateConnection() {
+            fetch(`${location.origin}/user`).then(d => {
+                switch (d.status) {
+                    case 200:
+                        connect();
+                        break;
+                    case 403:
+                        challengeConnect();
+                        break;
+                }
+            })
+        }
+
+        let tryChallenge = 3;
+
+        function extractName() {
+            const query = new URLSearchParams(document.location.search);
+            return query.get("name")
+        }
+
+        function challengeConnect(tryAgain = tryChallenge) {
+            const name = extractName();
+            // Extract name from url
+            if (tryAgain <= 0) {
+                // Show message error
+                return showErrorMessage("Impossible to connect")
+            }
+            // Generate random number and ask server for a validation.
+            // If abort, don't try. If error code, retry, if ok, connect
+            const code = Math.round(Math.random() * 1000000) % 900000 + 100000;
+            showMessage(code)
+            fetch(`${baseUrl}/remote/challenge?code=${code}&name=${name}`, {method: 'POST'}).then(d => {
+                switch (d.status) {
+                    case 200 :
+                        connect();
+                        break;
+                    case 401 :
+                        showErrorMessage("Admin refuse connection");
+                        break;
+                    case 404 :
+                        challengeConnect(tryAgain - 1);
+                        break;
+                    case 408 :
+                        challengeConnect(tryAgain - 1);
+                        break;
+                    case 409 :
+                        showErrorMessage("Name share already exists");
+                        break;
+                }
+            })
+        }
+
+        function showMessage(message) {
+            const div = document.getElementsByClassName('message').item(0);
+            div.classList.remove('hidden', 'error')
+            div.innerHTML = message;
+        }
+
+        function showErrorMessage(message) {
+            const div = document.getElementsByClassName('message').item(0);
+            div.classList.remove('hidden')
+            div.classList.add('error')
+            div.innerHTML = message;
+        }
+
+        function connect() {
+            document.getElementsByClassName('message').item(0).classList.add('hidden')
+            const source = new EventSource(`${baseUrl}/remote/connect?name=diapo`)
+            source.addEventListener('connected', connected)
+            source.addEventListener('previous', previous)
+            source.addEventListener('next', next)
+            source.addEventListener('folder', loadFolder)
+            source.addEventListener('show', selectImage)
+            source.addEventListener('status', getStatus)
+        }
+
+    </script>
+</head>
+
+<body>
+<div className="di img_a left"><img/></div>
+<div className="di img_b right"><img/></div>
+
+<div className="footer"></div>
+<div className="message hidden"></div>
+</body>
+
+<script>
+    const imgs = document.getElementsByTagName('img');
+    for (let i = 0; i < imgs.length; i++) {
+        imgs.item(i).addEventListener('load', () => swap())
+    }
+
+    document.addEventListener('keyup', event => {
+        switch (event.code) {
+            case 'ArrowRight':
+                next();
+                break;
+            case 'ArrowLeft':
+                previous();
+                break;
+        }
+    })
+    initiateConnection()
+</script>
+
+</html>

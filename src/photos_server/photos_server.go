@@ -8,6 +8,7 @@ import (
 	"github.com/jotitan/photos_server/logger"
 	"github.com/jotitan/photos_server/people_tag"
 	"github.com/jotitan/photos_server/progress"
+	"github.com/jotitan/photos_server/remote_control"
 	"github.com/jotitan/photos_server/security"
 	"github.com/jotitan/photos_server/video"
 	"io"
@@ -31,6 +32,7 @@ type Server struct {
 	securityAccess *security.SecurityAccess
 	securityServer security.SecurityServer
 	pathRoutes     map[string]func(w http.ResponseWriter, r *http.Request)
+	remoteManager  remote_control.RemoteManager
 }
 
 // Create security access from good provider
@@ -50,6 +52,7 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 		videoManager:          video.NewVideoManager(*conf),
 		resources:             conf.WebResources,
 		uploadProgressManager: uploadProgressManager,
+		remoteManager:         remote_control.NewRemoteManager(),
 	}
 	if err := s.videoManager.Load(); err != nil {
 		logger.GetLogger2().Error("Impossible to launch video manager", err)
@@ -326,6 +329,137 @@ func (s Server) getFoldersDetails(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Bad", http.StatusBadRequest)
 	}
+}
+
+func (s Server) challengeCode(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		s.getChallenges(w, r)
+	}
+	if r.Method == http.MethodPost {
+		s.createChallenge(w, r)
+	}
+}
+
+func (s Server) getChallenges(w http.ResponseWriter, _ *http.Request) {
+	list := s.remoteManager.ListChallenges()
+	data, _ := json.Marshal(list)
+	w.Write(data)
+}
+
+func (s Server) createChallenge(w http.ResponseWriter, r *http.Request) {
+	code := r.FormValue("code")
+	name := r.FormValue("name")
+	ch, err := s.remoteManager.CreateChallenge(code, name)
+	if err != nil {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+	// Wait response from challenge for 1 minute max
+	timer := time.NewTimer(time.Minute)
+	select {
+	case <-timer.C:
+		s.remoteManager.DeleteChallenge(name)
+		w.WriteHeader(http.StatusRequestTimeout)
+	case result := <-ch.Chan:
+		switch result.Status {
+		case remote_control.ChallengeOK:
+			http.SetCookie(w, &http.Cookie{
+				Name:     "token",
+				Value:    result.Token,
+				SameSite: http.SameSiteLaxMode,
+				HttpOnly: true,
+				Path:     "/",
+			})
+			w.WriteHeader(http.StatusOK)
+		case remote_control.ChallengeCancel:
+			w.WriteHeader(http.StatusUnauthorized)
+		case remote_control.ChallengeBadCode:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}
+}
+
+func (s Server) answerChallenge(w http.ResponseWriter, r *http.Request) {
+	code := r.FormValue("code")
+	name := r.FormValue("name")
+	abort := r.FormValue("abort") == "true"
+
+	if s.remoteManager.AnswerChallenge(abort, code, name, getCookieContent(r)) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func getCookieContent(r *http.Request) string {
+	c, err := r.Cookie("token")
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
+func (s Server) connectRemoteControl(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if _, exists := s.remoteManager.Get(name); exists {
+		http.Error(w, "remote already exists", http.StatusBadRequest)
+		return
+	}
+	c := remote_control.NewControler(name, w)
+	s.remoteManager.Set(name, c)
+	detectEnd := make(chan struct{}, 1)
+	go func() {
+		<-r.Context().Done()
+		logger.GetLogger2().Info("Remove controllable device", name)
+		detectEnd <- struct{}{}
+	}()
+	c.Connect(detectEnd)
+	// End connection, remove from map
+	logger.GetLogger2().Info("End of connection")
+	s.remoteManager.Delete(name)
+}
+
+func (s Server) listRemoteControl(w http.ResponseWriter, r *http.Request) {
+	data, _ := json.Marshal(s.remoteManager.List())
+	w.Write(data)
+}
+
+func (s Server) getStatusRemote(w http.ResponseWriter, r *http.Request) {
+	c, exists := s.getRemote(w, r)
+
+	if exists {
+		c.ReceiveCommand("status", "")
+		// Wait ?
+		time.Sleep(500 * time.Millisecond)
+		data, _ := json.Marshal(c.Status)
+		w.Write(data)
+	}
+}
+
+func (s Server) statusRemote(w http.ResponseWriter, r *http.Request) {
+	c, exists := s.getRemote(w, r)
+	if exists {
+		c.SetStatus(r.FormValue("source"), r.FormValue("current"), r.FormValue("size"))
+	}
+}
+
+func (s Server) receiveRemoteControl(w http.ResponseWriter, r *http.Request) {
+	/*if r.Method != http.MethodPost {
+		http.Error(w, "unknown", http.StatusMethodNotAllowed)
+		return
+	}*/
+	c, exists := s.getRemote(w, r)
+	if exists {
+		c.ReceiveCommand(r.FormValue("event"), r.FormValue("data"))
+	}
+}
+
+func (s Server) getRemote(w http.ResponseWriter, r *http.Request) (*remote_control.Controler, bool) {
+	name := r.FormValue("name")
+	c, exists := s.remoteManager.Get(name)
+	if !exists {
+		http.Error(w, "unknown", http.StatusBadRequest)
+		return nil, false
+	}
+	return c, true
 }
 
 // @Deprecated
@@ -1007,6 +1141,7 @@ func (s Server) Launch(conf *config.Config) {
 	s.tagRoutes(&server)
 	s.dateRoutes(&server)
 	s.securityRoutes(&server)
+	s.remoteRoutes(&server)
 
 	server.HandleFunc("/share", s.buildHandler(s.securityServer.NeedAdmin, s.manageShare))
 	server.HandleFunc("/", s.buildHandler(s.securityServer.NeedNoAccess, s.defaultHandle))
