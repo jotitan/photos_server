@@ -16,19 +16,19 @@
         }
 
         .remote-fullscreen {
-            z-index:2;
-            position:absolute;
-            width:100vw;
-            height:100vh;
-            top:0;
-            background-color:lightblue;
-            display:flex;
+            z-index: 2;
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            top: 0;
+            background-color: lightblue;
+            display: flex;
             justify-content: center;
             align-items: center;
             background-image: linear-gradient(to top, #BBE2FC 0%, #07609C 0%);
         }
 
-        .remote-fullscreen button{
+        .remote-fullscreen button {
             font-size: 10vh;
             margin: 10px;
             background-color: black;
@@ -88,7 +88,7 @@
         .remote-controler {
             display: none;
             text-align: center;
-            background-color:cornflowerblue;
+            background-color: cornflowerblue;
         }
 
         .remote-controler.visible {
@@ -105,6 +105,7 @@
         .remote-controler button:hover {
             background-color: white;
         }
+
         .status-remote {
             font-size: 10vw;
             color: black;
@@ -112,22 +113,24 @@
             padding-bottom: 20px;
             font-weight: 800;
         }
+
         .challenge {
-            z-index:1;
-            width:100vw;
-            height:100vh;
-            position:absolute;
-            top:0;
-            background-color:black;
-            text-align:center;
-            color:white;
-            font-size:3vw;
-            display:grid;
+            z-index: 1;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            background-color: black;
+            text-align: center;
+            color: white;
+            font-size: 3vw;
+            display: grid;
             justify-content: center;
             align-items: center;
         }
+
         .challenge p {
-            margin:20px;
+            margin: 20px;
         }
 
         .challenge input::-webkit-outer-spin-button,
@@ -168,7 +171,9 @@
 <div class="hidden challenge">
     <div style="height:50vh">
         <p>Name : <span class="name-remote"></span></p>
-        <p><button class="cancel-block">Cancel and block</button></p>
+        <p>
+            <button class="cancel-block">Cancel and block</button>
+        </p>
         <p><input class="input-code" id="input-code" size="6" maxlength="6" type="number"/></p>
     </div>
 </div>
@@ -185,15 +190,40 @@
         content.innerHTML = '';
         data.sort((a, b) => a.Name.localeCompare(b.Name))
         data.forEach(e => {
-            const div = document.createElement("div");
-            div.classList.add('folder')
-            const a = document.createElement("a")
-            a.href = "#";
-            a.append(`${e.Name}`)
-            a.addEventListener('click', () => e.HasImages && e.Children.length === 0 ? showImages(e.Link, data) : showSubFolders(e, data))
-            div.append(a);
-            content.append(div)
+            createFolder(e,data)
         })
+    }
+    const createFolder = (e, data) => {
+        const div = document.createElement("div");
+        div.classList.add('folder')
+        const a = document.createElement("a")
+        a.href = "#";
+        a.append(`${e.Name}`)
+        if (e.HasImages && e.Children.length === 0) {
+            // Case images but no sub folder
+            a.addEventListener('click', () => showImages(e.Link, data))
+        }
+        if (!e.HasImages) {
+            // Case only sub folders
+            a.addEventListener('click', () => showSubFolders(e, data))
+        }
+        if (e.HasImages && e.Children.length > 0) {
+            // Case images and also sub folder
+            a.addEventListener('click', () => {
+
+                const copy = structuredClone(e);
+                copy.Name = 'Images';
+                copy.Children = [];
+                const copyData = structuredClone(data);
+                if(!copyData.find(e=>e.Name === 'Images')) {
+                    copyData.push(copy)
+                }
+                showSubFolders(e, copyData)
+                createFolder(copy, data)
+            })
+        }
+        div.append(a);
+        content.append(div)
     }
     const showSubFolders = (element, data) => {
         stack.push({children: data})
@@ -216,10 +246,11 @@
         let originalCounter = 0;
         fetch(`${baseUrl}${url}`).then(d => d.json()).then(data => {
                 folderSize = data.length;
-                data.Files.sort((a, b) => a.Date.localeCompare(b.Date))
+                const files = data.Files.filter(a=>a.HasImages ==null);
+                files.sort((a, b) => a.Date.localeCompare(b.Date))
                 content.innerHTML = '';
                 screenSize = document.getElementsByTagName('body')[0].offsetWidth - 15;
-                data.Files.forEach(img => {
+                files.forEach(img => {
                     if (img.Height !== 0) {
                         const estimatedWidth = minHeight * (img.Width / img.Height);
                         if (currentWidth + estimatedWidth > screenSize) {
@@ -273,7 +304,7 @@
     }
     let currentPanel = "folder";
     const showImage = imgInfo => {
-        if(remoteControl.isExists()){
+        if (remoteControl.isExists()) {
             remoteControl.selectImage(imgInfo.originalPos);
             return;
         }
@@ -347,8 +378,8 @@
 
     class RemoteControler {
         constructor() {
-            document.querySelectorAll('.previous-photo').forEach(i=>i.addEventListener('click', () => this.previous()))
-            document.querySelectorAll('.next-photo').forEach(i=>i.addEventListener('click', () => this.next()))
+            document.querySelectorAll('.previous-photo').forEach(i => i.addEventListener('click', () => this.previous()))
+            document.querySelectorAll('.next-photo').forEach(i => i.addEventListener('click', () => this.next()))
             document.getElementsByClassName('load-folder').item(0).addEventListener('click', () => this.loadFolder())
             document.getElementsByClassName('close-fullscreen').item(0).addEventListener('click', () => this.hideFullscreen())
             document.getElementsByClassName('remote-big').item(0).addEventListener('click', () => this.fullscreen())
@@ -358,51 +389,58 @@
             this.size = 0;
             this.checkExisting();
         }
-        close(){
+
+        close() {
             this.name = "";
             document.getElementsByClassName('remote-controler').item(0).classList.remove('visible')
         }
-        fullscreen(){
+
+        fullscreen() {
             // Get status of full screen
-            fetch(`${baseUrl}/remote/status?name=${this.name}`).then(d => d.json()).then(data=>{
+            fetch(`${baseUrl}/remote/status?name=${this.name}`).then(d => d.json()).then(data => {
                 this.current = data.Current;
                 this.size = data.Size;
                 this.percent();
             })
             document.getElementsByClassName('remote-fullscreen').item(0).classList.remove('hidden');
         }
-        hideFullscreen(){
+
+        hideFullscreen() {
             document.getElementsByClassName('remote-fullscreen').item(0).classList.add('hidden');
         }
-        isExists(){
-            return this.name !=='';
+
+        isExists() {
+            return this.name !== '';
         }
-        hideChallenge(){
+
+        hideChallenge() {
             document.getElementsByClassName('challenge').item(0).classList.add('hidden');
             this.checkExisting()
         }
-        showChallenge(list){
+
+        showChallenge(list) {
             const div = document.getElementsByClassName('challenge').item(0);
             div.classList.remove('hidden');
-            if(list.length === 1){
+            if (list.length === 1) {
                 div.getElementsByClassName('name-remote').item(0).innerHTML = list[0]
-                div.getElementsByClassName('cancel-block').item(0).addEventListener('click',()=>{
-                    fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&abort=true`).then(()=>this.hideChallenge());
+                div.getElementsByClassName('cancel-block').item(0).addEventListener('click', () => {
+                    fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&abort=true`).then(() => this.hideChallenge());
                 })
-                div.getElementsByClassName('input-code').item(0).addEventListener('keyup',e=>{
+                div.getElementsByClassName('input-code').item(0).addEventListener('keyup', e => {
                     const value = div.getElementsByClassName('input-code').item(0).value;
-                    if(value.length === 6){
-                        fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&code=${value}`).then(()=>this.hideChallenge());
+                    if (value.length === 6) {
+                        fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&code=${value}`).then(() => this.hideChallenge());
                     }
                 })
 
             }
         }
+
         checkExisting() {
-            fetch(`${baseUrl}/remote/challenge`).then(d => d.json()).then(d=>{
-                if(d.length > 0){
+            fetch(`${baseUrl}/remote/challenge`).then(d => d.json()).then(d => {
+                if (d.length > 0) {
                     this.showChallenge(d)
-                }else{
+                } else {
                     fetch(`${baseUrl}/remote/list`).then(d => d.json()).then(items => {
                         if (items.length > 0) {
                             this.name = items[0];
@@ -418,11 +456,13 @@
             this.size = folderSize;
             fetch(`${baseUrl}/remote/send?name=${this.name}&event=folder&data=${currentUrl}`)
         }
+
         selectImage(pos) {
             this.current = pos;
             this.percent();
             fetch(`${baseUrl}/remote/send?name=${this.name}&event=show&data=${pos}`)
         }
+
         next() {
             this.current++;
             this.percent();
@@ -434,9 +474,10 @@
             this.percent();
             fetch(`${baseUrl}/remote/send?name=${this.name}&event=previous`)
         }
-        percent(){
-            const value = Math.ceil(((this.current+1) / this.size)*100);
-            document.getElementsByClassName('remote-fullscreen').item(0).style.backgroundImage = `linear-gradient(to top, #BBE2FC ${value}%, #07609C ${value+5}%)`;
+
+        percent() {
+            const value = Math.ceil(((this.current + 1) / this.size) * 100);
+            document.getElementsByClassName('remote-fullscreen').item(0).style.backgroundImage = `linear-gradient(to top, #BBE2FC ${value}%, #07609C ${value + 5}%)`;
             document.getElementsByClassName('current-photo').item(0).innerHTML = this.current;
             document.getElementsByClassName('size-photo').item(0).innerHTML = this.size;
 
