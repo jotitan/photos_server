@@ -1,7 +1,6 @@
 package photos_server
 
 import (
-	"crypto/tls"
 	"fmt"
 	"github.com/jotitan/photos_server/common"
 	"github.com/jotitan/photos_server/config"
@@ -10,7 +9,6 @@ import (
 	"log"
 	"math/rand"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -306,28 +304,6 @@ func TestTimer(t *testing.T) {
 	time.Sleep(time.Second * 4)
 	log.Println("End sleep")
 
-}
-
-func TesReq(t *testing.T) {
-	// Force mode insecure
-	req, _ := http.NewRequest("GET", "https://chainesetcardans.hopto.org/image/PHOTOS/COURANT/2022/20221001_TRI_BAYMAN/IMG_9824_DxO-250.jpg", nil)
-	req.Header.Add("referer", "https://chainesetcardans.hopto.org/drobo-images")
-	//req.Header.Set("referer", "https://chainesetcardans.hopto.org/drobo-images")
-	req.AddCookie(&http.Cookie{
-		Name:  "token",
-		Value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRpdGFuYmFyQGdtYWlsLmNvbSIsImlzX2FkbWluIjp0cnVlfQ.kmQSbQEw0Fg2VXo8ojVuq8a1rW_zkfeNsRFZhEHjIvY",
-	})
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := http.Client{Transport: tr}
-	r, err := client.Do(req)
-	if err == nil && r.StatusCode == 200 {
-		data, _ := io.ReadAll(r.Body)
-		fmt.Println(len(data))
-	}
-	data, _ := io.ReadAll(r.Body)
-	fmt.Println(err, r.StatusCode, string(data))
 }
 
 func Test(t *testing.T) {

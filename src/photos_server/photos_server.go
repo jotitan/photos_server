@@ -403,7 +403,16 @@ func (s Server) connectRemoteControl(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "remote already exists", http.StatusBadRequest)
 		return
 	}
-	c := remote_control.NewControler(name, w)
+	if r.FormValue("browser") == "true" {
+		s.connectSSERemoteControl(w, r)
+	} else {
+		s.connectRestRemoteControl(w, r)
+	}
+}
+
+func (s Server) connectSSERemoteControl(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	c := remote_control.NewSSERemoteControler(name, w)
 	s.remoteManager.Set(name, c)
 	detectEnd := make(chan struct{}, 1)
 	go func() {
@@ -415,6 +424,28 @@ func (s Server) connectRemoteControl(w http.ResponseWriter, r *http.Request) {
 	// End connection, remove from map
 	logger.GetLogger2().Info("End of connection")
 	s.remoteManager.Delete(name)
+}
+
+func (s Server) connectRestRemoteControl(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	c := remote_control.NewRestRemoteControler(name, r.FormValue("url"))
+	s.remoteManager.Set(name, c)
+	detectEnd := make(chan struct{}, 1)
+	c.Connect(detectEnd)
+	go func() {
+		<-detectEnd
+		s.remoteManager.Delete(name)
+	}()
+}
+
+// remoteHeartbeat is called when remote rest client send heartbeat notification
+func (s Server) remoteHeartbeat(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if c, exists := s.remoteManager.Get(name); exists {
+		c.Heartbeat()
+	} else {
+		http.Error(w, "impossible to find "+name, http.StatusNotFound)
+	}
 }
 
 func (s Server) listRemoteControl(w http.ResponseWriter, r *http.Request) {
@@ -429,7 +460,7 @@ func (s Server) getStatusRemote(w http.ResponseWriter, r *http.Request) {
 		c.ReceiveCommand("status", "")
 		// Wait ?
 		time.Sleep(500 * time.Millisecond)
-		data, _ := json.Marshal(c.Status)
+		data, _ := json.Marshal(c.GetStatus())
 		w.Write(data)
 	}
 }
@@ -452,7 +483,7 @@ func (s Server) receiveRemoteControl(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) getRemote(w http.ResponseWriter, r *http.Request) (*remote_control.Controler, bool) {
+func (s Server) getRemote(w http.ResponseWriter, r *http.Request) (remote_control.RemoteControler, bool) {
 	name := r.FormValue("name")
 	c, exists := s.remoteManager.Get(name)
 	if !exists {

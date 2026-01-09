@@ -1,10 +1,14 @@
 package remote_control
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Command string
@@ -21,11 +25,71 @@ type Instruction struct {
 	data    string
 }
 
-type Controler struct {
+type RemoteControler interface {
+	Connect(detectEnd chan struct{})
+	ReceiveCommand(command, data string) (*http.Response, error)
+	SetStatus(source, current, size string)
+	GetStatus() status
+	Heartbeat()
+}
+
+type RestRemoteControler struct {
+	name            string
+	url             string
+	heartbeatChanel chan struct{}
+}
+
+func (rest RestRemoteControler) SetStatus(source, current, size string) {
+	// Never called
+}
+
+func (rest RestRemoteControler) ReceiveCommand(command, data string) (*http.Response, error) {
+	params := ""
+	switch command {
+	case "folder":
+		params = "&url=" + data
+	case "show":
+		params = "&pos=" + data
+	}
+	return http.Get(fmt.Sprintf("%s/event?event=%s%s", rest.url, command, params))
+}
+
+func (rest RestRemoteControler) GetStatus() status {
+	// Ask on api GUI, and return results
+	s := status{}
+	resp, err := rest.ReceiveCommand("status", "")
+	if err == nil {
+		data, _ := io.ReadAll(resp.Body)
+		json.Unmarshal(data, &s)
+	}
+	return s
+}
+
+func (rest RestRemoteControler) Heartbeat() {
+	rest.heartbeatChanel <- struct{}{}
+}
+
+func (rest RestRemoteControler) Connect(detectEnd chan struct{}) {
+	go rest.runHeartbeat(detectEnd)
+}
+
+func (rest RestRemoteControler) runHeartbeat(detectEnd chan struct{}) {
+	for {
+		select {
+		case <-time.NewTimer(2 * time.Minute).C:
+			log.Println("Heartbeat not active for 2 minutes, remove", rest.name)
+			detectEnd <- struct{}{}
+		case <-rest.heartbeatChanel:
+			log.Println("Receive heartbeat")
+		}
+	}
+}
+
+type SSERemoteControler struct {
 	name         string
 	remoteStream http.ResponseWriter
 	instructions chan Instruction
-	Status       status
+	status       status
 }
 
 type status struct {
@@ -46,8 +110,17 @@ func newStatus(source, current, size string) (status, error) {
 	return status{source, currentAsInt, sizeAsInt}, nil
 }
 
-func NewControler(name string, w http.ResponseWriter) *Controler {
-	c := Controler{
+func NewRestRemoteControler(name, url string) *RestRemoteControler {
+	c := RestRemoteControler{
+		name:            name,
+		url:             url,
+		heartbeatChanel: make(chan struct{}, 1),
+	}
+	return &c
+}
+
+func NewSSERemoteControler(name string, w http.ResponseWriter) *SSERemoteControler {
+	c := SSERemoteControler{
 		name:         name,
 		remoteStream: w,
 		instructions: make(chan Instruction, 10),
@@ -55,7 +128,13 @@ func NewControler(name string, w http.ResponseWriter) *Controler {
 	return &c
 }
 
-func (c Controler) Connect(detectEnd chan struct{}) {
+func (c SSERemoteControler) GetStatus() status {
+	return c.status
+}
+
+func (c SSERemoteControler) Heartbeat() {}
+
+func (c SSERemoteControler) Connect(detectEnd chan struct{}) {
 	c.remoteStream.Header().Set("Content-Type", "text/event-stream")
 	c.remoteStream.Header().Set("Cache-Control", "no-cache")
 	c.remoteStream.Header().Set("Connection", "keep-alive")
@@ -78,7 +157,7 @@ func (c Controler) Connect(detectEnd chan struct{}) {
 	}
 }
 
-func (c *Controler) ReceiveCommand(command, data string) {
+func (c *SSERemoteControler) ReceiveCommand(command, data string) (*http.Response, error) {
 	switch command {
 	case "previous":
 		c.instructions <- Instruction{Previous, ""}
@@ -91,43 +170,44 @@ func (c *Controler) ReceiveCommand(command, data string) {
 	case "status":
 		c.instructions <- Instruction{Status, ""}
 	}
+	return nil, nil
 }
 
-func (c *Controler) sendCommand(command Command) {
+func (c *SSERemoteControler) sendCommand(command Command) {
 	c.sendMessage(Instruction{command, ""})
 }
 
-func (c *Controler) sendMessage(ins Instruction) {
+func (c *SSERemoteControler) sendMessage(ins Instruction) {
 	c.remoteStream.Write([]byte(fmt.Sprintf("event: %s\n", ins.command)))
 	c.remoteStream.Write([]byte(fmt.Sprintf("data: %s\n\n", ins.data)))
 	c.remoteStream.(http.Flusher).Flush()
 }
 
-func (c *Controler) SetStatus(source, current, size string) {
+func (c *SSERemoteControler) SetStatus(source, current, size string) {
 	status, e := newStatus(source, current, size)
 	if e == nil {
-		c.Status = status
+		c.status = status
 	}
 }
 
 type RemoteManager struct {
-	remotes    map[string]*Controler
+	remotes    map[string]RemoteControler
 	challenges map[string]*Challenge
 }
 
 func NewRemoteManager() RemoteManager {
 	return RemoteManager{
-		remotes:    make(map[string]*Controler),
+		remotes:    make(map[string]RemoteControler),
 		challenges: make(map[string]*Challenge),
 	}
 }
 
-func (rm RemoteManager) Get(name string) (*Controler, bool) {
+func (rm RemoteManager) Get(name string) (RemoteControler, bool) {
 	c, exists := rm.remotes[name]
 	return c, exists
 }
 
-func (rm RemoteManager) Set(name string, c *Controler) {
+func (rm RemoteManager) Set(name string, c RemoteControler) {
 	rm.remotes[name] = c
 }
 

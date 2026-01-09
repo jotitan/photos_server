@@ -50,6 +50,7 @@ func (s Server) remoteRoutes(server *http.ServeMux) {
 	server.HandleFunc("/remote/set-status", s.buildHandler(s.securityServer.NeedAdmin, s.statusRemote))
 	server.HandleFunc("/remote/status", s.buildHandler(s.securityServer.NeedAdmin, s.getStatusRemote))
 	server.HandleFunc("/remote/list", s.buildHandler(s.securityServer.NeedAdmin, s.listRemoteControl))
+	server.HandleFunc("/remote/heartbeat", s.buildHandler(s.securityServer.NeedAdmin, s.remoteHeartbeat))
 	server.HandleFunc("/remote/challenge", s.buildHandler(s.securityServer.NeedNoAccess, s.challengeCode))
 	server.HandleFunc("/remote/answer-challenge", s.buildHandler(s.securityServer.NeedAdmin, s.answerChallenge))
 }

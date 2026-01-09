@@ -123,10 +123,10 @@
         let currentFolder = '';
 
         function load(url) {
-            //const url = 'http://localhost:9000/drobo-images/browserf/PHOTOS/TEST/UPLOAD';
             fetch(url).then(d => d.json()).then(d => {
-                d.Files.sort((a, b) => a.Date.localeCompare(b.Date))
-                data = d.Files.map(i => `${baseUrl}${i.ImageLink}`);
+                let files = d.Files.filter(d => d.ThumbnailLink != null);
+                files.sort((a, b) => a.Date.localeCompare(b.Date))
+                data = files.map(i => `${baseUrl}${i.ImageLink}`);
                 current = 0;
                 show();
             })
@@ -220,7 +220,7 @@
 
         function connect() {
             document.getElementsByClassName('message').item(0).classList.add('hidden')
-            const source = new EventSource(`${baseUrl}/remote/connect?name=diapo`)
+            const source = new EventSource(`${baseUrl}/remote/connect?name=diapo&browser=true`)
             source.addEventListener('connected', connected)
             source.addEventListener('previous', previous)
             source.addEventListener('next', next)
