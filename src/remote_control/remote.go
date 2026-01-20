@@ -26,7 +26,7 @@ type Instruction struct {
 }
 
 type RemoteControler interface {
-	Connect(detectEnd chan struct{})
+	Connect(detectEnd chan struct{}, token string)
 	ReceiveCommand(command, data string) (*http.Response, error)
 	SetStatus(source, current, size string)
 	GetStatus() status
@@ -37,6 +37,8 @@ type RestRemoteControler struct {
 	name            string
 	url             string
 	heartbeatChanel chan struct{}
+	// Token of remote control to launch request
+	token string
 }
 
 func (rest RestRemoteControler) SetStatus(source, current, size string) {
@@ -51,7 +53,9 @@ func (rest RestRemoteControler) ReceiveCommand(command, data string) (*http.Resp
 	case "show":
 		params = "&pos=" + data
 	}
-	return http.Get(fmt.Sprintf("%s/event?event=%s%s", rest.url, command, params))
+	r, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/event?event=%s%s", rest.url, command, params), nil)
+	r.AddCookie(&http.Cookie{Name: "token", Value: rest.token})
+	return http.DefaultClient.Do(r)
 }
 
 func (rest RestRemoteControler) GetStatus() status {
@@ -69,7 +73,8 @@ func (rest RestRemoteControler) Heartbeat() {
 	rest.heartbeatChanel <- struct{}{}
 }
 
-func (rest RestRemoteControler) Connect(detectEnd chan struct{}) {
+func (rest *RestRemoteControler) Connect(detectEnd chan struct{}, token string) {
+	rest.token = token
 	go rest.runHeartbeat(detectEnd)
 }
 
@@ -134,7 +139,7 @@ func (c SSERemoteControler) GetStatus() status {
 
 func (c SSERemoteControler) Heartbeat() {}
 
-func (c SSERemoteControler) Connect(detectEnd chan struct{}) {
+func (c SSERemoteControler) Connect(detectEnd chan struct{}, _ string) {
 	c.remoteStream.Header().Set("Content-Type", "text/event-stream")
 	c.remoteStream.Header().Set("Cache-Control", "no-cache")
 	c.remoteStream.Header().Set("Connection", "keep-alive")

@@ -420,7 +420,7 @@ func (s Server) connectSSERemoteControl(w http.ResponseWriter, r *http.Request) 
 		logger.GetLogger2().Info("Remove controllable device", name)
 		detectEnd <- struct{}{}
 	}()
-	c.Connect(detectEnd)
+	c.Connect(detectEnd, "")
 	// End connection, remove from map
 	logger.GetLogger2().Info("End of connection")
 	s.remoteManager.Delete(name)
@@ -431,7 +431,7 @@ func (s Server) connectRestRemoteControl(w http.ResponseWriter, r *http.Request)
 	c := remote_control.NewRestRemoteControler(name, r.FormValue("url"))
 	s.remoteManager.Set(name, c)
 	detectEnd := make(chan struct{}, 1)
-	c.Connect(detectEnd)
+	c.Connect(detectEnd, getCookieContent(r))
 	go func() {
 		<-detectEnd
 		s.remoteManager.Delete(name)

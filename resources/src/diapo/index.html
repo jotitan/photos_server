@@ -131,16 +131,13 @@
                 show();
             })
         }
-
         function connected() {
             document.getElementsByTagName('body').item(0).classList.add('connected')
         }
-
         function loadFolder(data) {
             currentFolder = data.data;
             load(`${baseUrl}${data.data}`)
         }
-
         function selectImage(data) {
             current = parseInt(data.data);
             show();
