@@ -57,8 +57,8 @@ const adaptImages = photos => {
                     position: 'absolute',
                     backgroundColor: 'white'
                 }}>{d}</div>,
-                thumbnailWidth: img.Width,
-                thumbnailHeight: img.Height
+                thumbnailWidth: img.Width || 0,
+                thumbnailHeight: img.Height || 0
             }
         });
 };
@@ -292,7 +292,7 @@ class tagMode extends mode {
     getFilterContent(context) {
         return <>
             {context.peoples != null ? context.peoples.map(p =>
-                <p
+                <p key={"filter-people"}
                     onClick={() => this.filterPeople(p, context)}
                     className={`people${context.currentTag === p.id ? " selected" : ""}`}>
                     {p.name}
@@ -503,7 +503,7 @@ export default function MyGallery({
         return selected > 0 && selectMode.showFullMenu() && !filterEnable ? <>
             <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ces photos"}
                         onConfirm={deleteSelection} okText="Oui" cancelText="Non">
-                <Tooltip key={"image-info"} placement="top" title={"Supprimer la sélection"}
+                <Tooltip key={"delete-image-info"} placement="top" title={"Supprimer la sélection"}
                          overlayStyle={{zIndex: 20000}}>
                     <DeleteFilled className={"button"}/>
                 </Tooltip>
@@ -535,33 +535,33 @@ export default function MyGallery({
                     {isFolderEmpty() && !filterEnable ?
                         <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
                                     onConfirm={removeFolder} okText="Oui" cancelText="Non">
-                            <Tooltip key={"image-info"} placement="top" title={"Supprimer le répertoire"}>
+                            <Tooltip key={"delete-folder"} placement="top" title={"Supprimer le répertoire"}>
                                 <DeleteTwoTone style={{cursor: 'pointer', padding: '4px', backgroundColor: '#ff8181'}}
                                                twoToneColor={"#b32727"}/>
                             </Tooltip>
                         </Popconfirm> : <></>}
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
                                 onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
-                        <Tooltip key={"image-info"} placement="top" title={"Mettre à jour les Exifs"}>
+                        <Tooltip key={"update-exif"} placement="top" title={"Mettre à jour les Exifs"}>
                             <ChromeOutlined style={{marginLeft: 10}} spin={updateExifRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
                                 onConfirm={updateFolder} okText="Oui" cancelText="Non">
-                        <Tooltip key={"image-info"} placement="top" title={"Mettre à jour le répertoire"}>
+                        <Tooltip key={"update-folder2"} placement="top" title={"Mettre à jour le répertoire"}>
                             <ReloadOutlined style={{marginLeft: 10}} spin={updateRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
-                    <Tooltip key={"image-info"} placement="top" title={"Ajouter des photos"}>
+                    <Tooltip key={"add-image-info"} placement="top" title={"Ajouter des photos"}>
                         <PlusCircleOutlined className={"button"} style={{marginLeft: 10}} onClick={addPhotosToFolder}/>
                     </Tooltip>
-                    <Tooltip key={"image-info"} placement="top" title={"Tagger des photos"}>
+                    <Tooltip key={"tag-images"} placement="top" title={"Tagger des photos"}>
                         <UserAddOutlined className={"button"} style={{marginLeft: 10}} onClick={() => {
                             loadTagsOfFolder(contextSelect.id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
                             setSelectMode(tMode)
                         }}/>
                     </Tooltip>
-                    <Tooltip key={"image-info"} placement="top" title={"Filter"}>
+                    <Tooltip key={"filter-image"} placement="top" title={"Filter"}>
                         <FilterOutlined className={"button"}
                                         style={{marginLeft: 10, backgroundColor: filterEnable ? 'green' : ''}}
                                         onClick={() => {
@@ -624,14 +624,14 @@ export default function MyGallery({
             <div style={{paddingTop: 5 + 'px'}} key={"detail-lightbox"}>
                 {images != null && currentImage !== -1 && images[currentImage].isSelected ?
                     <DeleteTwoTone twoToneColor={"red"} style={{color: 'red', fontSize: 22 + 'px'}}/> : ''}
-                <Tooltip key={"image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex: 20000}}>
+                <Tooltip key={"download-image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex: 20000}}>
                     <a target={"_blank"} rel="noopener noreferrer"
                        download={images != null && currentImage !== -1 ? images[currentImage].Name : ''}
                        href={images != null && currentImage !== -1 ? images[currentImage].hdLink : ''}>
                         <FileImageOutlined style={{color: 'white', fontSize: 22 + 'px'}}/>
                     </a>
                 </Tooltip>
-                <Tooltip key={"image-info"} placement="top" title={"Zoom"} overlayStyle={{zIndex: 20000}}>
+                <Tooltip key={"zoom-image-info"} placement="top" title={"Zoom"} overlayStyle={{zIndex: 20000}}>
                     <PlusCircleOutlined style={{color: 'white', fontSize: 22 + 'px', marginLeft: 5}}
                                         onClick={() => setZoomEnable(true)}/>
                 </Tooltip>
@@ -645,7 +645,7 @@ export default function MyGallery({
     };
 
     const showGallery = () => {
-        return (
+        return <>
             <Gallery ref={setComp}
                      images={images}
                      showImageCount={false}
@@ -660,7 +660,7 @@ export default function MyGallery({
                      customControls={getCustomActions()}
                      showLightboxThumbnails={showThumbnails}
                      backdropClosesModal={true} lightboxWidth={2000}/>
-        );
+        </>
     };
 
     const isFolderEmpty = () => {
@@ -729,7 +729,7 @@ export default function MyGallery({
                 <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-                <Col flex={"200px"}>
+                <Col key="update-link" flex={"200px"}>
                     {showUpdateLink()}
                 </Col>
                 <Col flex={"auto"}>{showTagsBloc()}</Col>
@@ -750,7 +750,7 @@ export default function MyGallery({
             {canAdmin && editDetails ?
                 <EditTitle folder={urlFolder.path} initialValues={details} close={() => setEditDetails(false)}/> : ''}
             <Row className={"gallery"}>
-                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
+                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`} ref={component}
                      style={{marginTop: `${showTimeline ? '30' : '36'}px`}}>
                     {images.length === 0 ? showEmptyMessage() : showGallery()}
                 </Col>

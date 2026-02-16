@@ -293,6 +293,7 @@ func (fm *FoldersManager) UpdateFolder(path string, progresser *progress.UploadP
 	} else {
 		rootFolder := fm.Sources.getSourceFolder(node.RelativePath)
 		files := fm.Analyse(rootFolder, node.GetAbsolutePath(fm.Sources))
+		log.Println(files, path, filepath.Base(path))
 		// Take the specific folder
 		files = files[filepath.Base(path)].Files
 		fm.compareAndCleanFolder(files, path, make(map[string]*Node), progresser)

@@ -24,24 +24,26 @@ import (
 )
 
 type RemoteConfig struct {
-	token     string
-	serverUrl string
-	localUrl  string
-	port      string
-	name      string
-	height    float64
-	width     float64
+	token        string
+	serverUrl    string
+	localUrl     string
+	port         string
+	name         string
+	height       float64
+	width        float64
+	isFullscreen bool
 }
 
 func CreateConfig(args []string) RemoteConfig {
 	return RemoteConfig{
-		token:     args[1],
-		serverUrl: args[2],
-		localUrl:  args[3],
-		port:      args[4],
-		name:      args[5],
-		height:    float64(getInt(args[6])),
-		width:     float64(getInt(args[7])),
+		token:        args[1],
+		serverUrl:    args[2],
+		localUrl:     args[3],
+		port:         args[4],
+		name:         args[5],
+		height:       float64(getInt(args[6])),
+		width:        float64(getInt(args[7])),
+		isFullscreen: args[8] == "true",
 	}
 }
 
@@ -53,24 +55,26 @@ func getInt(value string) int {
 }
 
 type GioPhotosApp struct {
-	token    string
-	baseUrl  string
-	localUrl string
-	port     string
-	name     string
-	height   float64
-	width    float64
+	token        string
+	baseUrl      string
+	localUrl     string
+	port         string
+	name         string
+	height       float64
+	width        float64
+	isFullscreen bool
 }
 
 func Run(conf RemoteConfig) {
 	photoApp := GioPhotosApp{
-		token:    conf.token,
-		baseUrl:  conf.serverUrl,
-		localUrl: conf.localUrl,
-		port:     conf.port,
-		name:     conf.name,
-		height:   conf.height,
-		width:    conf.width,
+		token:        conf.token,
+		baseUrl:      conf.serverUrl,
+		localUrl:     conf.localUrl,
+		port:         conf.port,
+		name:         conf.name,
+		height:       conf.height,
+		width:        conf.width,
+		isFullscreen: conf.isFullscreen,
 	}
 	go func() {
 		window := new(app.Window)
@@ -136,7 +140,9 @@ func (g GioPhotosApp) run(window *app.Window) error {
 		log.Fatal(err)
 	}
 	window.Option(app.Title("Photos viewer"))
-	window.Option(app.Fullscreen.Option())
+	if g.isFullscreen {
+		window.Option(app.Fullscreen.Option())
+	}
 	var ops op.Ops
 	for {
 		switch e := window.Event().(type) {
