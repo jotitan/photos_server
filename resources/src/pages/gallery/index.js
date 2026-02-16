@@ -750,7 +750,7 @@ export default function MyGallery({
             {canAdmin && editDetails ?
                 <EditTitle folder={urlFolder.path} initialValues={details} close={() => setEditDetails(false)}/> : ''}
             <Row className={"gallery"}>
-                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`} ref={component}
+                <Col flex={`${selectMode.showFullMenu() && !filterEnable ? '100%' : '85%'}`}
                      style={{marginTop: `${showTimeline ? '30' : '36'}px`}}>
                     {images.length === 0 ? showEmptyMessage() : showGallery()}
                 </Col>
