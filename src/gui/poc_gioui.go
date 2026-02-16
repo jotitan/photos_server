@@ -2,25 +2,18 @@ package gui
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"gioui.org/f32"
+	/*"gioui.org/f32"
 	"gioui.org/io/key"
 	"gioui.org/layout"
-	"gioui.org/op/paint"
+	"gioui.org/op/paint"*/
 	"image"
-	"image/color"
-	"image/jpeg"
+
 	"io"
 	"log"
-	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
-
-	"gioui.org/app"
-	"gioui.org/op"
 )
 
 type RemoteConfig struct {
@@ -66,7 +59,7 @@ type GioPhotosApp struct {
 }
 
 func Run(conf RemoteConfig) {
-	photoApp := GioPhotosApp{
+	/*photoApp := GioPhotosApp{
 		token:        conf.token,
 		baseUrl:      conf.serverUrl,
 		localUrl:     conf.localUrl,
@@ -84,7 +77,7 @@ func Run(conf RemoteConfig) {
 		}
 		os.Exit(0)
 	}()
-	app.Main()
+	app.Main()*/
 }
 
 func (g GioPhotosApp) connectAndRunHeartbeat() error {
@@ -134,7 +127,7 @@ func (g GioPhotosApp) getStatus(w http.ResponseWriter) {
 	w.Write([]byte(data))
 }
 
-func (g GioPhotosApp) run(window *app.Window) error {
+/*func (g GioPhotosApp) run(window *app.Window) error {
 	go g.createServer()
 	if err := g.connectAndRunHeartbeat(); err != nil {
 		log.Fatal(err)
@@ -157,12 +150,12 @@ func (g GioPhotosApp) run(window *app.Window) error {
 			case Next:
 				g.next()
 			}
-			paint.Fill(&ops, color.NRGBA{R: 0, G: 0, B: 0, A: 0xff})
+			//paint.Fill(&ops, color.NRGBA{R: 0, G: 0, B: 0, A: 0xff})
 			g.showImage(&ops)
 			e.Frame(gtx.Ops)
 		}
 	}
-}
+}*/
 
 func (g GioPhotosApp) selectImage(pos int) {
 	if pos < 0 || len(images) == 0 || pos >= len(images)-1 {
@@ -186,7 +179,7 @@ func (g GioPhotosApp) loadImage() {
 	log.Println("Log image", pathImage)
 }
 
-func (g GioPhotosApp) showImage(ops *op.Ops) {
+/*func (g GioPhotosApp) showImage(ops *op.Ops) {
 	img, size, err := g.getImage()
 	if err != nil {
 		return
@@ -197,7 +190,7 @@ func (g GioPhotosApp) showImage(ops *op.Ops) {
 	img.Add(ops)
 	op.Affine(f32.Affine2D{}.Scale(f32.Pt(0, 0), f32.Pt(r, r))).Add(ops)
 	paint.PaintOp{}.Add(ops)
-}
+}*/
 
 type Action string
 
@@ -207,7 +200,7 @@ const (
 	None     Action = "none"
 )
 
-func checkEvent(gtx layout.Context) Action {
+/*func checkEvent(gtx layout.Context) Action {
 	ev, b := gtx.Event(key.Filter{})
 	if !b {
 		return None
@@ -224,9 +217,9 @@ func checkEvent(gtx layout.Context) Action {
 		}
 	}
 	return None
-}
+}*/
 
-var imgOp *paint.ImageOp
+//var imgOp *paint.ImageOp
 
 var pathImage = ""
 var reload = false
@@ -235,7 +228,7 @@ var currentFolder = ""
 var images []string
 var size image.Point
 
-func (g GioPhotosApp) getImage() (paint.ImageOp, image.Point, error) {
+/*func (g GioPhotosApp) getImage() (paint.ImageOp, image.Point, error) {
 	if pathImage != "" && (imgOp == nil || reload) {
 		reload = false
 		resp, err := g.doRequest(g.baseUrl + pathImage)
@@ -255,7 +248,7 @@ func (g GioPhotosApp) getImage() (paint.ImageOp, image.Point, error) {
 		return paint.ImageOp{}, image.Point{}, errors.New("no")
 	}
 	return *imgOp, size, nil
-}
+}*/
 
 func (g GioPhotosApp) loadImages(url string) {
 	log.Println("Load folder", url)
