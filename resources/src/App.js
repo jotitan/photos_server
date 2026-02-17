@@ -24,7 +24,6 @@ function checkReadAccess(){
         url: `${getBaseUrl()}/security/canAccess`,
     })
 }
-
 function checkAdminAccess(setCanAdmin){
     return axios({
         method: 'GET',
@@ -143,7 +142,7 @@ function App() {
         hideAll ? <></>:
             canAccess?
                 <Layout hasSider={true}>
-                    <Sider collapsible collapsed={collapsed} onCollapse={toggleCollapsed} width={300}>
+                    <Sider width={300} style={{display:collapsed ? 'none':''}}>
                         <Content style={{height:100+'%'}}>
                             <Menu theme={"dark"}>
                                 <Menu.Item className={"logo"}>
@@ -160,8 +159,8 @@ function App() {
                             </Menu>
                             {!collapsed && !isGuest ?
                                 <>
-                                    <div style={{color:'white',padding:10+'px'}}>
-                                        <span style={{paddingRight:10+'px'}}>
+                                    <div style={{color:'white',padding:10}}>
+                                        <span style={{paddingRight:10}}>
                                             <VideoCameraOutlined /> Vidéos
                                         </span>
                                         <Switch onChange={isVideo=>setVideoMode(!isVideo)} checked={!videoMode} className={"switch-selection"}/>
@@ -185,7 +184,7 @@ function App() {
                     <Layout>
                         {
                             videoMode ?
-                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate}/>:
+                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate} setCollapsed={toggleCollapsed}/>:
                                 <MyGallery urlFolder={urlFolder} refresh={collapsed}
                                            titleGallery={titleGallery}
                                            canAdmin={canAdmin}
@@ -193,7 +192,8 @@ function App() {
                                            update={update}
                                            setUpdate={setUpdate}
                                            setUrlFolder={setUrlFolder}
-                                           setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}/>
+                                           setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}
+                                setCollapsed={toggleCollapsed}/>
                         }
 
 

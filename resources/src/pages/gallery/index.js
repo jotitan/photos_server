@@ -20,7 +20,8 @@ import {
     ReloadOutlined,
     SaveOutlined,
     ShareAltOutlined,
-    UserAddOutlined
+    UserAddOutlined,
+    FullscreenOutlined
 } from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
@@ -293,8 +294,8 @@ class tagMode extends mode {
         return <>
             {context.peoples != null ? context.peoples.map(p =>
                 <p key={"filter-people"}
-                    onClick={() => this.filterPeople(p, context)}
-                    className={`people${context.currentTag === p.id ? " selected" : ""}`}>
+                   onClick={() => this.filterPeople(p, context)}
+                   className={`people${context.currentTag === p.id ? " selected" : ""}`}>
                     {p.name}
                 </p>) : ''}
         </>
@@ -325,7 +326,8 @@ export default function MyGallery({
                                       setIsAddFolderPanelVisible,
                                       setCurrentFolder,
                                       update,
-                                      setUpdate
+                                      setUpdate,
+                                      setCollapsed
                                   }) {
     const [images, setImages] = useState([]);
     const [originalImages, setOriginalImages] = useState([]);
@@ -529,8 +531,11 @@ export default function MyGallery({
         return !canAdmin || details.UpdateUrl === '' || details.UpdateUrl == null ? <></> :
             selectMode.showFullMenu() ?
                 <>
+                    <Tooltip key={"image-fullscreen"} placement="top" title={"Fullscreen"}>
+                        <FullscreenOutlined onClick={setCollapsed} className={"button"}/>
+                    </Tooltip>
                     <Tooltip key={"image-share"} placement="top" title={"Partager le répertoire"}>
-                        <ShareAltOutlined onClick={() => setShowSharePanel(true)} className={"button"}/>
+                        <ShareAltOutlined style={{marginLeft:10}} onClick={() => setShowSharePanel(true)} className={"button"}/>
                     </Tooltip>
                     {isFolderEmpty() && !filterEnable ?
                         <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
@@ -624,7 +629,8 @@ export default function MyGallery({
             <div style={{paddingTop: 5 + 'px'}} key={"detail-lightbox"}>
                 {images != null && currentImage !== -1 && images[currentImage].isSelected ?
                     <DeleteTwoTone twoToneColor={"red"} style={{color: 'red', fontSize: 22 + 'px'}}/> : ''}
-                <Tooltip key={"download-image-info"} placement="top" title={"Télécharger en HD"} overlayStyle={{zIndex: 20000}}>
+                <Tooltip key={"download-image-info"} placement="top" title={"Télécharger en HD"}
+                         overlayStyle={{zIndex: 20000}}>
                     <a target={"_blank"} rel="noopener noreferrer"
                        download={images != null && currentImage !== -1 ? images[currentImage].Name : ''}
                        href={images != null && currentImage !== -1 ? images[currentImage].hdLink : ''}>
@@ -729,7 +735,7 @@ export default function MyGallery({
                 <Col flex={"100px"}>
                     {showSelected()}
                 </Col>
-                <Col key="update-link" flex={"200px"}>
+                <Col key="update-link" flex={"230px"}>
                     {showUpdateLink()}
                 </Col>
                 <Col flex={"auto"}>{showTagsBloc()}</Col>

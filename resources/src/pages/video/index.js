@@ -4,11 +4,18 @@ import axios from "axios";
 import {getBaseUrl} from "../treeFolder";
 import default_icon from './flem.png';
 
-import {CloseOutlined, DeleteFilled, DeleteTwoTone, ChromeOutlined,PlayCircleOutlined} from "@ant-design/icons";
+import {
+    CloseOutlined,
+    DeleteFilled,
+    DeleteTwoTone,
+    ChromeOutlined,
+    PlayCircleOutlined,
+    FullscreenOutlined
+} from "@ant-design/icons";
 import ReactPlayer from "react-player/";
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function VideoDisplay({urlVideo,setUpdate}) {
+export default function VideoDisplay({urlVideo,setUpdate, setCollapsed}) {
     let baseUrl = getBaseUrl();
     const [videos,setVideos] = useState([]);
     const [currentVideo,setCurrentVideo] = useState(null);
@@ -72,6 +79,9 @@ export default function VideoDisplay({urlVideo,setUpdate}) {
         <>
             <Row className={"options"}>
                 <Col>
+                    <Tooltip key={"image-fullscreen"} placement="top" title={"Fullscreen"}>
+                        <FullscreenOutlined onClick={setCollapsed} className={"button"}/>
+                    </Tooltip>
                     {videos != null ? videos.length:'0'} vidéo(s)
                     {removeFolderUrl !== '' && urlVideo !=='' && (videos == null || videos.length === 0) ?
                         <span style={{marginLeft:20}}>
