@@ -31,7 +31,7 @@ function checkAdminAccess(setCanAdmin){
     }).then(() =>
         // If 200, can admin, otherwise, 403
         setCanAdmin(true)
-    );
+    ).catch(()=>setCanAdmin(false));
 }
 
 function checkIsGuest(){
@@ -184,7 +184,7 @@ function App() {
                     <Layout>
                         {
                             videoMode ?
-                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate} setCollapsed={toggleCollapsed}/>:
+                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate} setCollapsed={toggleCollapsed} canAdmin={canAdmin}/>:
                                 <MyGallery urlFolder={urlFolder} refresh={collapsed}
                                            titleGallery={titleGallery}
                                            canAdmin={canAdmin}

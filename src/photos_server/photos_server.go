@@ -524,6 +524,10 @@ func (s Server) video(w http.ResponseWriter, r *http.Request) {
 func (s Server) videoFolder(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodDelete:
+		if !s.securityServer.NeedAdmin(r) {
+			error403(w, r)
+			return
+		}
 		s.deleteVideoFolder(w, r)
 		break
 	case http.MethodGet:
@@ -915,7 +919,6 @@ func (s Server) getRootVideoFolders(w http.ResponseWriter, r *http.Request) {
 	logger.GetLogger2().Info("Get root videos folders")
 	header(w)
 	nodes := s.videoManager.GetSortedFolders()
-	//root := folderRestFul{Name: "Racine", Link: "", Children: s.convertVideoPaths(nodes, true)}
 	if data, err := json.Marshal(s.convertVideoPaths(nodes, true)); err == nil {
 		write(data, w)
 	}

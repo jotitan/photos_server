@@ -15,7 +15,7 @@ import {
 import ReactPlayer from "react-player/";
 
 // setIsAddFolderPanelVisible to show folder to upload
-export default function VideoDisplay({urlVideo,setUpdate, setCollapsed}) {
+export default function VideoDisplay({urlVideo,setUpdate, setCollapsed, canAdmin}) {
     let baseUrl = getBaseUrl();
     const [videos,setVideos] = useState([]);
     const [currentVideo,setCurrentVideo] = useState(null);
@@ -80,7 +80,7 @@ export default function VideoDisplay({urlVideo,setUpdate, setCollapsed}) {
             <Row className={"options"}>
                 <Col>
                     <Tooltip key={"image-fullscreen"} placement="top" title={"Fullscreen"}>
-                        <FullscreenOutlined onClick={setCollapsed} className={"button"}/>
+                        <FullscreenOutlined onClick={setCollapsed} className={"button"} style={{marginRight:5}}/>
                     </Tooltip>
                     {videos != null ? videos.length:'0'} vidéo(s)
                     {removeFolderUrl !== '' && urlVideo !=='' && (videos == null || videos.length === 0) ?
@@ -108,7 +108,7 @@ export default function VideoDisplay({urlVideo,setUpdate, setCollapsed}) {
                 <Col span={24} style={{marginTop:36+'px',marginLeft:15+'px'}}>
                     {
                         videos.map(video=>
-                            <Row className={"video"}>
+                            <Row className={"video"} key={`video_col_${video.CoverPath}`}>
                                 <Col>
                                     <Image src={video.CoverPath} fallback={default_icon} style={{width:300}}/>
                                     <PlayCircleOutlined className={"play"} onClick={()=>{
@@ -142,14 +142,14 @@ export default function VideoDisplay({urlVideo,setUpdate, setCollapsed}) {
                                         <Col>{video.Metadata.Peoples.join(", ")}</Col>
                                     </Row>
                                     <Row>
-                                        <Col span={10}>
+                                        {canAdmin ? <Col span={10}>
                                             <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer cette vidéo"}
                                                         onConfirm={()=>deleteVideo(video.DeletePath,video.VideosPath)} okText="Oui" cancelText="Non">
                                                 <Button>
                                                     <DeleteFilled/>Supprimer
                                                 </Button>
                                             </Popconfirm>
-                                        </Col>
+                                        </Col>:<></>}
                                     </Row>
                                 </Col>
                             </Row>

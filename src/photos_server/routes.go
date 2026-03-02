@@ -11,7 +11,7 @@ func (s Server) updateRoutes(server *http.ServeMux) {
 	server.HandleFunc("/photo/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifFolder))
 	server.HandleFunc("/photo", s.buildHandler(s.securityServer.NeedAdmin, s.uploadFolder))
 	server.HandleFunc("/updateExifOfDate", s.buildHandler(s.securityServer.NeedAdmin, s.updateExifOfDate))
-	server.HandleFunc("/sources", s.buildHandler(s.securityServer.NeedAdmin, s.getSources))
+	server.HandleFunc("/sources", s.buildHandler(s.securityServer.NeedUser, s.getSources))
 }
 
 func (s Server) photoRoutes(server *http.ServeMux) {
@@ -29,7 +29,7 @@ func (s Server) photoRoutes(server *http.ServeMux) {
 
 func (s Server) videoRoutes(server *http.ServeMux) {
 	server.HandleFunc("/video", s.buildHandler(s.securityServer.NeedAdmin, s.video))
-	server.HandleFunc("/video/folder", s.buildHandler(s.securityServer.NeedAdmin, s.videoFolder))
+	server.HandleFunc("/video/folder", s.buildHandler(s.securityServer.NeedUser, s.videoFolder))
 	server.HandleFunc("/video/folder/exif", s.buildHandler(s.securityServer.NeedAdmin, s.updateVideoFolderExif))
 	server.HandleFunc("/video/date", s.buildHandler(s.securityServer.NeedUser, s.getVideosByDate))
 	server.HandleFunc("/video/search", s.buildHandler(s.securityServer.NeedUser, s.searchVideos))
