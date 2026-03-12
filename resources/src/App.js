@@ -76,6 +76,8 @@ function App() {
     const [isVideoAddPanelVisible,setIsVideoAddPanelVisible] = useState(false);
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
     const [isAddFolderPanelVisible,setIsAddFolderPanelVisible] = useState(false);
+    const [config, setConfig] = useState({})
+
 
     const [canAccess,setCanAccess] = useState(false);
     // First load
@@ -101,8 +103,28 @@ function App() {
         }
     },[]);
 
+    const loadConfig = () => {
+        axios({
+            method: 'GET',
+            url: `${getBaseUrl()}/custom-config`,
+        }).then(c => {
+            c = c.data;
+            setConfig({
+                title: c.title || 'Serveur photos',
+                color:c.color || '#001529',
+                logo:c.logo
+            })
+        });
+    }
+
+    useEffect(()=> {
+        console.log(config.color)
+        document.documentElement.style.setProperty('--main-bg-color',config.color)
+    },[config])
+
     useEffect(()=> {
         if(canAccess) {
+            loadConfig();
             checkIsGuest().then(data => {
                 setIsGuest(data.data.guest);
                 if (data.data.guest === false) {
@@ -121,7 +143,7 @@ function App() {
 
     const showPhotosMenu = ()=>
         !collapsed ? showGallery ?
-            <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'} filterMode={"photo"}/>:
+            <TreeFolder setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} canFilter={!isGuest} rootUrl={'/rootFolders'} filterMode={"photo"} bgColor={config.color}/>:
             (!isGuest ?
                 <div style={{width:300+'px'}}>
                     <MyCalendar setUrlFolder={setUrlFolder} setTitleGallery={setTitleGallery} update={update} urls={{getAll:'/allDates',getByDate:'/getByDate'}}/>
@@ -137,6 +159,13 @@ function App() {
 
     const getMobileUrl = () => <a href={`${document.location.href}mobile`}><TrophyOutlined /></a>;
 
+    const getTitle = () => {
+        return <Menu.Item className={"logo"}>
+            {config.logo !== '' ? <img alt={'icon'} src={config.logo} style={{width:32}}/>:<HddFilled/>}
+            <span style={{marginLeft:10+'px'}}>{config.title} - {nbPhotos} / {nbVideos} {getMobileUrl()}</span>
+        </Menu.Item>
+    }
+
     return (
         // Hide during check access
         hideAll ? <></>:
@@ -145,9 +174,7 @@ function App() {
                     <Sider width={300} style={{display:collapsed ? 'none':''}}>
                         <Content style={{height:100+'%'}}>
                             <Menu theme={"dark"}>
-                                <Menu.Item className={"logo"}>
-                                    <HddFilled/><span style={{marginLeft:10+'px'}}>Serveur photos - {nbPhotos} / {nbVideos} {getMobileUrl()}</span>
-                                </Menu.Item>
+                                {getTitle()}
                                 {canAdmin?
                                     videoMode ?
                                         <Menu.Item className={"add-folder-text"} onClick={()=>setIsVideoAddPanelVisible(true)}>

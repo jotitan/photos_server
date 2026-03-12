@@ -70,6 +70,13 @@ type Config struct {
 	Security  SecurityConfig  `yaml:"security"`
 	Tasks     CronTasks       `yaml:"tasks"`
 	Mirroring MirroringConfig `yaml:"mirroring"`
+	Custom    CustomConfig    `yaml:"custom"`
+}
+
+type CustomConfig struct {
+	Title string `json:"title"`
+	Logo  string `json:"logo"`
+	Color string `json:"color"`
 }
 
 type MirroringConfig struct {

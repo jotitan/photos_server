@@ -42,11 +42,11 @@ const adapt = node => {
     return data;
 };
 
-export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter,rootUrl,filterMode}) {
+export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilter,rootUrl,filterMode, bgColor}) {
     const [tree,setTree] = useState([]);
     const [originalTree,setOriginalTree] = useState([]);
     const { DirectoryTree } = Tree;
-    const [height,setHeight] = useState(window.innerHeight-185);
+    const [height,setHeight] = useState(window.innerHeight-205);
     const [peoples,setPeoples] = useState([]);
     const [selectedPeopleFilter,setSelectedPeopleFilter] = useState(null);
     const [expandables,setExpandables] = useLocalStorage("expandables",[])
@@ -166,7 +166,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
                     {p.name}
                 </Tag>)
         }>
-            <FilterOutlined style={{backgroundColor:'white',color:'#001529',padding:5}}/>
+            <FilterOutlined style={{backgroundColor:'white',color:bgColor,padding:5}}/>
         </Popover>
     }
 
@@ -193,7 +193,7 @@ export default function TreeFolder({setUrlFolder,setTitleGallery,update,canFilte
                     fontSize: 12 + 'px',
                     width: 300 + 'px',
                     overflow: 'auto',
-                    backgroundColor: '#001529',
+                    backgroundColor: bgColor,
                     color: '#999'
                 }}
             />:''}

@@ -38,11 +38,11 @@
 }
 
 .ReactGridGallery,.ant-layout,body {
-  background-color:#001529;
+  background-color:var(--main-bg-color);
 }
 
 .options {
-  background-color:#001529;
+  background-color:var(--main-bg-color);
   color:white;
   position: fixed;
   width: 100%;
@@ -58,8 +58,16 @@
   padding-top:0px;
 }
 
+.ant-menu-vertical.ant-menu-dark {
+  background-color: var(--main-bg-color) !important;
+}
+
 .gallery {
-  background-color:#001529;
+  background-color:var(--main-bg-color);
+}
+
+.ant-layout-content {
+  background-color:var(--main-bg-color);
 }
 
 .ant-tree {
@@ -71,7 +79,7 @@
 }
 
 body {
-  background-color:#001529;
+  background-color:var(--main-bg-color);
 }
 
 .logo {
@@ -160,7 +168,7 @@ currentVideo.VideosPath {
 }
 
 .video-gallery {
-  background-color:#001529;
+  background-color:var(--main-bg-color);
 }
 
 .video-gallery .video .play:hover {
@@ -210,6 +218,11 @@ currentVideo.VideosPath {
   padding: 10px;
   font-size: 16px;
   cursor: pointer;
+  margin-bottom:0px !important;
+}
+
+.ant-menu-item.logo {
+  margin-bottom:0px !important;
 }
 
 .switch-selection.ant-switch {

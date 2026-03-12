@@ -12,6 +12,7 @@
     height: 60px;
     margin: 0px auto;
     color:white;
+    z-index: 1;
 }
 
 .my-timeline ol {

@@ -22,6 +22,7 @@ func (s Server) photoRoutes(server *http.ServeMux) {
 	server.HandleFunc("/addFolder", s.buildHandler(s.securityServer.NeedAdmin, s.addFolder))
 	server.HandleFunc("/statUploadRT", s.buildHandler(s.securityServer.NeedAdmin, s.statUploadRT))
 	server.HandleFunc("/getFoldersDetails", s.buildHandler(s.securityServer.NeedConnected, s.getFoldersDetails))
+	server.HandleFunc("/custom-config", s.buildHandler(s.securityServer.NeedConnected, s.getCustomConfig))
 	server.HandleFunc("/count", s.count)
 	server.HandleFunc("/photo/check-resizer", s.buildHandler(s.securityServer.NeedAdmin, s.checkPhotoResizer))
 	//server.HandleFunc("/indexFolder",s.indexFolder)

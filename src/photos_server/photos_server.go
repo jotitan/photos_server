@@ -33,6 +33,7 @@ type Server struct {
 	securityServer security.SecurityServer
 	pathRoutes     map[string]func(w http.ResponseWriter, r *http.Request)
 	remoteManager  remote_control.RemoteManager
+	custom         config.CustomConfig
 }
 
 // Create security access from good provider
@@ -53,6 +54,7 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 		resources:             conf.WebResources,
 		uploadProgressManager: uploadProgressManager,
 		remoteManager:         remote_control.NewRemoteManager(),
+		custom:                conf.Custom,
 	}
 	if err := s.videoManager.Load(); err != nil {
 		logger.GetLogger2().Error("Impossible to launch video manager", err)
@@ -314,6 +316,11 @@ func (s Server) checkPhotoResizer(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func (s Server) getCustomConfig(w http.ResponseWriter, r *http.Request) {
+	data, _ := json.Marshal(s.custom)
+	w.Write(data)
 }
 
 func (s Server) getFoldersDetails(w http.ResponseWriter, r *http.Request) {
