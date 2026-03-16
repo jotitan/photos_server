@@ -296,7 +296,6 @@
         buffer = [];
         currentWidth = 0;
     }
-
     const createImage = src => {
         const i = document.createElement('img')
         i.src = src;
@@ -541,6 +540,7 @@
             if (act != null) {
                 act.apply();
             }
+            this.reset();
         }
 
         detach(kinds) {

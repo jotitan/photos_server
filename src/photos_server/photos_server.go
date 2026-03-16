@@ -907,16 +907,10 @@ func (s Server) getRootFolders(w http.ResponseWriter, r *http.Request) {
 
 	logger.GetLogger2().Info("Get root folders")
 	header(w)
-	/*nodes := make([]*Node, 0, len(s.foldersManager.Folders))
-	for _, node := range s.foldersManager.Folders {
-		nodes = append(nodes, node)
-	}*/
 	nodes := make([]*Node, 0, len(s.foldersManager.Sources))
 	for _, src := range s.foldersManager.Sources {
 		nodes = append(nodes, &Node{Name: src.Name, RelativePath: src.Name, Files: src.Files, IsFolder: true})
 	}
-	//root := folderRestFul{Name: "Racine", Link: "", Children: s.convertPaths(nodes, true)}
-	//if data, err := json.Marshal(root); err == nil {
 	if data, err := json.Marshal(s.convertPaths(nodes, true)); err == nil {
 		write(data, w)
 	}
