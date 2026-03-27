@@ -5,6 +5,10 @@
     <title>Photos mobile</title>
 
     <style>
+        :root {
+            --width-screen: 100px;
+        }
+
         body {
             margin: 0;
             background-color: #001529;
@@ -13,6 +17,14 @@
 
         a {
             color: white;
+        }
+
+        .folder > a {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: inline-block;
+            width: var(--width-screen);
         }
 
         .remote-fullscreen {
@@ -43,6 +55,12 @@
             font-size: 8vw
         }
 
+        .wrap_content {
+            position: fixed;
+            height: calc(100% - 9vh);
+            overflow: scroll;
+        }
+
         div.content {
             position: relative;
             z-index: 1;
@@ -58,14 +76,16 @@
             width: 100%;
             height: 100%;
             background-color: rgba(50, 50, 50, 0.9);
-            top: 0px;
+            top: 0;
             z-index: 10;
             text-align: center;
             line-height: 100vh;
+            overflow: hidden;
         }
 
         div.viewer img {
             vertical-align: middle;
+        //transition: opacity 0.3s ease;
         }
 
         .hidden {
@@ -91,19 +111,19 @@
             background-color: cornflowerblue;
         }
 
-        .remote-controler.visible {
+        .header.visible {
             display: block;
+            border-bottom: solid 1px white;
+            position: sticky;
+            z-index: 100;
+            background-color: #001529;
         }
 
-        .remote-controler button {
-            font-size: 5vh;
+        .header button {
+            font-size: 4vh;
             margin: 10px;
-            background-color: black;
-            padding: 10px;
-        }
-
-        .remote-controler button:hover {
             background-color: white;
+            padding: 10px;
         }
 
         .status-remote {
@@ -143,11 +163,56 @@
         .challenge input[type="number"] {
             -moz-appearance: textfield;
         }
+
+        .folder-name {
+            font-size: 3vh;
+            margin-left: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: calc(100% - 200px);
+            display: inline-block;
+        }
+
+        .back-button {
+            display: none;
+        }
+
+        .back-button.visible {
+            display: inline;
+        }
+
+        div.viewer img.animeLeft {
+            left: -100vw;
+            transition: left 0.3s ease;
+        }
+
+        div.viewer img.animeRight {
+            left: 100vw !important;
+            transition: left 0.3s ease;
+        }
+
+        div.viewer img.animeMiddle {
+            left: 0;
+            transition: left 0.3s ease;
+        }
+
+        .toLeft {
+            left: -100vw;
+        }
+
+        .toRight {
+            left: 100vw;
+        }
+
+        div.viewer img {
+            position: absolute;
+        }
     </style>
 </head>
 <body>
 
-<div class="remote-controler">
+<div class="footer remote-controler">
     <button class="load-folder">🛜</button>
     <button class="previous-photo">⏪</button>
     <button class="next-photo">⏩</button>
@@ -155,9 +220,21 @@
     <button class="close-remote" style="right:0">❎</button>
 </div>
 
-<div class="content"></div>
-<div class="viewer hidden"></div>
-<div class="hidden open-hd"><a target="_blank">🚀</a></div>
+<div class="header header-nav visible">
+    <button class="back-button">🔙</button>
+    <button class="close-button hidden" style="background-color: #001529">❎</button>
+    <span class="folder-name"></span>
+    <div class="hidden open-hd"><a target="_blank">📷</a></div>
+</div>
+<div class="wrap_content">
+    <div class="content"></div>
+</div>
+
+<div class="new-viewer viewer hidden">
+    <img src="" class="toRight first-viewer" alt="show-img"/>
+    <img src="" class="toRight second-viewer" alt="show-img"/>
+</div>
+
 <div class="hidden remote-fullscreen">
     <div>
         <div class="status-remote"><span class="current-photo"></span> / <span class="size-photo"></span></div>
@@ -181,19 +258,51 @@
 </html>
 
 <script>
+    const StackManager = {
+        stack: [],
+        push(data) {
+            this.stack.push(data);
+        },
+        pop() {
+            return this.stack.pop();
+        }
+    }
+
     const content = document.getElementsByClassName("content").item(0);
     const viewer = document.getElementsByClassName("viewer").item(0);
     const hdLink = document.getElementsByClassName("open-hd").item(0);
-    const baseUrl = location.href.substring(0, location.href.indexOf("/mobile"))
-    const stack = [];
-    const showFolders = data => {
+    const baseUrl = location.href.substring(0, location.href.indexOf("/mobile"));
+    const minHeight = 220;
+    let buffer = [];
+    let currentWidth = 0;
+    let screenSize;
+    let currentUrl = "";
+    let folderSize = 0;
+    let currentPanel = "folder";
+    let images = [];
+    let currentImage = -1;
+
+    const showFolders = (data, previousName = '') => {
         content.innerHTML = '';
         data.sort((a, b) => a.Name.localeCompare(b.Name))
         data.forEach(e => {
-            createFolder(e,data)
+            createFolder(e, data, previousName)
         })
     }
-    const createFolder = (e, data) => {
+
+    const showFoldersAndImage = (e, data, previousName) => {
+        const copy = structuredClone(e);
+        copy.Name = 'Images';
+        copy.Children = [];
+        const copyData = structuredClone(data);
+        if (!copyData.find(e => e.Name === 'Images')) {
+            copyData.push(copy)
+        }
+        showSubFolders(e, copyData, e.Name, previousName)
+        createFolder(copy, data, previousName)
+    }
+
+    const createFolder = (e, data, previousName) => {
         const div = document.createElement("div");
         div.classList.add('folder')
         const a = document.createElement("a")
@@ -201,52 +310,45 @@
         a.append(`${e.Name}`)
         if (e.HasImages && e.Children.length === 0) {
             // Case images but no sub folder
-            a.addEventListener('click', () => showImages(e.Link, data))
+            a.addEventListener('click', () => showImages(e.Link, data, e.Name, previousName))
         }
         if (!e.HasImages) {
             // Case only sub folders
-            a.addEventListener('click', () => showSubFolders(e, data))
+            a.addEventListener('click', () => showSubFolders(e, data, e.Name, previousName))
         }
         if (e.HasImages && e.Children.length > 0) {
             // Case images and also sub folder
-            a.addEventListener('click', () => {
-
-                const copy = structuredClone(e);
-                copy.Name = 'Images';
-                copy.Children = [];
-                const copyData = structuredClone(data);
-                if(!copyData.find(e=>e.Name === 'Images')) {
-                    copyData.push(copy)
-                }
-                showSubFolders(e, copyData)
-                createFolder(copy, data)
-            })
+            a.addEventListener('click', () => showFoldersAndImage(e, data, previousName));
         }
         div.append(a);
         content.append(div)
     }
-    const showSubFolders = (element, data) => {
-        stack.push({children: data})
-        showFolders(element.Children)
+
+    const updateHeader = name => {
+        if (name === '') {
+            document.querySelector('.back-button').classList.remove('visible');
+        } else {
+            document.querySelector('.back-button').classList.add('visible');
+        }
+        document.querySelector('.folder-name').innerHTML = name;
+    }
+    const showSubFolders = (element, data, name, previousName) => {
+        updateHeader(name);
+        StackManager.push({children: data, name: name, previousName: previousName})
+        showFolders(element.Children, name)
     }
 
-    const minHeight = 220;
-    let buffer = [];
-    let currentWidth = 0;
-    let screenSize;
-    let currentUrl = "";
-    let folderSize = 0;
-
-    const showImages = (url, data) => {
+    const showImages = (url, data, name, previousName) => {
+        updateHeader(name);
         currentUrl = url;
         images = [];
-        stack.push({children: data})
+        StackManager.push({children: data, name: name, previousName: previousName})
         // Load images
         let counter = 0;
         let originalCounter = 0;
         fetch(`${baseUrl}${url}`).then(d => d.json()).then(data => {
                 folderSize = data.length;
-                const files = data.Files.filter(a=>a.HasImages ==null);
+                const files = data.Files.filter(a => a.HasImages == null);
                 files.sort((a, b) => a.Date.localeCompare(b.Date))
                 content.innerHTML = '';
                 screenSize = document.getElementsByTagName('body')[0].offsetWidth - 15;
@@ -274,9 +376,8 @@
             }
         )
     }
-    let images = [];
-    let currentImage = -1;
-    showBufferImages = () => {
+
+    const showBufferImages = () => {
         if (buffer.length === 0) {
             return
         }
@@ -301,8 +402,8 @@
         i.src = src;
         return i;
     }
-    let currentPanel = "folder";
-    const showImage = imgInfo => {
+
+    const showImage = (imgInfo,isNext=true) => {
         if (remoteControl.isExists()) {
             remoteControl.selectImage(imgInfo.originalPos);
             return;
@@ -312,21 +413,17 @@
         currentImage = imgInfo.pos;
         viewer.classList.remove('hidden');
         hdLink.classList.remove('hidden');
-        viewer.innerHTML = '';
         hdLink.getElementsByTagName('a').item(0).href = imgInfo.uhd;
-        const img = createImage(imgInfo.hd);
-        const ratioImg = (imgInfo.height / imgInfo.width)
-        const ratioScreen = (window.screen.height / window.screen.width)
-        img.style.setProperty(ratioImg < ratioScreen ? "width" : "height", "100%")
 
-        viewer.append(img);
+        showViewer();
+        switchImage(imgInfo, isNext);
 
         touchDetector.attachLeft(previous)
         touchDetector.attachRight(next)
         touchDetector.attachTop(hideImage)
         currentPanel = "image";
-
     }
+
     document.addEventListener("keyup", e => {
         if (currentPanel === "image") {
             switch (e.key) {
@@ -348,7 +445,9 @@
             }
         }
     })
+
     const hideImage = () => {
+        hideViewer();
         currentPanel = "folder";
         viewer.classList.add('hidden');
         hdLink.classList.add('hidden');
@@ -358,21 +457,69 @@
     }
 
     const previousFolder = () => {
-        const previousPage = stack.pop()
-        showFolders(previousPage.children)
+        const previousPage = StackManager.pop()
+        updateHeader(previousPage.previousName);
+        showFolders(previousPage.children, previousPage.previousName)
     }
 
     const previous = () => {
         if (currentImage === 0) {
             return;
         }
-        showImage(images[currentImage - 1])
+        showImage(images[currentImage - 1], false)
     }
     const next = () => {
         if (currentImage >= images.length - 1) {
             return;
         }
         showImage(images[currentImage + 1])
+    }
+
+    let isCurrentFirst = false;
+
+    const showViewer = () => {
+        document.querySelector('.new-viewer').classList.remove('hidden');
+        document.querySelector('.back-button').classList.add('hidden');
+        document.querySelector('.close-button').classList.remove('hidden');
+    }
+
+    const hideViewer = () => {
+        document.querySelector('.new-viewer').classList.add('hidden');
+        document.querySelector('.back-button').classList.remove('hidden');
+        document.querySelector('.close-button').classList.add('hidden');
+    }
+
+    const setRatio = (img, info) => {
+        const ratioImg = (info.height / info.width)
+        const ratioScreen = (window.screen.height / window.screen.width)
+        if(ratioImg < ratioScreen) {
+            const realHeight = (info.height * window.innerWidth) / info.width;
+            const shift = Math.round((window.innerHeight - realHeight)/2);
+            img.style.setProperty("margin-top",shift + 'px')
+        }else{
+            img.style.setProperty("margin-top",0)
+        }
+        img.style.setProperty(ratioImg < ratioScreen ? "width" : "height", "100%")
+    }
+
+    const switchImage = (imgInfo, isNext) => {
+        const imgToShow = document.querySelector(`.${isCurrentFirst ? 'first' : 'second'}-viewer`);
+        const imgToHide = document.querySelector(`.${isCurrentFirst ? 'second' : 'first'}-viewer`);
+        isCurrentFirst = !isCurrentFirst;
+        imgToShow.src = imgInfo.hd;
+        setRatio(imgToShow, imgInfo);
+
+        const animeClass = isNext ? 'animeLeft':'animeRight';
+        const replacer = isNext ? ["toLeft","toRight"] : ["toRight","toLeft"];
+        imgToShow.classList.replace(replacer[0],replacer[1]);
+        setTimeout(() => {
+            imgToShow.classList.replace(replacer[1], 'animeMiddle');
+            imgToHide.classList.replace('animeMiddle', animeClass);
+            setTimeout(() => {
+                imgToHide.classList.replace(animeClass, replacer[1]);
+            }, 300)
+
+        },100);
     }
 
     class RemoteControler {
@@ -444,6 +591,7 @@
                         if (items.length > 0) {
                             this.name = items[0];
                             document.getElementsByClassName('remote-controler').item(0).classList.add('visible')
+                            document.getElementsByClassName('header-nav').item(0).classList.remove('visible')
                         }
                     })
                 }
@@ -490,6 +638,7 @@
         startTouchV;
         currentTouchH;
         currentTouchV;
+        isZooming;
         started = false;
         actions = {};
 
@@ -549,16 +698,28 @@
         }
 
         start(e) {
+            if(e.touches.length > 1){
+                // Zoom, stop
+                this.isZooming = true;
+                return;
+            }
             this.startTouchH = e.touches[0].clientX;
             this.startTouchV = e.touches[0].clientY;
         }
 
         move(e) {
+            if(this.isZooming){
+                return;
+            }
             this.currentTouchH = e.touches[0].clientX;
             this.currentTouchV = e.touches[0].clientY;
         }
 
         end() {
+            if(this.isZooming){
+                this.isZooming = false;
+                return;
+            }
             if (this.currentTouchV - this.startTouchV < -300) {
                 return this.action("top");
             }
@@ -581,6 +742,9 @@
 
     const touchDetector = new DetectTouch();
     touchDetector.attachLeft(previousFolder)
+    document.querySelectorAll('.back-button').forEach(i => i.addEventListener('click', previousFolder))
+    document.querySelectorAll('.close-button').forEach(i => i.addEventListener('click', hideImage))
 
     fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(showFolders)
+    document.documentElement.style.setProperty('--width-screen', (window.innerWidth - 20) + 'px');
 </script>

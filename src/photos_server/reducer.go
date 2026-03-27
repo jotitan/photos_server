@@ -14,6 +14,7 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 	"image/color"
 	"image/jpeg"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -68,7 +69,11 @@ type ImageToResize struct {
 
 func setExif(path string, orientation int, date time.Time) bool {
 	jmp := jpegstructure.NewJpegMediaParser()
-	media, _ := jmp.ParseFile(path)
+	media, err := jmp.ParseFile(path)
+	if err != nil {
+		log.Println("Error during set exif", err)
+		return false
+	}
 	sl := media.(*jpegstructure.SegmentList)
 	root := exifutil.NewIfdBuilder(exifutil.NewIfdMappingWithStandard(), exifutil.NewTagIndex(), "IFD", binary.LittleEndian)
 

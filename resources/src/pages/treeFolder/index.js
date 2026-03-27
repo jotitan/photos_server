@@ -8,6 +8,7 @@ import './treeFolder.css'
 export const getBaseUrlHref = ()=>getBaseUrl(window.location.href);
 
 export const getBaseUrl = (defaultValue=window.location.origin)=>{
+    return "http://localhost:9000/drobo-images"
     const hr = window.location.href;
     switch (window.location.hostname) {
         case 'localhost':

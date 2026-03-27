@@ -655,7 +655,7 @@ func (fm *FoldersManager) load(sources []config.Source) {
 	if f, err := os.Open(getSavePath()); err == nil {
 		defer f.Close()
 		data, _ := io.ReadAll(f)
-		log.Println(json.Unmarshal(data, &folders))
+		json.Unmarshal(data, &folders)
 		fm.Sources = folders
 		// Check if new sources are available
 		for _, source := range sources {

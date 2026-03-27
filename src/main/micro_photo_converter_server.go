@@ -38,7 +38,7 @@ func convertPhoto(w http.ResponseWriter, r *http.Request) {
 	data, _ := io.ReadAll(r.Body)
 	cr := resize.ConversionRequest{}
 	if err := json.Unmarshal(data, &cr); err != nil {
-		logger.GetLogger2().Error("Impossible de deserializer request", err)
+		logger.GetLogger2().Error("Impossible to unserialize request", err)
 		http.Error(w, err.Error(), 400)
 		return
 	}
