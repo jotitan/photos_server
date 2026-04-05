@@ -15,7 +15,7 @@ import (
 )
 
 type HLSManager interface {
-	Convert(path, output string, sizes, bitrates []string) chan bool
+	Convert(path, output, compressorId string, sizes, bitrates []string) chan bool
 }
 
 type HSLLocalManager struct {
@@ -38,12 +38,14 @@ func NewHSLLocalManager(ffmpegPath string) HSLLocalManager {
 	return HSLLocalManager{ffmpegPath}
 }
 
-func (hsll HSLLocalManager) Convert(path, output string, sizes, bitrates []string) chan bool {
+func (hsll HSLLocalManager) Convert(path, output, compressorId string, sizes, bitrates []string) chan bool {
 	paramsArray := strings.Split(fmt.Sprintf("-y -i %s -preset slow -g 48 -sc_threshold 0", path), " ")
 
 	strmap := make([]string, len(sizes))
 	for i, size := range sizes {
-		paramsArray = append(paramsArray, strings.Split(fmt.Sprintf("-s:v:%d %s -c:v:%d libx264 -b:v:%d %sk", i, size, i, i, bitrates[i]), " ")...)
+		// Decide to compress to h264 (compressorId = avc1) or h265 (compressorId = hvc1)
+		format := getCodec(compressorId, i)
+		paramsArray = append(paramsArray, strings.Split(fmt.Sprintf("-s:v:%d %s %s -b:v:%d %sk", i, size, format, i, bitrates[i]), " ")...)
 		paramsArray = append(paramsArray, strings.Split("-map 0:0 -map 0:1", " ")...)
 		strmap[i] = fmt.Sprintf("v:%d,a:%d", i, i)
 	}
@@ -69,6 +71,13 @@ func (hsll HSLLocalManager) Convert(path, output string, sizes, bitrates []strin
 	return c
 }
 
+func getCodec(compressorId string, i int) string {
+	if compressorId == "hvc1" {
+		return fmt.Sprintf("-c:v:%d libx265 -tag:v:%d hvc1", i, i)
+	}
+	return fmt.Sprintf("-c:v:%d libx264", i)
+}
+
 type HSLRemoteManager struct {
 	endpoint string
 }
@@ -78,10 +87,11 @@ func newHSLRemoteManager(endpoint string) HSLRemoteManager {
 	return HSLRemoteManager{endpoint}
 }
 
-func (hsrl HSLRemoteManager) Convert(path, output string, sizes, bitrates []string) chan bool {
+func (hsrl HSLRemoteManager) Convert(path, output, compressorId string, sizes, bitrates []string) chan bool {
 	// Call url with parameters and a unique generated id
 	urlValue := fmt.Sprintf("%s?%s", hsrl.endpoint,
-		url.PathEscape(fmt.Sprintf("sizes=%s&bitrates=%s&path=%s&output=%s",
+		url.PathEscape(fmt.Sprintf("compressor=%s&sizes=%s&bitrates=%s&path=%s&output=%s",
+			compressorId,
 			strings.Join(sizes, ","),
 			strings.Join(bitrates, ","),
 			path, output)))

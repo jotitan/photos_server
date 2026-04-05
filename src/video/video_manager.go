@@ -25,12 +25,13 @@ import (
 type VideoFiles map[string]*VideoNode
 
 type Metadata struct {
-	Title    string
-	Date     time.Time
-	Duration int // in second
-	Peoples  []string
-	Keywords []string
-	Place    []string
+	Title      string
+	Date       time.Time
+	Duration   int // in second
+	Peoples    []string
+	Keywords   []string
+	Place      []string
+	Compressor string // store compressor id : avc1 (h264) or hvc1 (h265)
 }
 
 // Store the initial video and compute HLS
@@ -467,7 +468,7 @@ func (vm *VideoManager) UploadVideo(folder string, video multipart.File, videoNa
 		progresser.Done()
 	} else {
 		// use ffmpeg to create segments
-		if !vm.createSegments(filename, pathHls, progresser) {
+		if !vm.createSegments(filename, pathHls, node.Metadata.Compressor, progresser) {
 			logger.GetLogger2().Info("Impossible to create segments")
 			progresser.Error(errors.New("impossible to create segments"))
 			progresser.End()
@@ -523,9 +524,9 @@ func errorProgresser(progresser *progress.UploadProgress, err error) bool {
 }
 
 // Command line : ffmpeg.exe -y -i my_video.mp4 -preset slow -g 48 -sc_threshold 0 -map 0:0 -map 0:1 -map 0:0 -map 0:1 -map 0:0 -map 0:1 -s:v:0 640x360 -c:v:0 libx264 -b:v:0 365k -s:v:1 960x540 -c:v:1 libx264 -b:v:1 2000k -s:v:2 1920x1080 -c:v:2 libx264 -b:v:2 6000k -c:a copy -var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2" -master_pl_name master.m3u8 -f hls -hls_time 6 -hls_list_size 0 -hls_segment_filename "path/v%v/fileSequence%d.ts" path/v%v/prog_index.m3u8
-func (vm *VideoManager) createSegments(videoPath, hlsFolder string, progresser *progress.UploadProgress) bool {
+func (vm *VideoManager) createSegments(videoPath, hlsFolder, compressorId string, progresser *progress.UploadProgress) bool {
 	// Call distant api or local
-	return <-vm.hlsManager.Convert(videoPath, hlsFolder, []string{"640x360", "960x540", "1920x1080"}, []string{"365", "2000", "6000"})
+	return <-vm.hlsManager.Convert(videoPath, hlsFolder, compressorId, []string{"640x360", "960x540", "1920x1080"}, []string{"365", "2000", "6000"})
 }
 
 func (vm VideoManager) copyCover(node *VideoNode, cover multipart.File, coverName string) {
@@ -596,6 +597,7 @@ func createFolderIfNecessary(parentName, folder string, nodesToSearch map[string
 
 func createMetadatas(properties map[string]string) Metadata {
 	metadatas := Metadata{}
+	metadatas.Compressor = properties["compressorid"]
 	metadatas.Date = formatDate(properties["subtitle"])
 	metadatas.Keywords = strings.Split(properties["category"], ",")
 	metadatas.Peoples = strings.Split(properties["artist"], ",")

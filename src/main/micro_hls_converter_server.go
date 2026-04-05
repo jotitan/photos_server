@@ -31,10 +31,11 @@ func status(w http.ResponseWriter, _ *http.Request) {
 
 func convert(w http.ResponseWriter, r *http.Request) {
 	path := r.FormValue("path")
+	compressorId := r.FormValue("compressor")
 	output := r.FormValue("output")
 	sizes := strings.Split(r.FormValue("sizes"), ",")
 	bitrates := strings.Split(r.FormValue("bitrates"), ",")
 	log.Println("Receive request to convert video with parameters", path, output, r.FormValue("sizes"), r.FormValue("bitrates"))
-	c := <-video.NewHSLLocalManager(ffmpegPath).Convert(path, output, sizes, bitrates)
+	c := <-video.NewHSLLocalManager(ffmpegPath).Convert(path, output, compressorId, sizes, bitrates)
 	w.Write([]byte(fmt.Sprintf("%t", c)))
 }
