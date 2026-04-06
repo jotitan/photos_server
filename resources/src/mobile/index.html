@@ -266,7 +266,7 @@
     <button class="close-remote" style="right:0">❎</button>
 </div>
 
-<div class="header header-nav visible">
+<div class="header header-nav visible hidden">
     <button class="back-button">🔙</button>
     <button class="close-button hidden" style="background-color: #001529">❎</button>
     <span class="folder-name"></span>
@@ -332,10 +332,8 @@
 </html>
 
 <script>
+    const baseUrl = location.href.substring(0, location.href.indexOf("/mobile"));
     const menu = new class Menu {
-        constructor(){
-            document.querySelector('.header').classList.add('hidden');
-        }
         showFolder(){
             showFolders();
             contentWrapper.show();
@@ -364,9 +362,12 @@
         }
         show(){
             document.querySelector('.folders').classList.remove('hidden');
+            touchDetector.detach(["left","right"])
+            touchDetector.attachLeft(previousFolder)
+
         }
     }
-    class Calendar{
+    const calendar = new class Calendar{
         isEnable = true;
         constructor() {
             this.current = {year:new Date().getFullYear(),month:new Date().getMonth()}
@@ -386,6 +387,9 @@
         }
         show(){
             updateHeader('');
+            touchDetector.detach(["left"])
+            touchDetector.attachLeft(()=>this.previous())
+            touchDetector.attachRight(()=>this.next())
             document.querySelector('.calendar').classList.remove('hidden');
             contentWrapper.hide();
             this.enable();
@@ -418,7 +422,7 @@
         getNbsByMonth(year, month){
             const dataYear = this.dates.get(year);
             if(dataYear == null){
-                return [];
+                return new Map();
             }
             const dataMonth = dataYear[month];
             return dataMonth == null ? new Map() : dataMonth.reduce((a,b)=>a.set(b.day,b.nb),new Map());
@@ -495,7 +499,6 @@
                 week.append(document.createElement('div'));
             }
             c.append(week);
-
         }
     }
 
@@ -512,7 +515,7 @@
     const content = document.getElementsByClassName("content").item(0);
     const viewer = document.getElementsByClassName("viewer").item(0);
     const hdLink = document.getElementsByClassName("open-hd").item(0);
-    const baseUrl = location.href.substring(0, location.href.indexOf("/mobile"));
+
     const minHeight = 220;
     let buffer = [];
     let currentWidth = 0;
@@ -772,7 +775,7 @@
         },100);
     }
 
-    class RemoteControler {
+    const remoteControl = new class RemoteControler {
         constructor() {
             document.querySelectorAll('.previous-photo').forEach(i => i.addEventListener('click', () => this.previous()))
             document.querySelectorAll('.next-photo').forEach(i => i.addEventListener('click', () => this.next()))
@@ -822,7 +825,7 @@
                 div.getElementsByClassName('cancel-block').item(0).addEventListener('click', () => {
                     fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&abort=true`).then(() => this.hideChallenge());
                 })
-                div.getElementsByClassName('input-code').item(0).addEventListener('keyup', e => {
+                div.getElementsByClassName('input-code').item(0).addEventListener('keyup', () => {
                     const value = div.getElementsByClassName('input-code').item(0).value;
                     if (value.length === 6) {
                         fetch(`${baseUrl}/remote/answer-challenge?name=${list[0]}&code=${value}`).then(() => this.hideChallenge());
@@ -881,9 +884,8 @@
         }
     }
 
-    const remoteControl = new RemoteControler();
 
-    class DetectTouch {
+    const touchDetector = new class DetectTouch {
         startTouchH;
         startTouchV;
         currentTouchH;
@@ -891,9 +893,6 @@
         blockMove;
         started = false;
         actions = {};
-
-        constructor() {
-        }
 
         attachLeft(fct) {
             this.attach("left", fct);
@@ -992,13 +991,9 @@
         }
     }
 
-    const touchDetector = new DetectTouch();
-    touchDetector.attachLeft(previousFolder)
     document.querySelectorAll('.back-button').forEach(i => i.addEventListener('click', previousFolder))
     document.querySelectorAll('.close-button').forEach(i => i.addEventListener('click', hideImage))
-
     let rootFolders = [];
     fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(data=>rootFolders = data)
     document.documentElement.style.setProperty('--width-screen', (window.innerWidth - 20) + 'px');
-    const calendar = new Calendar();
 </script>
