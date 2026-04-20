@@ -118,7 +118,6 @@ function App() {
     }
 
     useEffect(()=> {
-        console.log(config.color)
         document.documentElement.style.setProperty('--main-bg-color',config.color)
     },[config])
 

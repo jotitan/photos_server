@@ -525,6 +525,7 @@
     let currentPanel = "folder";
     let images = [];
     let currentImage = -1;
+    let originalScale = 1;
 
     const showFolders = (data = rootFolders, previousName = '') => {
         content.innerHTML = '';
@@ -655,6 +656,9 @@
             remoteControl.selectImage(imgInfo.originalPos);
             return;
         }
+        if(lastFolderPosition === 0){
+            lastFolderPosition = document.querySelector('.folders').scrollTop;
+        }
         touchDetector.detach(["left"])
         content.classList.add('hidden')
         currentImage = imgInfo.pos;
@@ -701,6 +705,8 @@
         content.classList.remove('hidden')
         touchDetector.detach(["left", "right", "top"])
         touchDetector.attachLeft(previousFolder)
+        document.querySelector('.folders').scrollTop = lastFolderPosition;
+        lastFolderPosition = 0;
     }
 
     const previousFolder = () => {
@@ -729,6 +735,9 @@
     }
 
     let isCurrentFirst = false;
+
+    // Position of folder scroll
+    let lastFolderPosition = 0;
 
     const showViewer = () => {
         document.querySelector('.new-viewer').classList.remove('hidden');
@@ -884,7 +893,6 @@
         }
     }
 
-
     const touchDetector = new class DetectTouch {
         startTouchH;
         startTouchV;
@@ -925,12 +933,9 @@
             if (Object.values(this.actions).filter(d => d != null).length > 0) {
                 return;
             }
-            document.removeEventListener("touchstart", () => {
-            })
-            document.removeEventListener("touchmove", () => {
-            })
-            document.removeEventListener("touchend", () => {
-            })
+            document.removeEventListener("touchstart", () => {})
+            document.removeEventListener("touchmove", () => {})
+            document.removeEventListener("touchend", () => {})
         }
 
         action(kind) {
@@ -947,7 +952,7 @@
         }
 
         start(e) {
-            if(e.target.classList.contains("folder-name")){
+            if(e.target.classList.contains("folder-name") || window.visualViewport.scale !== originalScale){
                 return this.blockMove = true;
             }
             if(e.touches.length > 1){
@@ -955,7 +960,9 @@
                 return this.blockMove = true;
             }
             this.startTouchH = e.touches[0].clientX;
+            this.currentTouchH = this.startTouchH;
             this.startTouchV = e.touches[0].clientY;
+            this.currentTouchV = this.startTouchV;
         }
 
         move(e) {
@@ -996,4 +1003,5 @@
     let rootFolders = [];
     fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(data=>rootFolders = data)
     document.documentElement.style.setProperty('--width-screen', (window.innerWidth - 20) + 'px');
+    originalScale = window.visualViewport.scale;
 </script>
