@@ -85,7 +85,7 @@
 
         div.viewer img {
             vertical-align: middle;
-        //transition: opacity 0.3s ease;
+        / / transition: opacity 0.3 s ease;
         }
 
         .hidden {
@@ -210,49 +210,59 @@
         }
 
         .calendar {
-            width:100vw;
-            font-size:6vw;
-            text-align:center;
+            width: 100vw;
+            font-size: 6vw;
+            text-align: center;
         }
+
         .calendar > div {
-            display:flex;
+            display: flex;
         }
+
         .calendar > div.names {
-            font-weight:bold;
+            font-weight: bold;
         }
+
         .calendar > div > div {
-            flex:1;
+            flex: 1;
         }
+
         .calendar div.has-photos {
-            background-color : lightgreen;
-            font-weight:bold;
-            color:black;
+            background-color: lightgreen;
+            font-weight: bold;
+            color: black;
         }
+
         .calendar .header-calendar button {
-            font-size:7vw;
-            width:10vw;
+            font-size: 7vw;
+            width: 10vw;
         }
+
         .calendar .current-date {
-            flex:5;
-            font-weight:bold;
-            font-size:7vw;
+            flex: 5;
+            font-weight: bold;
+            font-size: 7vw;
             font-variant-caps: all-small-caps;
         }
+
         .menu > div {
-            width:100%;
-            font-size:25vh;
-            text-align:center;
-            position:absolute;
-            cursor:pointer;
+            width: 100%;
+            font-size: 25vh;
+            text-align: center;
+            position: absolute;
+            cursor: pointer;
         }
+
         .menu > div:first-child {
-            font-size:15vw;
+            font-size: 15vw;
         }
+
         .menu > div:nth-child(2) {
-            top:10vh;
+            top: 10vh;
         }
+
         .menu > div:last-child {
-            bottom:10vh;
+            bottom: 10vh;
         }
     </style>
 </head>
@@ -302,11 +312,19 @@
 </div>
 <div style="top:200px;position:absolute;" class="calendar hidden">
     <div class="header-calendar">
-        <div><button style="margin-left:5px;" onclick="calendar.previousYear()"> << </button></div>
-        <div><button onclick="calendar.previous()"> < </button></div>
+        <div>
+            <button style="margin-left:5px;" onclick="calendar.previousYear()"> <<</button>
+        </div>
+        <div>
+            <button onclick="calendar.previous()"> <</button>
+        </div>
         <div class="current-date"></div>
-        <div><button onclick="calendar.next()"> > </button></div>
-        <div><button style="margin-right:5px;" onclick="calendar.nextYear()"> >> </button></div>
+        <div>
+            <button onclick="calendar.next()"> ></button>
+        </div>
+        <div>
+            <button style="margin-right:5px;" onclick="calendar.nextYear()"> >></button>
+        </div>
     </div>
     <div class="names">
         <div>L</div>
@@ -334,168 +352,187 @@
 <script>
     const baseUrl = location.href.substring(0, location.href.indexOf("/mobile"));
     const menu = new class Menu {
-        showFolder(){
+        showFolder() {
             showFolders();
             contentWrapper.show();
             calendar.disable();
             this.hide();
         }
-        showCalendar(){
+
+        showCalendar() {
             calendar.show();
             this.hide();
         }
-        hide(){
+
+        hide() {
             document.querySelector('.menu').classList.add('hidden');
             document.querySelector('.header').classList.remove('hidden');
             updateHeader('');
         }
-        show(){
+
+        show() {
             document.querySelector('.header').classList.add('hidden');
             calendar.hide();
             contentWrapper.hide();
             document.querySelector('.menu').classList.remove('hidden');
         }
     }
-    const contentWrapper = new class Content{
-        hide(){
+    const contentWrapper = new class Content {
+        hide() {
             document.querySelector('.folders').classList.add('hidden');
         }
-        show(){
+
+        show() {
             document.querySelector('.folders').classList.remove('hidden');
-            touchDetector.detach(["left","right"])
+            touchDetector.detach(["left", "right"])
             touchDetector.attachLeft(previousFolder)
 
         }
     }
-    const calendar = new class Calendar{
+    const calendar = new class Calendar {
         isEnable = true;
+
         constructor() {
-            this.current = {year:new Date().getFullYear(),month:new Date().getMonth()}
+            this.current = {year: new Date().getFullYear(), month: new Date().getMonth()}
             this.dates = new Map();
-            this.loadDates().then(()=>this.draw());
+            this.loadDates().then(() => this.draw());
         }
-        loadPhotos(year,month,day){
-            const date = `${year}${month < 10 ? '0':''}${month}${day<10?'0':''}${day}`
+
+        loadPhotos(year, month, day) {
+            const date = `${year}${month < 10 ? '0' : ''}${month}${day < 10 ? '0' : ''}${day}`
             const url = `${baseUrl}/getByDate?date=${date}`;
-            updateHeader(`${day < 10 ? '0':''}${day} / ${month < 10 ? '0':''}${month} / ${year}`);
+            updateHeader(`${day < 10 ? '0' : ''}${day} / ${month < 10 ? '0' : ''}${month} / ${year}`);
             this.hide();
             contentWrapper.show();
-            fetch(url).then(d=>d.json()).then(showImagesFromFiles);
+            fetch(url).then(d => d.json()).then(showImagesFromFiles);
         }
-        hide(){
+
+        hide() {
             document.querySelector('.calendar').classList.add('hidden');
         }
-        show(){
+
+        show() {
             updateHeader('');
             touchDetector.detach(["left"])
-            touchDetector.attachLeft(()=>this.previous())
-            touchDetector.attachRight(()=>this.next())
+            touchDetector.attachLeft(() => this.previous())
+            touchDetector.attachRight(() => this.next())
             document.querySelector('.calendar').classList.remove('hidden');
             contentWrapper.hide();
             this.enable();
         }
 
-        disable(){
+        disable() {
             this.isEnable = false;
         }
-        enable(){
+
+        enable() {
             this.isEnable = true;
         }
-        loadDates(){
-            return fetch(`${baseUrl}/allDates`).then(d=>d.json()).then(dates=>{
-                dates.forEach(e=>{
+
+        loadDates() {
+            return fetch(`${baseUrl}/allDates`).then(d => d.json()).then(dates => {
+                dates.forEach(e => {
                     const d = new Date(e.Date);
                     let arr = this.dates.get(d.getFullYear());
-                    if(arr == null){
+                    if (arr == null) {
                         arr = [];
-                        this.dates.set(d.getFullYear(),arr);
+                        this.dates.set(d.getFullYear(), arr);
                     }
                     let days = arr[d.getMonth()];
-                    if(days == null){
+                    if (days == null) {
                         days = [];
                         arr[d.getMonth()] = days;
                     }
-                    days.push({day:d.getDate(),nb:e.Nb});
+                    days.push({day: d.getDate(), nb: e.Nb});
                 })
             });
         }
-        getNbsByMonth(year, month){
+
+        getNbsByMonth(year, month) {
             const dataYear = this.dates.get(year);
-            if(dataYear == null){
+            if (dataYear == null) {
                 return new Map();
             }
             const dataMonth = dataYear[month];
-            return dataMonth == null ? new Map() : dataMonth.reduce((a,b)=>a.set(b.day,b.nb),new Map());
+            return dataMonth == null ? new Map() : dataMonth.reduce((a, b) => a.set(b.day, b.nb), new Map());
         }
-        getFirstDay = (year,month) => (new Date(year,month,1).getDay() + 6)%7;
-        getNbDays = (year,month) => new Date(year,month+1,0).getDate();
-        newWeek(){
+
+        getFirstDay = (year, month) => (new Date(year, month, 1).getDay() + 6) % 7;
+        getNbDays = (year, month) => new Date(year, month + 1, 0).getDate();
+
+        newWeek() {
             const d = document.createElement('div');
             d.classList.add('week');
             return d;
         }
-        previousYear(){
+
+        previousYear() {
             this.current.year--;
             this.draw();
         }
-        nextYear(){
+
+        nextYear() {
             this.current.year++;
             this.draw();
         }
-        previous(){
-            if(this.current.month === 0){
+
+        previous() {
+            if (this.current.month === 0) {
                 this.current.month = 11;
                 this.current.year--;
-            }else{
+            } else {
                 this.current.month--;
             }
             this.draw();
         }
-        next(){
-            if(this.current.month === 11){
+
+        next() {
+            if (this.current.month === 11) {
                 this.current.month = 0;
                 this.current.year++;
-            }else{
+            } else {
                 this.current.month++;
             }
             this.draw();
         }
-        showDate(){
+
+        showDate() {
             document.querySelector('.current-date').innerHTML = new Date(this.current.year, this.current.month).toLocaleString('default', {
                 month: 'long',
                 year: 'numeric'
             });
         }
-        draw(year = this.current.year,month = this.current.month){
-            this.current = {year:year,month:month};
+
+        draw(year = this.current.year, month = this.current.month) {
+            this.current = {year: year, month: month};
             this.showDate();
-            const nbs = this.getNbsByMonth(year,month) || new Map();
+            const nbs = this.getNbsByMonth(year, month) || new Map();
             const c = document.querySelector('.calendar');
-            c.querySelectorAll('.week').forEach(n=>n.remove());
+            c.querySelectorAll('.week').forEach(n => n.remove());
             // 0 is sunday
             let currentDay = this.getFirstDay(year, month)
             let week = this.newWeek();
-            for(let i = 0 ; i < currentDay ; i++){
+            for (let i = 0; i < currentDay; i++) {
                 week.append(document.createElement('div'));
             }
             currentDay++;
-            const nbDays = this.getNbDays(year,month);
-            for(let i = 1; i <= nbDays ; i++){
-                if(currentDay>7){
+            const nbDays = this.getNbDays(year, month);
+            for (let i = 1; i <= nbDays; i++) {
+                if (currentDay > 7) {
                     currentDay = 1;
                     c.append(week);
                     week = this.newWeek();
                 }
                 const day = document.createElement('div')
                 day.innerHTML = `${i}`;
-                if(nbs.has(i)){
+                if (nbs.has(i)) {
                     day.classList.add('has-photos')
-                    day.onclick = ()=>this.loadPhotos(this.current.year,this.current.month+1,i);
+                    day.onclick = () => this.loadPhotos(this.current.year, this.current.month + 1, i);
                 }
                 week.append(day);
                 currentDay++;
             }
-            for(let i = currentDay ; i%7!==1 ; i++){
+            for (let i = currentDay; i % 7 !== 1; i++) {
                 week.append(document.createElement('div'));
             }
             c.append(week);
@@ -651,12 +688,12 @@
         return i;
     }
 
-    const showImage = (imgInfo,isNext=true) => {
+    const showImage = (imgInfo, isNext = true) => {
         if (remoteControl.isExists()) {
             remoteControl.selectImage(imgInfo.originalPos);
             return;
         }
-        if(lastFolderPosition === 0){
+        if (lastFolderPosition === 0) {
             lastFolderPosition = document.querySelector('.folders').scrollTop;
         }
         touchDetector.detach(["left"])
@@ -710,10 +747,10 @@
     }
 
     const previousFolder = () => {
-        if(currentHeaderName === ''){
+        if (currentHeaderName === '') {
             return menu.show();
         }
-        if(calendar.isEnable){
+        if (calendar.isEnable) {
             return calendar.show();
         }
         const previousPage = StackManager.pop()
@@ -754,12 +791,12 @@
     const setRatio = (img, info) => {
         const ratioImg = (info.height / info.width)
         const ratioScreen = (window.screen.height / window.screen.width)
-        if(ratioImg < ratioScreen) {
+        if (ratioImg < ratioScreen) {
             const realHeight = (info.height * window.innerWidth) / info.width;
-            const shift = Math.round((window.innerHeight - realHeight)/2);
-            img.style.setProperty("margin-top",shift + 'px')
-        }else{
-            img.style.setProperty("margin-top",0)
+            const shift = Math.round((window.innerHeight - realHeight) / 2);
+            img.style.setProperty("margin-top", shift + 'px')
+        } else {
+            img.style.setProperty("margin-top", 0)
         }
         img.style.setProperty(ratioImg < ratioScreen ? "width" : "height", "100%")
     }
@@ -771,9 +808,9 @@
         imgToShow.src = imgInfo.hd;
         setRatio(imgToShow, imgInfo);
 
-        const animeClass = isNext ? 'animeLeft':'animeRight';
-        const replacer = isNext ? ["toLeft","toRight"] : ["toRight","toLeft"];
-        imgToShow.classList.replace(replacer[0],replacer[1]);
+        const animeClass = isNext ? 'animeLeft' : 'animeRight';
+        const replacer = isNext ? ["toLeft", "toRight"] : ["toRight", "toLeft"];
+        imgToShow.classList.replace(replacer[0], replacer[1]);
         setTimeout(() => {
             imgToShow.classList.replace(replacer[1], 'animeMiddle');
             imgToHide.classList.replace('animeMiddle', animeClass);
@@ -781,7 +818,7 @@
                 imgToHide.classList.replace(animeClass, replacer[1]);
             }, 300)
 
-        },100);
+        }, 100);
     }
 
     const remoteControl = new class RemoteControler {
@@ -923,6 +960,7 @@
             if (this.started) {
                 return;
             }
+            this.currentScale = originalScale;
             this.started = true;
             document.addEventListener("touchstart", e => this.start(e))
             document.addEventListener("touchmove", e => this.move(e))
@@ -933,9 +971,12 @@
             if (Object.values(this.actions).filter(d => d != null).length > 0) {
                 return;
             }
-            document.removeEventListener("touchstart", () => {})
-            document.removeEventListener("touchmove", () => {})
-            document.removeEventListener("touchend", () => {})
+            document.removeEventListener("touchstart", () => {
+            })
+            document.removeEventListener("touchmove", () => {
+            })
+            document.removeEventListener("touchend", () => {
+            })
         }
 
         action(kind) {
@@ -952,11 +993,11 @@
         }
 
         start(e) {
-            if(e.target.classList.contains("folder-name") || window.visualViewport.scale !== originalScale){
-                return this.blockMove = true;
-            }
-            if(e.touches.length > 1){
-                // Zoom, stop
+            this.currentScale = window.visualViewport.scale;
+            if (e.target.classList.contains("folder-name")
+                || this.currentScale !== originalScale
+                || e.touches.length > 1) {
+
                 return this.blockMove = true;
             }
             this.startTouchH = e.touches[0].clientX;
@@ -966,7 +1007,7 @@
         }
 
         move(e) {
-            if(this.blockMove){
+            if (this.blockMove) {
                 return;
             }
             this.currentTouchH = e.touches[0].clientX;
@@ -974,10 +1015,11 @@
         }
 
         end() {
-            if(this.blockMove){
-                this.blockMove = false;
-                return;
+            if (this.blockMove || this.currentScale !== originalScale) {
+                this.currentScale = window.visualViewport.scale;
+                return this.blockMove = false;
             }
+            this.currentScale = window.visualViewport.scale;
             if (this.currentTouchV - this.startTouchV < -300) {
                 return this.action("top");
             }
@@ -1001,7 +1043,7 @@
     document.querySelectorAll('.back-button').forEach(i => i.addEventListener('click', previousFolder))
     document.querySelectorAll('.close-button').forEach(i => i.addEventListener('click', hideImage))
     let rootFolders = [];
-    fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(data=>rootFolders = data)
+    fetch(`${baseUrl}/rootFolders`).then(d => d.json()).then(data => rootFolders = data)
     document.documentElement.style.setProperty('--width-screen', (window.innerWidth - 20) + 'px');
     originalScale = window.visualViewport.scale;
 </script>
