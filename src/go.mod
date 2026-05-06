@@ -19,6 +19,7 @@ require (
 
 require (
 	gioui.org/shader v1.0.8 // indirect
+	github.com/Kagami/go-face v0.0.0-20210630145111-0c14797b4d0e // indirect
 	github.com/dsoprea/go-logging v0.0.0-20190624164917-c4f10aab7696 // indirect
 	github.com/dsoprea/go-utility v0.0.0-20200322154813-27f0b0d142d7 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
