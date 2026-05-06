@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -34,9 +35,10 @@ func NewFaceDetector(url, folderTag string) *FaceDetector {
 
 // Launch launch a request on a distance service
 func (fd FaceDetector) Launch(folderId int, pathFolder string) (int, int, error) {
+	log.Println(fmt.Sprintf("%s?folder=%s", fd.faceDetectUrlService, pathFolder))
 	resp, err := http.Post(fmt.Sprintf("%s?folder=%s", fd.faceDetectUrlService, pathFolder), "application/json", nil)
 	if err != nil {
-		return 0, 0, errors.New("impossible to detect faces")
+		return 0, 0, errors.New("impossible to detect faces " + err.Error())
 	}
 	data, _ := io.ReadAll(resp.Body)
 	var results resultsFaceDetection
