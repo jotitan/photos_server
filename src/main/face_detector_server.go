@@ -18,7 +18,6 @@ import (
 
 const (
 	matchThreshold float32 = 0.6
-	serverPort             = ":8080"
 
 	// imagePattern filters target images by filename suffix before extension.
 	// Only files matching this pattern will be processed.
@@ -49,14 +48,15 @@ type service struct {
 }
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Println("Usage: face-detector-job <models_dir> <known_faces_dir> <root_dir>")
+	if len(os.Args) < 5 {
+		log.Println("Usage: face-detector-job <models_dir> <known_faces_dir> <root_dir> <port>")
 		os.Exit(1)
 	}
 
 	modelsDir := os.Args[1]
 	knownDir := os.Args[2]
 	rootDir := os.Args[3]
+	port := ":" + os.Args[4]
 
 	svc := &service{rootDir: rootDir, modelsDir: modelsDir}
 	svc.knownFaces, svc.descriptors, svc.labels = svc.loadKnownFaces(knownDir)
@@ -68,8 +68,8 @@ func main() {
 	http.HandleFunc("/status", handleStatus)
 	http.HandleFunc("/identify", svc.handleIdentify)
 
-	log.Printf("Server listening on %s\n", serverPort)
-	log.Fatal(http.ListenAndServe(serverPort, nil))
+	log.Printf("Server listening on %s\n", port)
+	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +101,7 @@ func (svc *service) handleIdentify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := time.Now()
+	log.Printf("Processing folder: %s\n", folder)
 	results, numImages := svc.identifyFacesPooled(fullPath)
 	elapsed := time.Since(start)
 
