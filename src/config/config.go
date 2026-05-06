@@ -38,8 +38,9 @@ type SecurityConfig struct {
 }
 
 type PhotoConfig struct {
-	Converter string `yaml:"converter"` // local | remote
-	Url       string `yaml:"url"`       // Url of remote server
+	Converter       string `yaml:"converter"` // local | remote
+	Url             string `yaml:"url"`       // Url of remote server
+	UrlFaceDetector string `yaml:"url-face-detector"`
 }
 
 type VideoConfig struct {

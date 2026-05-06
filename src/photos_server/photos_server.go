@@ -34,6 +34,7 @@ type Server struct {
 	pathRoutes     map[string]func(w http.ResponseWriter, r *http.Request)
 	remoteManager  remote_control.RemoteManager
 	custom         config.CustomConfig
+	faceDetector   *people_tag.FaceDetector
 }
 
 // Create security access from good provider
@@ -55,6 +56,7 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 		uploadProgressManager: uploadProgressManager,
 		remoteManager:         remote_control.NewRemoteManager(),
 		custom:                conf.Custom,
+		faceDetector:          people_tag.NewFaceDetector(conf.PhotoConfig.UrlFaceDetector, getTagPath()),
 	}
 	if err := s.videoManager.Load(); err != nil {
 		logger.GetLogger2().Error("Impossible to launch video manager", err)
@@ -232,7 +234,7 @@ func (s Server) tagFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad method", http.StatusMethodNotAllowed)
 		return
 	}
-	data, _ := ioutil.ReadAll(r.Body)
+	data, _ := io.ReadAll(r.Body)
 	tags := make([]tagRequest, 0)
 	if err := json.Unmarshal(data, &tags); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -244,6 +246,27 @@ func (s Server) tagFolder(w http.ResponseWriter, r *http.Request) {
 	}
 	ptm.Flush()
 	w.Write([]byte("ok"))
+}
+
+func (s Server) launchFaceDetection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost || s.faceDetector == nil {
+		http.Error(w, "Bad method", http.StatusMethodNotAllowed)
+		return
+	}
+	folderId, _ := strconv.Atoi(r.URL.Query().Get("id"))
+	pathFolder := r.URL.Query().Get("path")
+	node, _, err := s.foldersManager.FindNode(pathFolder)
+	if err != nil || folderId != node.Id {
+		http.Error(w, "Folder unknown", http.StatusNotFound)
+		return
+	}
+	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, pathFolder)
+	if err != nil {
+		logger.GetLogger().Error("Error when launching face detector", err)
+		http.Error(w, "error during launch", http.StatusBadRequest)
+		return
+	}
+	w.Write([]byte(fmt.Sprintf("{\"tags\":%d,\"faces\":%d}", nbTags, nbPeople)))
 }
 
 func (s Server) getPeoples(w http.ResponseWriter, r *http.Request) {

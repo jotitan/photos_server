@@ -38,6 +38,7 @@ func (s Server) videoRoutes(server *http.ServeMux) {
 
 func (s Server) tagRoutes(server *http.ServeMux) {
 	server.HandleFunc("/tag/tag_folder", s.buildHandler(s.securityServer.NeedAdmin, s.tagFolder))
+	server.HandleFunc("/tag/face_detect", s.buildHandler(s.securityServer.NeedAdmin, s.launchFaceDetection))
 	server.HandleFunc("/tag/search", s.buildHandler(s.securityServer.NeedUser, s.searchTag))
 	server.HandleFunc("/tag/filter_folder", s.buildHandler(s.securityServer.NeedUser, s.filterFolder))
 	server.HandleFunc("/tag/search_folder", s.buildHandler(s.securityServer.NeedUser, s.searchTagsOfFolder))

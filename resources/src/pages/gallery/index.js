@@ -14,6 +14,7 @@ import {
     EditOutlined,
     FileImageOutlined,
     FilterOutlined,
+    FullscreenOutlined,
     PictureOutlined,
     PlusCircleOutlined,
     PlusOutlined,
@@ -21,7 +22,7 @@ import {
     SaveOutlined,
     ShareAltOutlined,
     UserAddOutlined,
-    FullscreenOutlined
+    UsergroupAddOutlined
 } from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
@@ -341,6 +342,7 @@ export default function MyGallery({
     const [currentImage, setCurrentImage] = useState(-1);
     const [updateRunning, setUpdateRunning] = useState(false);
     const [updateExifRunning, setUpdateExifRunning] = useState(false);
+    const [updateFaceDetection, setUpdateFaceDetection] = useState(false);
     const [key, setKey] = useState(-1);
     const [lightboxVisible, setLightboxVisible] = useState(false);
     const [showThumbnails, setShowThumbnails] = useState(false);
@@ -382,7 +384,6 @@ export default function MyGallery({
         }
     }, [canAdmin, setShowThumbnails]);
 
-
     useEffect(() => {
         if (lightboxVisible && key === "Delete") {
             images[currentImage].isSelected = !images[currentImage].isSelected;
@@ -405,22 +406,16 @@ export default function MyGallery({
         if (urlFolder === '' || urlFolder.load === '') {
             return;
         }
-        axios({
-            method: 'GET',
-            url: urlFolder.load,
-        }).then(d => {
-
-            // Filter image by time before
-            setDetails(d.data);
-            //setUpdateUrl(d.data.UpdateUrl);
-            setUpdateExifUrl(d.data.UpdateExifUrl);
-            setRemoveFolderUrl(d.data.RemoveFolderUrl);
-            setCurrentFolder(d.data.FolderPath);
-            setContextSelect(ctx => setProperty(ctx, "id", d.data.Id))
-            loadTagsOfFolder(d.data.Id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
-            let photos = d.data.Files != null ? d.data.Files : d.data;
+        fetch(urlFolder.load).then(d => d.json()).then(d => {
+            setDetails(d);
+            setUpdateExifUrl(d.UpdateExifUrl);
+            setRemoveFolderUrl(d.RemoveFolderUrl);
+            setCurrentFolder(d.FolderPath);
+            setContextSelect(ctx => setProperty(ctx, "id", d.Id))
+            loadTagsOfFolder(d.Id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
+            let photos = d.Files != null ? d.Files : d;
             setShowTimeline(isMultipleFolders(photos))
-            setTags(d.data.Tags.map(t => {
+            setTags(d.Tags.map(t => {
                 return {value: t.Value, color: t.Color}
             }));
             let p = adaptImages(photos)
@@ -450,7 +445,6 @@ export default function MyGallery({
                     copy.UpdateUrl = '';
                     return copy;
                 })
-                //setUpdateUrl('');
                 setUrlFolder({load: '', tags: ''});
                 setUpdate(!update);
             }
@@ -458,19 +452,23 @@ export default function MyGallery({
     };
 
     const deleteSelection = () => {
-        axios({
+        fetch(`${baseUrl}/delete`, {
             method: 'POST',
-            url: `${baseUrl}/delete`,
-            data: JSON.stringify(images.filter(i => i.isSelected).map(i => i.path))
-        }).then(r => {
-            if (r.data.errors === 0) {
-                let count = images.filter(i => i.isSelected).length;
-                setImages(images.filter(i => !i.isSelected));
-                notification["success"]({message: "Succès", description: `${count} images ont été bien supprimées`});
-            }
-        });
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(images.filter(i => i.isSelected).map(i => i.path))
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.errors === 0) {
+                    let count = images.filter(i => i.isSelected).length;
+                    setImages(images.filter(i => !i.isSelected));
+                    notification["success"]({
+                        message: "Succès",
+                        description: `${count} images ont été bien supprimées`
+                    });
+                }
+            });
     };
-
     const updateFolder = () => {
         if (canAdmin && details.UpdateUrl !== "") {
             setUpdateRunning(true);
@@ -518,6 +516,21 @@ export default function MyGallery({
         setIsAddFolderPanelVisible(true);
     };
 
+    const detectFaces = (path, id) => {
+        setUpdateFaceDetection(true);
+        fetch(`${baseUrl}/tag/face_detect?id=${id}&path=${path}`).then(d=>{
+            setUpdateFaceDetection(false);
+            if(d.status===200){
+                d.json().then(data => {
+                    notification["success"]({message: 'Faces detected', description: `${data.tags} tags have been detected for ${data.faces} people`})
+                })
+            }else{
+                notification["error"]({message:"Face detection fail",description:`error`});
+            }
+        })
+        console.log("plop", path, id)
+    }
+
     const resetSelectedImage = () => {
         selectMode.reset();
         setImages(list => list.map(i => {
@@ -535,7 +548,8 @@ export default function MyGallery({
                         <FullscreenOutlined onClick={setCollapsed} className={"button"}/>
                     </Tooltip>
                     <Tooltip key={"image-share"} placement="top" title={"Partager le répertoire"}>
-                        <ShareAltOutlined style={{marginLeft:10}} onClick={() => setShowSharePanel(true)} className={"button"}/>
+                        <ShareAltOutlined style={{marginLeft: 5}} onClick={() => setShowSharePanel(true)}
+                                          className={"button"}/>
                     </Tooltip>
                     {isFolderEmpty() && !filterEnable ?
                         <Popconfirm placement="bottom" title={"Es tu sûr de vouloir supprimer ce répertoire vide"}
@@ -548,27 +562,32 @@ export default function MyGallery({
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour les Exifs"}
                                 onConfirm={updateExifFolder} okText="Oui" cancelText="Non">
                         <Tooltip key={"update-exif"} placement="top" title={"Mettre à jour les Exifs"}>
-                            <ChromeOutlined style={{marginLeft: 10}} spin={updateExifRunning} className={"button"}/>
+                            <ChromeOutlined style={{marginLeft: 5}} spin={updateExifRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
                     <Popconfirm placement="bottom" title={"Es tu sûr de vouloir mettre à jour le répertoire"}
                                 onConfirm={updateFolder} okText="Oui" cancelText="Non">
                         <Tooltip key={"update-folder2"} placement="top" title={"Mettre à jour le répertoire"}>
-                            <ReloadOutlined style={{marginLeft: 10}} spin={updateRunning} className={"button"}/>
+                            <ReloadOutlined style={{marginLeft: 5}} spin={updateRunning} className={"button"}/>
                         </Tooltip>
                     </Popconfirm>
                     <Tooltip key={"add-image-info"} placement="top" title={"Ajouter des photos"}>
-                        <PlusCircleOutlined className={"button"} style={{marginLeft: 10}} onClick={addPhotosToFolder}/>
+                        <PlusCircleOutlined className={"button"} style={{marginLeft: 5}} onClick={addPhotosToFolder}/>
+                    </Tooltip>
+                    <Tooltip key={"detect-faces"} placement="top" title={"Détecter les visages"}>
+                        <UsergroupAddOutlined className={"button"} spin={updateFaceDetection} style={{marginLeft: 5}} onClick={() => {
+                            detectFaces(urlFolder.path, contextSelect.id)
+                        }}/>
                     </Tooltip>
                     <Tooltip key={"tag-images"} placement="top" title={"Tagger des photos"}>
-                        <UserAddOutlined className={"button"} style={{marginLeft: 10}} onClick={() => {
+                        <UserAddOutlined className={"button"} style={{marginLeft: 5}} onClick={() => {
                             loadTagsOfFolder(contextSelect.id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
                             setSelectMode(tMode)
                         }}/>
                     </Tooltip>
                     <Tooltip key={"filter-image"} placement="top" title={"Filter"}>
                         <FilterOutlined className={"button"}
-                                        style={{marginLeft: 10, backgroundColor: filterEnable ? 'green' : ''}}
+                                        style={{marginLeft: 5, backgroundColor: filterEnable ? 'green' : ''}}
                                         onClick={() => {
                                             if (filterEnable) {
                                                 setImages(() => contextSelect.allImages);
@@ -727,7 +746,7 @@ export default function MyGallery({
     return (
         <>
             <Row className={"options"}>
-                <Col flex={"300px"}>
+                <Col flex={"380px"}>
                     {showTitle()}
                     <span style={{paddingLeft: 5, paddingRight: 5}}>-</span>
                     {images.length} <PictureOutlined/>
