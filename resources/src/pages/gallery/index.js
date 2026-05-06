@@ -518,7 +518,7 @@ export default function MyGallery({
 
     const detectFaces = (path, id) => {
         setUpdateFaceDetection(true);
-        fetch(`${baseUrl}/tag/face_detect?id=${id}&path=${path}`).then(d=>{
+        fetch(`${baseUrl}/tag/face_detect?id=${id}&path=${path}`,{method:'POST'}).then(d=>{
             setUpdateFaceDetection(false);
             if(d.status===200){
                 d.json().then(data => {
