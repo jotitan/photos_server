@@ -260,7 +260,7 @@ func (s Server) launchFaceDetection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Folder unknown", http.StatusNotFound)
 		return
 	}
-	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, pathFolder)
+	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, node.RelativePath)
 	if err != nil {
 		logger.GetLogger().Error("Error when launching face detector", err)
 		http.Error(w, "error during launch", http.StatusBadRequest)
