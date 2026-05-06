@@ -483,6 +483,19 @@ func (fm FoldersManager) FindNode(path string) (*Node, map[string]*Node, error) 
 	}
 	return findNodeFromList(source.Files, subPath)
 }
+func (fm FoldersManager) FindNodeAndSub(path string) (*Node, string, error) {
+	source, subPath, err := fm.Sources.getSourceFromPath(path)
+	// Source not found
+	if err != nil {
+		return nil, "", err
+	}
+	n,_,err := findNodeFromList(source.Files, subPath)
+	if err != nil {
+		return nil,"",err
+	}
+	return n, subPath, nil
+
+}
 
 func findNodeFromList(current map[string]*Node, path string) (*Node, map[string]*Node, error) {
 	path = strings.ReplaceAll(path, "\\", "/")

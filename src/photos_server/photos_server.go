@@ -255,12 +255,12 @@ func (s Server) launchFaceDetection(w http.ResponseWriter, r *http.Request) {
 	}
 	folderId, _ := strconv.Atoi(r.URL.Query().Get("id"))
 	pathFolder := r.URL.Query().Get("path")
-	node, _, err := s.foldersManager.FindNode(pathFolder)
+	node, subPath, err := s.foldersManager.FindNodeAndSub(pathFolder)
 	if err != nil || folderId != node.Id {
 		http.Error(w, "Folder unknown", http.StatusNotFound)
 		return
 	}
-	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, node.RelativePath)
+	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, subPath)
 	if err != nil {
 		logger.GetLogger().Error("Error when launching face detector", err)
 		http.Error(w, "error during launch", http.StatusBadRequest)
