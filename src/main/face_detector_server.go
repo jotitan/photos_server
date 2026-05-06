@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	modelsDir              = "models"
 	matchThreshold float32 = 0.6
 	serverPort             = ":8080"
 
@@ -46,19 +45,21 @@ type service struct {
 	labels      []int32
 	pool        *WorkerPool
 	rootDir     string
+	modelsDir   string
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Println("Usage: face-detector-job <known_faces_dir> <root_dir>")
+	if len(os.Args) < 4 {
+		log.Println("Usage: face-detector-job <models_dir> <known_faces_dir> <root_dir>")
 		os.Exit(1)
 	}
 
-	knownDir := os.Args[1]
-	rootDir := os.Args[2]
+	modelsDir := os.Args[1]
+	knownDir := os.Args[2]
+	rootDir := os.Args[3]
 
-	svc := &service{rootDir: rootDir}
-	svc.knownFaces, svc.descriptors, svc.labels = loadKnownFaces(knownDir)
+	svc := &service{rootDir: rootDir, modelsDir: modelsDir}
+	svc.knownFaces, svc.descriptors, svc.labels = svc.loadKnownFaces(knownDir)
 	log.Printf("Loaded %d known face(s)\n", len(svc.knownFaces))
 
 	svc.pool = NewWorkerPool(svc)
@@ -121,11 +122,11 @@ func (svc *service) handleIdentify(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func loadKnownFaces(folder string) ([]knownFace, []face.Descriptor, []int32) {
-	rec, err := face.NewRecognizer(modelsDir)
+func (svc *service) loadKnownFaces(folder string) ([]knownFace, []face.Descriptor, []int32) {
+	rec, err := face.NewRecognizer(svc.modelsDir)
 	if err != nil {
 		log.Fatalf("Failed to initialize recognizer: %v\n"+
-			"Make sure model files are in the '%s' directory.\n", err, modelsDir)
+			"Make sure model files are in the '%s' directory.\n", err, svc.modelsDir)
 	}
 	defer rec.Close()
 
@@ -219,7 +220,7 @@ func (wp *WorkerPool) Add(job imageJob) {
 }
 
 func (wp *WorkerPool) runWorker(id int) {
-	rec, err := face.NewRecognizer(modelsDir)
+	rec, err := face.NewRecognizer(wp.svc.modelsDir)
 	if err != nil {
 		log.Printf("Worker %d: failed to create recognizer: %v", id, err)
 		return
