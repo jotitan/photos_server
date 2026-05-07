@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,12 +28,12 @@ const (
 
 // FaceResult represents an identified face.
 type FaceResult struct {
-	ID        string `json:"id"`
+	ID        int    `json:"id"`
 	ImageFile string `json:"image_file"`
 }
 
 type knownFace struct {
-	id         string
+	id         int
 	name       string
 	descriptor face.Descriptor
 }
@@ -163,9 +164,13 @@ func (svc *service) loadKnownFaces(folder string) ([]knownFace, []face.Descripto
 		// Expected format: name.id.ext (e.g. "john.42.jpg" -> name="john", id="42")
 		parts := strings.SplitN(base, ".", 2)
 		personName := parts[0]
-		personID := ""
+		personID := 0
 		if len(parts) == 2 {
-			personID = parts[1]
+			personID, _ = strconv.Atoi(parts[1])
+
+		}
+		if personID == 0 {
+			continue
 		}
 
 		knownFaces = append(knownFaces, knownFace{

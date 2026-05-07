@@ -489,9 +489,9 @@ func (fm FoldersManager) FindNodeAndSub(path string) (*Node, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	n,_,err := findNodeFromList(source.Files, subPath)
+	n, _, err := findNodeFromList(source.Files, subPath)
 	if err != nil {
-		return nil,"",err
+		return nil, "", err
 	}
 	return n, subPath, nil
 
