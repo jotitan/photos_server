@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,7 +69,6 @@ func (pth PeopleTagHeader) sizeHeader() int {
 func (pth *PeopleTagHeader) read(f *os.File) {
 	header := make([]byte, pth.sizeHeader())
 	f.Read(header)
-
 	pth.size = bytesToInt16(header[0:2])
 	pth.nbWritten = bytesToInt16(header[2:4])
 	pth.latestFolder = make(map[int]*HeaderElement)
@@ -129,10 +129,10 @@ func (pth *PeopleTagHeader) getAsBytes() []byte {
 	return data
 }
 
-// Store all path by folder for a specific tag id
+// PeopleTag store all path by folder for a specific tag id
 type PeopleTag struct {
 	idTag int
-	// NewFaceDetector path to save
+	// New path to save
 	pathsToSave [][]string
 	// Current position in file
 	currentPosition int64
@@ -151,20 +151,70 @@ func (pt PeopleTag) computeSizeBlock(paths []string) int64 {
 	return count
 }
 
+// Compact launch a compact file by removing old data (mark as deleted in header)
+// Read header, keep only valid
+func (pt PeopleTag) Compact() error {
+	compact, err := NewPeopleTag(pt.folder, pt.idTag, false)
+	if err != nil {
+		return err
+	}
+	count := 0
+
+	for idFolder, _ := range pt.header.latestFolder {
+		paths := pt.readPaths(idFolder)
+		if len(paths) > 0 {
+			compact.Tag(idFolder, paths, []string{})
+			count++
+		}
+	}
+	err = compact.SaveWithOptions(os.O_TRUNC)
+	if err != nil {
+		log.Println("Impossible to compact file", pt.idTag, err)
+		return err
+	}
+	log.Println(fmt.Sprintf("Compact tag %d : previous %d, after %d. File %s", pt.idTag, len(pt.header.elements), count, pt.getFilename()))
+	return nil
+}
+
+func (pt PeopleTag) Diag() string {
+	nbEntries := len(pt.header.elements)
+	nbValidEntries := len(pt.header.latestFolder)
+	headerAsString := "["
+	for id, h := range pt.header.latestFolder {
+		paths := pt.readPaths(id)
+		headerAsString += fmt.Sprintf("{\"id\":%d,\"pos\":%d, \"nb\":%d},", id, h.position, len(paths))
+	}
+	headerAsString += "]"
+
+	return fmt.Sprintf("{\"id\":%d,\"all_entries\":%d,\"entries\":%d,\"details\":%s}", pt.idTag, nbEntries, nbValidEntries, headerAsString)
+}
+
+func readInt16(f *os.File, pos int64) int {
+	data := make([]byte, 2)
+	f.ReadAt(data, pos)
+	return int(bytesToInt16(data))
+}
+
+func readInt32(f *os.File, pos int64) int {
+	data := make([]byte, 4)
+	f.ReadAt(data, pos)
+	return int(bytesToInt32(data))
+}
+
 func (pt PeopleTag) readPaths(idFolder int) []string {
 	if f, err := os.Open(pt.getFilename()); err == nil {
 		defer f.Close()
 		if headerElement, exist := pt.header.latestFolder[idFolder]; exist {
 			// Read Blocksize first
-			blockSizeData := make([]byte, 4)
-			nbPathsData := make([]byte, 2)
-			f.ReadAt(blockSizeData, headerElement.position)
-			f.ReadAt(nbPathsData, headerElement.position+4)
-
-			nbPaths := int(bytesToInt16(nbPathsData))
-			blockData := make([]byte, bytesToInt32(blockSizeData))
+			blockDataSize := readInt32(f, headerElement.position)
+			// avoid memory crash
+			if blockDataSize > 1000000000 {
+				log.Println("Error during reading path", pt.idTag, idFolder)
+				return []string{}
+			}
+			nbPaths := readInt16(f, headerElement.position+4)
+			blockData := make([]byte, blockDataSize)
 			f.ReadAt(blockData, headerElement.position+6)
-
 			pointer := 0
 			paths := make([]string, nbPaths)
 			for i := 0; i < nbPaths; i++ {
@@ -202,6 +252,7 @@ func (pt *PeopleTag) Tag(idFolder int, paths, deleted []string) {
 	// Check if exist in header
 
 	if pt.header.has(idFolder) {
+		fmt.Println("duplicate folder", idFolder)
 		// extract path from file at good position
 		existingPaths := pt.readPaths(idFolder)
 		// remove deleted from existing paths
@@ -252,12 +303,17 @@ func (pt PeopleTag) getFilename() string {
 	return filepath.Join(pt.folder, fmt.Sprintf("people_tag_%d.data", pt.idTag))
 }
 
+func (pt *PeopleTag) Save() error {
+	return pt.SaveWithOptions(0)
+}
+
+// SaveWithOptions
 // Reserve a header size to manage many folder, for instance 5000. If header to enough place, create a new file or compact
 // Header contains : size(2) | nbWritten(2) | [ idFolder(2) | posInFile(8) | flags(1) ] x 5000
 // Flags : First byte is one when block need to be delete (by compaction)
-func (pt *PeopleTag) Save() error {
+func (pt *PeopleTag) SaveWithOptions(isTruncate int) error {
 	// Save header first, append data at end of file
-	if f, err := os.OpenFile(pt.getFilename(), os.O_RDWR|os.O_CREATE, os.ModePerm); err == nil {
+	if f, err := os.OpenFile(pt.getFilename(), os.O_RDWR|os.O_CREATE|isTruncate, os.ModePerm); err == nil {
 		defer f.Close()
 		f.WriteAt(pt.header.getAsBytes(), 0)
 		f.Seek(0, 2)
@@ -272,8 +328,8 @@ func (pt *PeopleTag) Save() error {
 				data = append(data, []byte(path)...)
 			}
 		}
-		f.Write(data)
-		return nil
+		_, err := f.Write(data)
+		return err
 	} else {
 		return err
 	}
@@ -288,18 +344,18 @@ func NewPeopleTag(folder string, idTag int, loadHeader bool) (*PeopleTag, error)
 			pt.header.read(f)
 			// Current position at end of file
 			pt.currentPosition, _ = f.Seek(0, 2)
-		} else {
-			//Create empty header
-			pt.header = &PeopleTagHeader{
-				size:         headerSize,
-				nbWritten:    0,
-				elements:     make([]*HeaderElement, 0, headerSize),
-				latestFolder: make(map[int]*HeaderElement),
-			}
-			// Position is header size
-			pt.currentPosition = int64(pt.header.sizeHeader())
+			return &pt, nil
 		}
 	}
+	//Create empty header
+	pt.header = &PeopleTagHeader{
+		size:         headerSize,
+		nbWritten:    0,
+		elements:     make([]*HeaderElement, 0, headerSize),
+		latestFolder: make(map[int]*HeaderElement),
+	}
+	// Position is header size
+	pt.currentPosition = int64(pt.header.sizeHeader())
 	return &pt, nil
 }
 
@@ -367,7 +423,7 @@ func AddPeopleTag(folder, name string) (int, error) {
 	// Load existent people, add new one
 	filename := filepath.Join(folder, "peoples_tag.list")
 	list := make([]peopleTag, 0)
-	if data, err := ioutil.ReadFile(filename); err == nil {
+	if data, err := os.ReadFile(filename); err == nil {
 		json.Unmarshal(data, &list)
 	}
 	id := len(list) + 1
@@ -375,7 +431,7 @@ func AddPeopleTag(folder, name string) (int, error) {
 
 	// Write file
 	data, _ := json.Marshal(list)
-	if err := ioutil.WriteFile(filename, data, os.ModePerm); err != nil {
+	if err := os.WriteFile(filename, data, os.ModePerm); err != nil {
 		return 0, err
 	}
 	return id, nil
@@ -385,7 +441,7 @@ func GetPeoples(folder string) ([]peopleTag, error) {
 	// Load existent people, add new one
 	filename := filepath.Join(folder, "peoples_tag.list")
 	list := make([]peopleTag, 0)
-	if data, err := ioutil.ReadFile(filename); err == nil {
+	if data, err := os.ReadFile(filename); err == nil {
 		json.Unmarshal(data, &list)
 		return list, nil
 	} else {
@@ -401,6 +457,23 @@ func GetPeoplesAsByte(folder string) ([]byte, error) {
 
 func NewPeopleTagManager(folder string) *PeopleTagManager {
 	return &PeopleTagManager{peopleTags: make(map[int]*PeopleTag), folder: folder}
+}
+
+func (ptm *PeopleTagManager) CompactAll() error {
+	peoples, err := GetPeoples(ptm.folder)
+	if err != nil {
+		return err
+	}
+	for _, people := range peoples {
+		pt, err := NewPeopleTag(ptm.folder, people.Id, true)
+		if err != nil {
+			return err
+		}
+		if err := pt.Compact(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ptm *PeopleTagManager) getPeopleTag(idTag int) *PeopleTag {

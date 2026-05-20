@@ -145,7 +145,7 @@ func (svc *service) loadKnownFaces(folder string) ([]knownFace, []face.Descripto
 		if entry.IsDir() {
 			continue
 		}
-
+		log.Printf("Loading known face from %s\n", entry.Name())
 		imgPath := filepath.Join(folder, entry.Name())
 		faces, err := rec.RecognizeFile(imgPath)
 		if err != nil {
@@ -241,7 +241,7 @@ func (wp *WorkerPool) runWorker(id int) {
 			job.done <- struct{}{}
 			continue
 		}
-
+		log.Printf("Find %d faces in %s\n", len(targetFaces), job.fileName)
 		for _, f := range targetFaces {
 			classID := rec.ClassifyThreshold(f.Descriptor, matchThreshold)
 			if classID >= 0 {

@@ -56,13 +56,14 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 		uploadProgressManager: uploadProgressManager,
 		remoteManager:         remote_control.NewRemoteManager(),
 		custom:                conf.Custom,
-		faceDetector:          people_tag.NewFaceDetector(conf.PhotoConfig.UrlFaceDetector, getTagPath()),
+		faceDetector:          people_tag.NewFaceDetector(conf.PhotoConfig.UrlFaceDetector),
 	}
 	if err := s.videoManager.Load(); err != nil {
 		logger.GetLogger2().Error("Impossible to launch video manager", err)
 	}
 	s.setSecurityAccess(conf)
 	s.loadPathRoutes()
+	people_tag.NewPeopleTagManager(getTagPath()).CompactAll()
 	return s
 }
 
@@ -260,13 +261,14 @@ func (s Server) launchFaceDetection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Folder unknown", http.StatusNotFound)
 		return
 	}
-	nbTags, nbPeople, err := s.faceDetector.Launch(folderId, subPath)
+	results, err := s.faceDetector.Launch(subPath)
 	if err != nil {
 		logger.GetLogger().Error("Error when launching face detector", err)
 		http.Error(w, "error during launch", http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(fmt.Sprintf("{\"tags\":%d,\"faces\":%d}", nbTags, nbPeople)))
+	resultsAsJson, _ := json.Marshal(results)
+	w.Write(resultsAsJson)
 }
 
 func (s Server) getPeoples(w http.ResponseWriter, r *http.Request) {
@@ -274,7 +276,6 @@ func (s Server) getPeoples(w http.ResponseWriter, r *http.Request) {
 		w.Write(peoples)
 	} else {
 		w.Write([]byte("[]"))
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 }
 

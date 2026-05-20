@@ -122,34 +122,56 @@ class tagMode extends mode {
         })
     }
 
+    automaticSelect(results){
+        this.setContext(ctx => {
+            let copy = {...ctx};
+            copy.paths = copy.paths || new Map();
+            // Structure of results for a folder : list of tags with photos name for each
+            Object.entries(results).forEach(([tagId,paths])=>{
+                const pathsAsSet = paths.reduce((s,value)=>s.add(value),new Set());
+                tagId = parseInt(tagId);
+                let pathList = new Map();
+                if (copy.paths.has(tagId)) {
+                    pathList = copy.paths.get(tagId);
+                } else {
+                    copy.paths.set(tagId, pathList);
+                }
+                copy.allImages.forEach((image, i) => {
+                    const path = image.path.substring(image.path.lastIndexOf("/") + 1)
+                    if(pathsAsSet.has(path)){
+                        // Add in pathList
+                        pathList.set(i, {path: image.path, idx: i, delete: false})
+                    }
+                })
+            })
+            return copy;
+        })
+    }
+
+
     select(index, image) {
         this.setContext(ctx => {
             if (ctx.currentTag == null) {
                 return ctx;
             }
             let copy = {...ctx};
-            if (copy.paths == null) {
-                copy.paths = {};
-            }
-            let pathList = copy.paths[copy.currentTag.id];
-            if (pathList == null) {
-                pathList = [];
-                copy.paths[copy.currentTag.id] = pathList;
-            }
-            // If index already exist, remove it
-            let found = pathList.findIndex(p => p.idx === index)
-            if (found !== -1) {
-                // Remove
-                pathList.splice(found, 1);
+            copy.paths = copy.paths || new Map();
+            let pathList = new Map();
+            if (copy.paths.has(copy.currentTag.id)) {
+                pathList = copy.paths.get(copy.currentTag.id);
             } else {
-                // Check if already exists in original list, if not, add to remove
+                copy.paths.set(copy.currentTag.id, pathList);
+            }
+
+            // If not in list when delete, doesn't exist, add it (delete when already exists)
+            if (!pathList.delete(index)) {
                 if (ctx.originalPaths != null
                     && ctx.originalPaths[copy.currentTag.id] != null
                     && ctx.originalPaths[copy.currentTag.id].some(p => image.path.indexOf(p) !== -1)) {
                     // If already exist in original path, try to remove it
-                    pathList.push({path: image.path, idx: index, delete: true})
+                    pathList.set(index, {path: image.path, idx: index, delete: true})
                 } else {
-                    pathList.push({path: image.path, idx: index, delete: false})
+                    pathList.set(index, {path: image.path, idx: index, delete: false})
                 }
             }
             this.defaultSelect(index);
@@ -173,9 +195,12 @@ class tagMode extends mode {
             this.setImages(list => {
                 let copyImages = list.slice();
                 copyImages.forEach(i => i.isSelected = false);
-                if (copy.paths != null && copy.paths[copy.currentTag.id] != null) {
-                    copy.paths[copy.currentTag.id].forEach(p => copyImages[p.idx].isSelected = true)
+                if (copy.paths != null && copy.paths.has(copy.currentTag.id)) {
+                    copy.paths.get(copy.currentTag.id).keys().forEach(index => copyImages[index].isSelected = true)
                 }
+                /*if (copy.paths != null && copy.paths[copy.currentTag.id] != null) {
+                    copy.paths[copy.currentTag.id].forEach(p => copyImages[p.idx].isSelected = true)
+                }*/
                 if (copy.originalPaths != null && copy.originalPaths[copy.currentTag.id] != null) {
                     copy.originalPaths[copy.currentTag.id].forEach(p => {
                         copyImages.find(img => img.path.indexOf(p) !== -1).isSelected = true
@@ -185,15 +210,17 @@ class tagMode extends mode {
             })
             return copy;
         });
-
     }
 
     countTaged(people, context) {
         // Count selected path and originalPaths
         let count = 0;
-        if (context.paths != null && context.paths[people.id] != null) {
-            count += context.paths[people.id].map(p => p.delete === true ? -1 : 1).reduce((total, v) => total + v, 0);
+        if (context.paths != null && context.paths.has(people.id)) {
+            count += context.paths.get(people.id).values().map(p => p.delete === true ? -1 : 1).reduce((total, v) => total + v, 0);
         }
+        /*if (context.paths != null && context.paths[people.id] != null) {
+            count += context.paths[people.id].map(p => p.delete === true ? -1 : 1).reduce((total, v) => total + v, 0);
+        }*/
         if (context.originalPaths != null && context.originalPaths[people.id] != null) {
             count += context.originalPaths[people.id].length;
         }
@@ -222,20 +249,38 @@ class tagMode extends mode {
 
     save(context) {
         // Request is [{tag,folder,paths:[]}]
-        const data = Object.keys(context.paths).map(tag => {
-            // Keep only last part of path
-            return {
-                paths: context.paths[tag].filter(p => !p.delete).map(v => v.path.substr(v.path.lastIndexOf("/") + 1)),
-                deleted: context.paths[tag].filter(p => p.delete).map(v => v.path.substr(v.path.lastIndexOf("/") + 1)),
-                tag: parseInt(tag),
+        const data = [];
+        for (let [tag, images] of context.paths.entries()) {
+            const t = [...images.values()];
+            data.push({
+                paths: t.filter(p => !p.delete).map(a => a.path.substring(a.path.lastIndexOf("/") + 1)),
+                deleted: t.filter(p => p.delete).map(a => a.path.substring(a.path.lastIndexOf("/") + 1)),
+                tag: tag,
                 folder: context.id
-            };
+            });
+        }
+        fetch(`${getBaseUrl()}/tag/tag_folder`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }
+        ).then(() => notification["success"]({message: 'Tags saved', description: `All tagged have been saved`}));
+    }
+
+    detectFaces (path, id) {
+        fetch(`${getBaseUrl()}/tag/face_detect?id=${id}&path=${path}`, {method: 'POST'}).then(d => {
+            if (d.status === 200) {
+                d.json().then(data => {
+                    this.automaticSelect(data)
+                    notification["success"]({
+                        message: 'Faces detected',
+                        description: `${Object.keys(data).length} people have been detected`
+                    })
+                })
+            } else {
+                notification["error"]({message: "Face detection fail", description: `error`});
+            }
         })
-        return axios({
-            method: 'POST',
-            url: `${getBaseUrl()}/tag/tag_folder`,
-            data: data
-        }).then(() => notification["success"]({message: 'Tags saved', description: `All tagged have been saved`}));
     }
 
     // return peoples
@@ -252,6 +297,8 @@ class tagMode extends mode {
                 <UserAddOutlined/>+ {this.t('people.add')}
             </Tag>
             <Tag style={{cursor: 'pointer'}} onClick={() => this.save(context)}><SaveOutlined/> {this.t('people.save')}
+            </Tag>
+            <Tag style={{cursor: 'pointer'}} onClick={() =>this.detectFaces(context.currentPath, context.id)}><UsergroupAddOutlined/> {this.t('people.detect')}
             </Tag>
             {context.flag ?
                 <p>
@@ -334,7 +381,6 @@ export default function MyGallery({
     const [originalImages, setOriginalImages] = useState([]);
     const [imageToZoom, setImageToZoom] = useState('');
     const [zoomEnable, setZoomEnable] = useState(false);
-    //const [updateUrl, setUpdateUrl] = useState('');
     const [showSharePanel, setShowSharePanel] = useState(false);
     const [updateExifUrl, setUpdateExifUrl] = useState('');
     const [details, setDetails] = useState('');
@@ -342,7 +388,6 @@ export default function MyGallery({
     const [currentImage, setCurrentImage] = useState(-1);
     const [updateRunning, setUpdateRunning] = useState(false);
     const [updateExifRunning, setUpdateExifRunning] = useState(false);
-    const [updateFaceDetection, setUpdateFaceDetection] = useState(false);
     const [key, setKey] = useState(-1);
     const [lightboxVisible, setLightboxVisible] = useState(false);
     const [showThumbnails, setShowThumbnails] = useState(false);
@@ -352,9 +397,11 @@ export default function MyGallery({
     const {t} = useTranslation();
 
     const [input, setInput] = useState('');
+    // Used to share data across components
     const [contextSelect, setContextSelect] = useState({input: input, setInput: setInput, flag: false});
     const dMode = new deleteMode(setImages, contextSelect, setContextSelect, t);
     const tMode = new tagMode(setImages, contextSelect, setContextSelect, t);
+    window.aut = res=>tMode.automaticSelect(res);
     const [selectMode, setSelectMode] = useState(dMode)
 
     const [filterEnable, setFilterEnable] = useState(false);
@@ -412,6 +459,7 @@ export default function MyGallery({
             setRemoveFolderUrl(d.RemoveFolderUrl);
             setCurrentFolder(d.FolderPath);
             setContextSelect(ctx => setProperty(ctx, "id", d.Id))
+            setContextSelect(ctx => setProperty(ctx, "currentPath", d.FolderPath))
             loadTagsOfFolder(d.Id).then(data => setContextSelect(ctx => setProperty(ctx, "originalPaths", data.data)))
             let photos = d.Files != null ? d.Files : d;
             setShowTimeline(isMultipleFolders(photos))
@@ -516,21 +564,6 @@ export default function MyGallery({
         setIsAddFolderPanelVisible(true);
     };
 
-    const detectFaces = (path, id) => {
-        setUpdateFaceDetection(true);
-        fetch(`${baseUrl}/tag/face_detect?id=${id}&path=${path}`,{method:'POST'}).then(d=>{
-            setUpdateFaceDetection(false);
-            if(d.status===200){
-                d.json().then(data => {
-                    notification["success"]({message: 'Faces detected', description: `${data.tags} tags have been detected for ${data.faces} people`})
-                })
-            }else{
-                notification["error"]({message:"Face detection fail",description:`error`});
-            }
-        })
-        console.log("plop", path, id)
-    }
-
     const resetSelectedImage = () => {
         selectMode.reset();
         setImages(list => list.map(i => {
@@ -573,11 +606,6 @@ export default function MyGallery({
                     </Popconfirm>
                     <Tooltip key={"add-image-info"} placement="top" title={"Ajouter des photos"}>
                         <PlusCircleOutlined className={"button"} style={{marginLeft: 5}} onClick={addPhotosToFolder}/>
-                    </Tooltip>
-                    <Tooltip key={"detect-faces"} placement="top" title={"Détecter les visages"}>
-                        <UsergroupAddOutlined className={"button"} spin={updateFaceDetection} style={{marginLeft: 5}} onClick={() => {
-                            detectFaces(urlFolder.path, contextSelect.id)
-                        }}/>
                     </Tooltip>
                     <Tooltip key={"tag-images"} placement="top" title={"Tagger des photos"}>
                         <UserAddOutlined className={"button"} style={{marginLeft: 5}} onClick={() => {
