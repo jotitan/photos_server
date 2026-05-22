@@ -446,7 +446,7 @@ func (fm FoldersManager) FindNodes(paths []string) []FolderDto {
 	return results
 }
 
-func (fm FoldersManager) FindOrCreateNode(path string) (*Node, error) {
+func (fm *FoldersManager) FindOrCreateNode(path string) (*Node, error) {
 	path = strings.ReplaceAll(path, "\\", "/")
 	source, subPath, err := fm.Sources.getSourceFromPath(path)
 	// Source not found
@@ -570,7 +570,7 @@ func (fm *FoldersManager) AddFolderToNode(absolutePath, relativePath string, for
 	node.Description = detail.description
 
 	// Define id if not exist in subtree
-	fm.detectMissingFoldersIdOfFolder(node.Files)
+	fm.detectMissingFoldersIdOfFolderOrDuplicate(node.Files, make(map[int]struct{}))
 
 	logger.GetLogger2().Info("Add folder", relativePath)
 	// Check if images already exists to improve computing
@@ -633,7 +633,7 @@ func extractImages(node *Node, sn SourceNodes) map[string]struct{} {
 	return m
 }
 
-func (fm *FoldersManager) detectMissingFoldersIdOfFolder(folders map[string]*Node) int {
+func (fm *FoldersManager) detectMissingFoldersIdOfFolderOrDuplicate(folders map[string]*Node, existings map[int]struct{}) int {
 	counter := 0
 	for _, folder := range folders {
 		if folder.IsFolder {
@@ -641,9 +641,16 @@ func (fm *FoldersManager) detectMissingFoldersIdOfFolder(folders map[string]*Nod
 				// Need to define folder
 				counter++
 				folder.Id = fm.GetNextId()
+			} else {
+				if _, exists := existings[folder.Id]; exists {
+					logger.GetLogger2().Info("Detect duplicate folder id", folder.Id)
+					counter++
+					folder.Id = fm.GetNextId()
+				}
 			}
 			// Browse subfolders
-			counter += fm.detectMissingFoldersIdOfFolder(folder.Files)
+			existings[folder.Id] = struct{}{}
+			counter += fm.detectMissingFoldersIdOfFolderOrDuplicate(folder.Files, existings)
 		}
 	}
 	return counter
@@ -652,8 +659,9 @@ func (fm *FoldersManager) detectMissingFoldersIdOfFolder(folders map[string]*Nod
 // Detect folders without id, create if necessary
 func (fm *FoldersManager) detectMissingFoldersId() {
 	counter := 0
+	existings := make(map[int]struct{})
 	for _, src := range fm.Sources {
-		counter += fm.detectMissingFoldersIdOfFolder(src.Files)
+		counter += fm.detectMissingFoldersIdOfFolderOrDuplicate(src.Files, existings)
 	}
 	if counter != 0 {
 		// Save configuration to keep new ids

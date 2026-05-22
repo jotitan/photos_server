@@ -81,7 +81,9 @@ class mode {
     defaultSelect(index) {
         this.setImages(list => {
             let copy = list.slice();
-            copy[index].isSelected = list[index].isSelected != null ? !list[index].isSelected : true;
+            if(index < copy.length) {
+                copy[index].isSelected = list[index].isSelected != null ? !list[index].isSelected : true;
+            }
             return copy;
         });
     }
@@ -198,9 +200,6 @@ class tagMode extends mode {
                 if (copy.paths != null && copy.paths.has(copy.currentTag.id)) {
                     copy.paths.get(copy.currentTag.id).keys().forEach(index => copyImages[index].isSelected = true)
                 }
-                /*if (copy.paths != null && copy.paths[copy.currentTag.id] != null) {
-                    copy.paths[copy.currentTag.id].forEach(p => copyImages[p.idx].isSelected = true)
-                }*/
                 if (copy.originalPaths != null && copy.originalPaths[copy.currentTag.id] != null) {
                     copy.originalPaths[copy.currentTag.id].forEach(p => {
                         copyImages.find(img => img.path.indexOf(p) !== -1).isSelected = true
