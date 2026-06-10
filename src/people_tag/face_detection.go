@@ -32,7 +32,7 @@ func NewFaceDetector(url string) *FaceDetector {
 
 // Launch launch a request on a distance service
 func (fd FaceDetector) Launch(pathFolder string) (map[int][]string, error) {
-	resp, err := http.Post(fmt.Sprintf("%s?folder=%s", fd.faceDetectUrlService, pathFolder), "application/json", nil)
+	resp, err := http.Post(fmt.Sprintf("%s&folder=%s", fd.faceDetectUrlService, pathFolder), "application/json", nil)
 	if resp.StatusCode != 200 {
 		return nil, errors.New("impossible to contact server")
 	}
