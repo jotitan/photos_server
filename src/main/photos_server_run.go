@@ -8,6 +8,11 @@ import (
 	"github.com/jotitan/photos_server/tasks"
 )
 
+func test(s photos_server.Server) {
+	// Recherche par date, nom et "lieu"
+	// 1 filtre arbre par
+}
+
 func main() {
 	args := arguments.NewArguments()
 	pathConfig := args.GetMandatoryString("config", "Argument -config is mandatory to specify path of YAML config")
@@ -15,6 +20,7 @@ func main() {
 	if conf, errConfig := config.ReadConfig(pathConfig); errConfig == nil {
 		tasks.LaunchTasks(conf.Tasks)
 		server := photos_server.NewPhotosServerFromConfig(conf)
+		//test(server)
 		server.Launch(conf)
 	} else {
 		logger.GetLogger2().Error(errConfig.Error())

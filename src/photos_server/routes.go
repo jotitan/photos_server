@@ -5,6 +5,7 @@ import "net/http"
 func (s Server) updateRoutes(server *http.ServeMux) {
 	// @Deprecated
 	server.HandleFunc("/update", s.buildHandler(s.securityServer.NeedAdmin, s.update))
+	server.HandleFunc("/photo/search", s.buildHandler(s.securityServer.NeedUser, s.searchPhotos))
 	server.HandleFunc("/photo/folder/update", s.buildHandler(s.securityServer.NeedAdmin, s.updateFolder))
 	server.HandleFunc("/photo/folder/edit-details", s.buildHandler(s.securityServer.NeedAdmin, s.editDetails))
 	server.HandleFunc("/photo/folder/move", s.buildHandler(s.securityServer.NeedAdmin, s.moveFolder))

@@ -2,9 +2,6 @@ package photos_server
 
 import (
 	"fmt"
-	"github.com/jotitan/photos_server/common"
-	"github.com/jotitan/photos_server/config"
-	"github.com/jotitan/photos_server/progress"
 	"io"
 	"log"
 	"math/rand"
@@ -14,6 +11,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jotitan/photos_server/common"
+	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/progress"
 )
 
 type EmptyReducer struct {
@@ -158,7 +159,7 @@ func TestUploadFolder(t *testing.T) {
 	files := []multipart.File{f1, f2}
 
 	// WHEN
-	_, err := fm.UploadFolder(detailUploadFolder{source: "root", path: "folder1/test-upload-new"}, files, []string{"file1.jpg", "file2.jpg"}, false)
+	_, err := fm.UploadFolder(detailUploadFolder{source: "root", path: "folder1/test-upload-new"}, files, []string{"file1.jpg", "file2.jpg"}, []int64{}, false)
 	if err != nil {
 		t.Error("Error during upload", err)
 	}

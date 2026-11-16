@@ -22,6 +22,7 @@ func main() {
 }
 
 func statusPhoto(w http.ResponseWriter, _ *http.Request) {
+	// Check if storage is empty (means unmount)
 	if _, err := w.Write([]byte("up")); err != nil {
 		logger.GetLogger2().Error(err)
 	}

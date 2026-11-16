@@ -3,14 +3,6 @@ package photos_server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jotitan/photos_server/common"
-	"github.com/jotitan/photos_server/config"
-	"github.com/jotitan/photos_server/logger"
-	"github.com/jotitan/photos_server/people_tag"
-	"github.com/jotitan/photos_server/progress"
-	"github.com/jotitan/photos_server/remote_control"
-	"github.com/jotitan/photos_server/security"
-	"github.com/jotitan/photos_server/video"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -21,6 +13,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jotitan/photos_server/common"
+	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/people_tag"
+	"github.com/jotitan/photos_server/progress"
+	"github.com/jotitan/photos_server/remote_control"
+	"github.com/jotitan/photos_server/security"
+	"github.com/jotitan/photos_server/video"
 )
 
 type Server struct {
@@ -65,6 +66,92 @@ func NewPhotosServerFromConfig(conf *config.Config) Server {
 	s.loadPathRoutes()
 	people_tag.NewPeopleTagManager(getTagPath()).CompactAll()
 	return s
+}
+
+func createMapFolders(files Files, folders map[string][]string, pathById map[int]string) {
+	if len(files) == 0 {
+		return
+	}
+	c, _ := regexp.Compile("[_-]")
+
+	for _, f := range files {
+		if f.IsFolder {
+			for _, name := range strings.Split(strings.ToLower(c.ReplaceAllString(f.Name, " ")), " ") {
+				list, exists := folders[name]
+				if !exists {
+					list = make([]string, 0)
+				}
+				folders[name] = append(list, f.RelativePath)
+				pathById[f.Id] = f.RelativePath
+			}
+			createMapFolders(f.Files, folders, pathById)
+		}
+	}
+}
+
+func (s Server) searchFromQuery(query string) map[string]struct{} {
+	folder, _ := os.Getwd()
+	peoples := people_tag.GetPeoplesAsMap(folder)
+	req := ParserManager{Peoples: peoples}.Parse(query)
+	return s.search(req)
+}
+
+func (s Server) search(request ParseRequest) map[string]struct{} {
+	photos := make(map[string]struct{})
+	//fmt.Println("REQUEST", request)
+	if request.HasDates() {
+		results := s.foldersManager.FindPhotosByDateRange(request.StartDate, request.EndDate)
+		if len(results) == 0 {
+			return map[string]struct{}{}
+		}
+		for r := range results {
+			photos[r[1:]] = struct{}{}
+		}
+		//fmt.Println("DATE", photos)
+	}
+	pathById := make(map[int]string)
+	foldersByName := make(map[string][]string)
+	// Optimize this parts by storing
+	for _, f := range s.foldersManager.Sources {
+		createMapFolders(f.Files, foldersByName, pathById)
+	}
+	if len(request.Keywords) > 0 {
+		for _, k := range request.Keywords {
+			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
+			//fmt.Println("KEY", results)
+			if len(results) == 0 {
+				return map[string]struct{}{}
+			}
+			photos = intersect(photos, results)
+		}
+
+	}
+	if len(request.Peoples) > 0 {
+		pt := people_tag.NewPeopleTagManager(getTagPath())
+		peoples := people_tag.GetPeoplesAsMap(getTagPath())
+		for _, p := range request.Peoples {
+			results := pt.SearchByPeople(peoples[p], pathById)
+			//fmt.Println("PEOPLE", results)
+			if len(results) == 0 {
+				return map[string]struct{}{}
+			}
+			photos = intersect(photos, results)
+		}
+	}
+	//fmt.Println("RESULTS", photos)
+	return photos
+}
+
+func intersect(map1, map2 map[string]struct{}) map[string]struct{} {
+	if len(map1) == 0 {
+		return map2
+	}
+	for r := range map1 {
+		if _, exists := map2[r]; !exists {
+			delete(map1, r)
+		}
+	}
+	return map1
 }
 
 func (s Server) updateExifOfDate(w http.ResponseWriter, r *http.Request) {
@@ -792,10 +879,9 @@ func (s Server) uploadFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "need to specify a path", 400)
 		return
 	}
-	files, names := extractFiles(r)
+	files, names, sizes := extractFiles(r)
 	logger.GetLogger2().Info("Launch upload folder :", details.path)
-
-	if progresser, err := s.foldersManager.UploadFolder(details, files, names, addToFolder); err != nil {
+	if progresser, err := s.foldersManager.UploadFolder(details, files, names, sizes, addToFolder); err != nil {
 		http.Error(w, "Bad request "+err.Error(), 400)
 		logger.GetLogger2().Error("Impossible to upload folder : ", err.Error())
 	} else {
@@ -816,7 +902,7 @@ func (s Server) statUploadRT(w http.ResponseWriter, r *http.Request) {
 }
 
 func extractVideos(r *http.Request) (multipart.File, string, multipart.File, string) {
-	files, names := extractFiles(r)
+	files, names, _ := extractFiles(r)
 	if strings.EqualFold("true", r.FormValue("has_cover")) && len(files) == 2 {
 		// Last files is cover
 		return files[0], names[0], files[1], names[1]
@@ -824,19 +910,21 @@ func extractVideos(r *http.Request) (multipart.File, string, multipart.File, str
 	return files[0], names[0], nil, ""
 }
 
-func extractFiles(r *http.Request) ([]multipart.File, []string) {
+func extractFiles(r *http.Request) ([]multipart.File, []string, []int64) {
 	files := make([]multipart.File, 0, len(r.MultipartForm.File))
 	names := make([]string, 0, len(r.MultipartForm.File))
+	sizes := make([]int64, 0, len(r.MultipartForm.File))
 	for _, headers := range r.MultipartForm.File {
 		if len(headers) > 0 {
 			header := headers[0]
 			if file, err := header.Open(); err == nil {
 				files = append(files, file)
 				names = append(names, filepath.Base(header.Filename))
+				sizes = append(sizes, header.Size)
 			}
 		}
 	}
-	return files, names
+	return files, names, sizes
 }
 
 func (s Server) updateExifFolder(w http.ResponseWriter, r *http.Request) {
@@ -857,6 +945,19 @@ func treatError(err error, folder string, w http.ResponseWriter) {
 }
 
 // Update a specific folder, faster than all folders
+func (s Server) searchPhotos(w http.ResponseWriter, r *http.Request) {
+	query := r.FormValue("q")
+	begin := time.Now()
+	results := s.searchFromQuery(query)
+	formatResults := make([]imageRestFul, 0, len(results))
+	for r := range results {
+		formatResults = append(formatResults, s.newImageRestfulFromPath(r))
+	}
+	logger.GetLogger2().Info("Search time", time.Now().Sub(begin))
+	data, _ := json.Marshal(formatResults)
+	w.Write(data)
+}
+
 func (s Server) updateFolder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	folder := r.FormValue("folder")
@@ -1091,6 +1192,10 @@ func (s Server) newImageRestful(node *Node) imageRestFul {
 		HdLink:        filepath.ToSlash(filepath.Join("/imagehd", node.RelativePath)),
 		ThumbnailLink: filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetSmallImageName(*node))),
 		ImageLink:     filepath.ToSlash(filepath.Join("/image", s.foldersManager.GetMiddleImageName(*node)))}
+}
+
+func (s Server) newImageRestfulFromPath(path string) imageRestFul {
+	return s.newImageRestful(&Node{RelativePath: "/" + path})
 }
 
 func (s Server) convertPathsFromInterface(nodes []common.INode, onlyFolders bool) []interface{} {

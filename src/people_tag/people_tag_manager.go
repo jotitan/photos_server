@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/jotitan/photos_server/logger"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	"github.com/jotitan/photos_server/logger"
 )
 
 const (
@@ -201,12 +203,34 @@ func readInt32(f *os.File, pos int64) int {
 	return int(bytesToInt32(data))
 }
 
+func (pt PeopleTag) readPathsFromHeader(header *HeaderElement, f *os.File) []string {
+	blockDataSize := readInt32(f, header.position)
+	// avoid memory crash
+	if blockDataSize > 1000000000 {
+		log.Println("Error during reading path", pt.idTag)
+		return []string{}
+	}
+	nbPaths := readInt16(f, header.position+4)
+	blockData := make([]byte, blockDataSize)
+	f.ReadAt(blockData, header.position+6)
+	pointer := 0
+	paths := make([]string, nbPaths)
+	for i := 0; i < nbPaths; i++ {
+		// Read first byte (255 max length) for path length
+		length := int(bytesToInt16(blockData[pointer : pointer+2]))
+		paths[i] = string(blockData[pointer+2 : pointer+2+length])
+		pointer += length + 2
+	}
+	return paths
+}
+
 func (pt PeopleTag) readPaths(idFolder int) []string {
 	if f, err := os.Open(pt.getFilename()); err == nil {
 		defer f.Close()
 		if headerElement, exist := pt.header.latestFolder[idFolder]; exist {
 			// Read Blocksize first
-			blockDataSize := readInt32(f, headerElement.position)
+			paths := pt.readPathsFromHeader(headerElement, f)
+			/*blockDataSize := readInt32(f, headerElement.position)
 			// avoid memory crash
 			if blockDataSize > 1000000000 {
 				log.Println("Error during reading path", pt.idTag, idFolder)
@@ -222,12 +246,41 @@ func (pt PeopleTag) readPaths(idFolder int) []string {
 				length := int(bytesToInt16(blockData[pointer : pointer+2]))
 				paths[i] = string(blockData[pointer+2 : pointer+2+length])
 				pointer += length + 2
-			}
+			}*/
 			return paths
 		}
 		return []string{}
 	}
 	return []string{}
+}
+
+func (pt PeopleTag) readAllPaths() map[int][]string {
+	paths := make(map[int][]string)
+	if f, err := os.Open(pt.getFilename()); err == nil {
+		defer f.Close()
+		for _, header := range pt.header.latestFolder {
+			list := pt.readPathsFromHeader(header, f)
+			/*blockDataSize := readInt32(f, header.position)
+			// avoid memory crash
+			if blockDataSize > 1000000000 {
+				log.Println("Error during reading path", pt.idTag)
+				return map[int][]string{}
+			}
+			nbPaths := readInt16(f, header.position+4)
+			blockData := make([]byte, blockDataSize)
+			f.ReadAt(blockData, header.position+6)
+			pointer := 0
+			list := make([]string, nbPaths)
+			for i := 0; i < nbPaths; i++ {
+				// Read first byte (255 max length) for path length
+				length := int(bytesToInt16(blockData[pointer : pointer+2]))
+				list[i] = string(blockData[pointer+2 : pointer+2+length])
+				pointer += length + 2
+			}*/
+			paths[header.idFolder] = list
+		}
+	}
+	return paths
 }
 
 func toSet(list []string) map[string]struct{} {
@@ -252,7 +305,6 @@ func (pt *PeopleTag) Tag(idFolder int, paths, deleted []string) {
 	// Check if exist in header
 
 	if pt.header.has(idFolder) {
-		fmt.Println("duplicate folder", idFolder)
 		// extract path from file at good position
 		existingPaths := pt.readPaths(idFolder)
 		// remove deleted from existing paths
@@ -403,10 +455,7 @@ func bytesToInt16(value []byte) int16 {
 	return int16(binary.LittleEndian.Uint16(value))
 }
 
-/*
-*
-Manage tagging people on pictures
-*/
+/*PeopleTagManager Manage tagging people on pictures */
 type PeopleTagManager struct {
 	// Cache of peopletag, before flushing. Key is idTag
 	peopleTags map[int]*PeopleTag
@@ -435,6 +484,15 @@ func AddPeopleTag(folder, name string) (int, error) {
 		return 0, err
 	}
 	return id, nil
+}
+
+func GetPeoplesAsMap(folder string) map[string]int {
+	pp, _ := GetPeoples(folder)
+	peoples := make(map[string]int, len(pp))
+	for _, p := range pp {
+		peoples[strings.ToLower(p.Name)] = p.Id
+	}
+	return peoples
 }
 
 func GetPeoples(folder string) ([]peopleTag, error) {
@@ -512,6 +570,20 @@ func (ptm *PeopleTagManager) SearchFolder(folder int) map[int][]string {
 		data[p.Id] = ptm.Search(folder, p.Id)
 	}
 	return data
+}
+
+func (ptm *PeopleTagManager) SearchByPeople(idTag int, pathById map[int]string) map[string]struct{} {
+	pm := ptm.getPeopleTag(idTag)
+
+	results := pm.readAllPaths()
+	m := make(map[string]struct{})
+	for folder, paths := range results {
+		pathFolder := pathById[folder]
+		for _, path := range paths {
+			m[pathFolder+"/"+path] = struct{}{}
+		}
+	}
+	return m
 }
 
 func (ptm *PeopleTagManager) Search(idFolder, idTag int) []string {

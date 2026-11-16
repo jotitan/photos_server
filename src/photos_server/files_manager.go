@@ -3,11 +3,6 @@ package photos_server
 import (
 	"encoding/json"
 	"errors"
-	"github.com/jotitan/photos_server/common"
-	"github.com/jotitan/photos_server/config"
-	"github.com/jotitan/photos_server/logger"
-	"github.com/jotitan/photos_server/progress"
-	"github.com/jotitan/photos_server/resize"
 	"io"
 	"log"
 	"math"
@@ -15,9 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jotitan/photos_server/common"
+	"github.com/jotitan/photos_server/config"
+	"github.com/jotitan/photos_server/logger"
+	"github.com/jotitan/photos_server/progress"
+	"github.com/jotitan/photos_server/resize"
 )
 
 type Files map[string]*Node
@@ -161,7 +163,65 @@ func (fm *FoldersManager) GetAllDates() []common.NodeByDate {
 	for date, nodes := range byDate {
 		dates = append(dates, common.NodeByDate{Date: date, Nb: len(nodes)})
 	}
+	sort.SliceStable(dates, func(i, j int) bool {
+		return dates[i].Date.Before(dates[j].Date)
+	})
 	return dates
+}
+
+func (fm *FoldersManager) FindPhotosByDateRange(down, up time.Time) map[string]struct{} {
+	dates := fm.SearchDates(down, up)
+	byDate := fm.GetPhotosByDate()
+	photos := make(map[string]struct{})
+	for _, date := range dates {
+		if list, exists := byDate[date]; exists {
+			for _, l := range list {
+				if !l.GetIsFolder() {
+					photos[l.(*Node).RelativePath] = struct{}{} // l.(*Node)
+				}
+			}
+		}
+	}
+	return photos
+}
+
+func (fm *FoldersManager) SearchDates(down, up time.Time) []time.Time {
+	dates := fm.GetAllDates()
+	foundPosition := searchTimesDicotomy(down, dates, 0)
+	if foundPosition == -1 {
+		return []time.Time{}
+	}
+	foundDates := make([]time.Time, 0)
+	for i := foundPosition; i < len(dates) && dates[i].Date.Before(up); i++ {
+		foundDates = append(foundDates, dates[i].Date)
+	}
+	return foundDates
+}
+
+func searchTimesDicotomy(date time.Time, dates []common.NodeByDate, pos int) int {
+	if len(dates) == 0 {
+		return -1
+	}
+	if len(dates) == 1 {
+		if date.Before(dates[0].Date) {
+			return pos
+		}
+		return -1
+	}
+	middle := len(dates) / 2
+	d := dates[middle].Date
+	if date.Equal(d) {
+		return middle + pos
+	}
+	if date.After(d) {
+		// Launch on first part
+		return searchTimesDicotomy(date, dates[middle:], middle+pos)
+	}
+	// date is below d, if middle-1 is less than date, return middle or relaunch
+	if date.After(dates[middle-1].Date) {
+		return middle + pos
+	}
+	return searchTimesDicotomy(date, dates[0:middle], pos)
 }
 
 func (fm *FoldersManager) resetPhotosByDate() {
@@ -713,7 +773,7 @@ type detailUploadFolder struct {
 
 // folder must be a relative path
 // UploadFolder addToFolder, if true, can add photos in existing folder
-func (fm *FoldersManager) UploadFolder(detail detailUploadFolder, files []multipart.File, names []string, addToFolder bool) (*progress.UploadProgress, error) {
+func (fm *FoldersManager) UploadFolder(detail detailUploadFolder, files []multipart.File, names []string, sizes []int64, addToFolder bool) (*progress.UploadProgress, error) {
 	if len(files) != len(names) {
 		return nil, errors.New("error during upload")
 	}
@@ -741,18 +801,24 @@ func (fm *FoldersManager) UploadFolder(detail detailUploadFolder, files []multip
 	}
 	// Create work in go routine and return a progresser status
 	progresser := fm.uploadProgressManager.AddUploader(len(files))
-	go fm.doUploadFolder(detail, outputFolder, names, files, addToFolder, progresser)
+	go fm.doUploadFolder(detail, outputFolder, names, files, sizes, addToFolder, progresser)
 	return progresser, nil
 }
 
-func (fm *FoldersManager) copyImagesInFolder(names []string, files []multipart.File, folder string, detail detailUploadFolder, p *progress.UploadProgress) error {
+func (fm *FoldersManager) copyImagesInFolder(names []string, files []multipart.File, sizes []int64, folder string, detail detailUploadFolder, p *progress.UploadProgress) error {
+	copiedFiles := make([]string, 0, len(files))
 	for i, file := range files {
 		imagePath := filepath.Join(folder, names[i])
 		if imageFile, err := os.OpenFile(imagePath, os.O_CREATE|os.O_RDWR, os.ModePerm); err == nil {
-			if _, err := io.Copy(imageFile, file); err != nil {
+			if written, err := io.Copy(imageFile, file); err != nil || written != sizes[i] {
 				// Send Error to progresser and stop
-				return err
+				// Need to rollback copy of all files
+				if err != nil {
+					return err
+				}
+				return errors.New("bad copy of " + names[i])
 			}
+			copiedFiles = append(copiedFiles, imagePath)
 			imageFile.Close()
 			if err = fm.Mirroring.copy(imagePath, filepath.Join(detail.source, detail.path, names[i])); err != nil {
 				return err
@@ -765,9 +831,9 @@ func (fm *FoldersManager) copyImagesInFolder(names []string, files []multipart.F
 	return nil
 }
 
-func (fm *FoldersManager) doUploadFolder(detail detailUploadFolder, outputFolder string, names []string, files []multipart.File, addToFolder bool, p *progress.UploadProgress) {
+func (fm *FoldersManager) doUploadFolder(detail detailUploadFolder, outputFolder string, names []string, files []multipart.File, sizes []int64, addToFolder bool, p *progress.UploadProgress) {
 	// Copy files on filer
-	if err := fm.copyImagesInFolder(names, files, outputFolder, detail, p); err != nil {
+	if err := fm.copyImagesInFolder(names, files, sizes, outputFolder, detail, p); err != nil {
 		p.Error(err)
 		return
 	}
@@ -886,23 +952,33 @@ func (fm FoldersManager) List() []*Node {
 	return nodes
 }
 
+func (fm *FoldersManager) findFilesByFolderPaths(folders []string) map[string]struct{} {
+	results := make(map[string]struct{})
+	for _, folder := range folders {
+		files, _, _ := fm.Browse(folder)
+		for _, f := range files {
+			results[f.RelativePath] = struct{}{}
+		}
+	}
+	return results
+}
+
 func (fm *FoldersManager) Browse(path string) ([]*Node, *Node, error) {
 	if len(path) < 2 {
 		// Return list
 		return fm.List(), nil, nil
 
-	} else {
-		node, err := fm.browsePaths(path)
-		if err != nil {
-			return nil, nil, err
-		}
-		// Parse file of nodes
-		nodes := make([]*Node, 0, len(node.Files))
-		for _, file := range node.Files {
-			nodes = append(nodes, file)
-		}
-		return nodes, node, nil
 	}
+	node, err := fm.browsePaths(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Parse file of nodes
+	nodes := make([]*Node, 0, len(node.Files))
+	for _, file := range node.Files {
+		nodes = append(nodes, file)
+	}
+	return nodes, node, nil
 }
 
 func (fm *FoldersManager) browsePaths(path string) (*Node, error) {
