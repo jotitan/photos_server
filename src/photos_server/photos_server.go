@@ -145,9 +145,10 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 }
 
 func intersect(map1, map2 map[string]struct{}) map[string]struct{} {
-	fmt.Println("Intersect", len(map1), len(map2))
-	if len(map1) == 0 {
-		return map2
+	fmt.Println("Intersect 1", map1)
+	fmt.Println("Intersect 2", map2)
+	if len(map1) == 0 || len(map2) == 0 {
+		return map[string]struct{}{}
 	}
 	for r := range map1 {
 		if _, exists := map2[r]; !exists {
