@@ -98,7 +98,7 @@ func (s Server) searchFromQuery(query string) map[string]struct{} {
 
 func (s Server) search(request ParseRequest) map[string]struct{} {
 	photos := make(map[string]struct{})
-	fmt.Println("REQUEST", request)
+	logger.GetLogger2().Info("REQUEST", request)
 	if request.HasDates() {
 		results := s.foldersManager.FindPhotosByDateRange(request.StartDate, request.EndDate)
 		if len(results) == 0 {
@@ -107,7 +107,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		for r := range results {
 			photos[r[1:]] = struct{}{}
 		}
-		fmt.Println("DATE", len(photos), len(results))
+		logger.GetLogger2().Info("DATE", len(photos), len(results))
 	}
 	pathById := make(map[int]string)
 	foldersByName := make(map[string][]string)
@@ -118,12 +118,12 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	if len(request.Keywords) > 0 {
 		for _, k := range request.Keywords {
 			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
-			fmt.Println("KEY", k, len(results))
+			logger.GetLogger2().Info("KEY", k, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			fmt.Println("KEY -", len(photos))
+			logger.GetLogger2().Info("KEY -", len(photos))
 		}
 
 	}
@@ -132,15 +132,15 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		peoples := people_tag.GetPeoplesAsMap(getTagPath())
 		for _, p := range request.Peoples {
 			results := pt.SearchByPeople(peoples[p], pathById)
-			fmt.Println("PEOPLE", p, len(results))
+			logger.GetLogger2().Info("PEOPLE", p, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			fmt.Println("PEOPLE -", len(photos))
+			logger.GetLogger2().Info("PEOPLE -", len(photos))
 		}
 	}
-	fmt.Println("RESULTS", photos)
+	logger.GetLogger2().Info("RESULTS", photos)
 	return photos
 }
 
@@ -1314,7 +1314,7 @@ func (s Server) Launch(conf *config.Config) {
 	server.HandleFunc("/share", s.buildHandler(s.securityServer.NeedAdmin, s.manageShare))
 	server.HandleFunc("/", s.buildHandler(s.securityServer.NeedNoAccess, s.defaultHandle))
 
-	logger.GetLogger2().Info("Start server on port " + conf.Port)
+	logger.GetLogger2().Info("Start server on port :" + conf.Port)
 	err := http.ListenAndServe(":"+conf.Port, &server)
 	logger.GetLogger2().Error("Server stopped cause", err)
 }
