@@ -98,7 +98,7 @@ func (s Server) searchFromQuery(query string) map[string]struct{} {
 
 func (s Server) search(request ParseRequest) map[string]struct{} {
 	photos := make(map[string]struct{})
-	//fmt.Println("REQUEST", request)
+	fmt.Println("REQUEST", request)
 	if request.HasDates() {
 		results := s.foldersManager.FindPhotosByDateRange(request.StartDate, request.EndDate)
 		if len(results) == 0 {
@@ -107,7 +107,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		for r := range results {
 			photos[r[1:]] = struct{}{}
 		}
-		//fmt.Println("DATE", photos)
+		fmt.Println("DATE", len(photos))
 	}
 	pathById := make(map[int]string)
 	foldersByName := make(map[string][]string)
@@ -118,7 +118,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	if len(request.Keywords) > 0 {
 		for _, k := range request.Keywords {
 			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
-			//fmt.Println("KEY", results)
+			fmt.Println("KEY", k, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
@@ -131,14 +131,14 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		peoples := people_tag.GetPeoplesAsMap(getTagPath())
 		for _, p := range request.Peoples {
 			results := pt.SearchByPeople(peoples[p], pathById)
-			//fmt.Println("PEOPLE", results)
+			fmt.Println("PEOPLE", p, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
 		}
 	}
-	//fmt.Println("RESULTS", photos)
+	fmt.Println("RESULTS", photos)
 	return photos
 }
 
