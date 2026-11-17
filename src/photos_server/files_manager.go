@@ -957,7 +957,7 @@ func (fm *FoldersManager) findFilesByFolderPaths(folders []string) map[string]st
 	for _, folder := range folders {
 		files, _, _ := fm.Browse(folder)
 		for _, f := range files {
-			results[f.RelativePath] = struct{}{}
+			results[f.RelativePath[1:]] = struct{}{}
 		}
 	}
 	return results
