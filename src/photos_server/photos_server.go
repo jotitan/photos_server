@@ -107,7 +107,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		for r := range results {
 			photos[r[1:]] = struct{}{}
 		}
-		fmt.Println("DATE", len(photos))
+		fmt.Println("DATE", len(photos), len(results))
 	}
 	pathById := make(map[int]string)
 	foldersByName := make(map[string][]string)
@@ -123,6 +123,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
+			fmt.Println("KEY -", len(results))
 		}
 
 	}
@@ -136,6 +137,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
+			fmt.Println("PEOPLE -", len(results))
 		}
 	}
 	fmt.Println("RESULTS", photos)
