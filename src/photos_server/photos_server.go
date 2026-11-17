@@ -123,7 +123,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			fmt.Println("KEY -", len(results))
+			fmt.Println("KEY -", len(photos))
 		}
 
 	}
@@ -137,7 +137,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			fmt.Println("PEOPLE -", len(results))
+			fmt.Println("PEOPLE -", len(photos))
 		}
 	}
 	fmt.Println("RESULTS", photos)
@@ -145,6 +145,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 }
 
 func intersect(map1, map2 map[string]struct{}) map[string]struct{} {
+	fmt.Println("Intersect", len(map1), len(map2))
 	if len(map1) == 0 {
 		return map2
 	}
