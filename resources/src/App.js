@@ -6,13 +6,14 @@ import MyCalendar from "./pages/calendar";
 import TreeFolder, {getBaseUrl} from "./pages/treeFolder";
 import UploadFolder from "./pages/upload";
 import {Layout, Menu, Switch} from 'antd';
-import {HddFilled, PlusCircleOutlined,PictureOutlined,VideoCameraOutlined, TrophyOutlined} from "@ant-design/icons";
+import {HddFilled, PictureOutlined, PlusCircleOutlined, TrophyOutlined, VideoCameraOutlined} from "@ant-design/icons";
 import {createBrowserHistory} from 'history';
 import axios from "axios";
 import ConnectPanel from "./pages/security";
 import VideoDisplay from "./pages/video";
 import UploadVideos from "./pages/upload-video";
 import './i18n';
+import SearchGallery from "./pages/search_gallery";
 
 export const history = createBrowserHistory({
     basename: process.env.PUBLIC_URL
@@ -72,6 +73,7 @@ function App() {
     const [nbPhotos,setNbPhotos] = useState(0);
     const [nbVideos,setNbVideos] = useState(0);
     const [videoMode,setVideoMode] = useState(false);
+    const [showSearchGallery,setShowSearchGallery] = useState(false);
 
     const [isVideoAddPanelVisible,setIsVideoAddPanelVisible] = useState(false);
     const [isAddPanelVisible,setIsAddPanelVisible] = useState(false);
@@ -121,6 +123,14 @@ function App() {
         document.documentElement.style.setProperty('--main-bg-color',config.color)
     },[config])
 
+    document.addEventListener('keydown', e => {
+        if(e.ctrlKey && e.key === 'f'){
+            e.stopImmediatePropagation()
+            e.preventDefault()
+            setShowSearchGallery(true);
+        }
+    })
+
     useEffect(()=> {
         if(canAccess) {
             loadConfig();
@@ -163,6 +173,24 @@ function App() {
             {config.logo !== '' ? <img alt={'icon'} src={config.logo} style={{width:32}}/>:<HddFilled/>}
             <span style={{marginLeft:10+'px'}}>{config.title} - {nbPhotos} / {nbVideos} {getMobileUrl()}</span>
         </Menu.Item>
+    }
+
+    const showContent = () => {
+        //return <TimelineGallery/>
+        if(showSearchGallery) {
+            return <SearchGallery hideSearchGallery={()=>setShowSearchGallery(false)}/>
+        }
+        return videoMode ?
+            <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate} setCollapsed={toggleCollapsed} canAdmin={canAdmin}/>:
+            <MyGallery urlFolder={urlFolder} refresh={collapsed}
+                       titleGallery={titleGallery}
+                       canAdmin={canAdmin}
+                       setCurrentFolder={setCurrentFolder}
+                       update={update}
+                       setUpdate={setUpdate}
+                       setUrlFolder={setUrlFolder}
+                       setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}
+                       setCollapsed={toggleCollapsed}/>
     }
 
     return (
@@ -208,19 +236,7 @@ function App() {
                         </Content>
                     </Sider>
                     <Layout>
-                        {
-                            videoMode ?
-                                <VideoDisplay urlVideo={urlVideoFolder.load} setUpdate={setUpdate} setCollapsed={toggleCollapsed} canAdmin={canAdmin}/>:
-                                <MyGallery urlFolder={urlFolder} refresh={collapsed}
-                                           titleGallery={titleGallery}
-                                           canAdmin={canAdmin}
-                                           setCurrentFolder={setCurrentFolder}
-                                           update={update}
-                                           setUpdate={setUpdate}
-                                           setUrlFolder={setUrlFolder}
-                                           setIsAddFolderPanelVisible={setIsAddFolderPanelVisible}
-                                setCollapsed={toggleCollapsed}/>
-                        }
+                        {showContent()}
 
 
                         <UploadFolder setUpdate={setUpdate}
