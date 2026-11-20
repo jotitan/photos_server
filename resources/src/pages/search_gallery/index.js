@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react'
+import React, {useState} from 'react'
 import {Col, Empty, Modal, Row, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
@@ -6,12 +6,6 @@ import './gallery.css'
 
 import {CloseOutlined, FileImageOutlined, PlusCircleOutlined,} from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
-
-const setProperty = (ctx, property, value) => {
-    const copy = {...ctx};
-    copy[property] = value;
-    return copy;
-}
 
 const adaptImages = photos => {
     return photos
