@@ -130,14 +130,12 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	if len(request.Keywords) > 0 {
 		for _, k := range request.Keywords {
 			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
-			if len(results) == 0 {
-				return map[string]struct{}{}
-			}
-			if len(photos) > 0 {
-				photos = intersect(photos, results)
-			}
+			photos = intersect(photos, results)
 			if request.Log {
 				logger.GetLogger2().Info("KEY", k, len(photos), len(results))
+			}
+			if len(photos) == 0 {
+				return map[string]struct{}{}
 			}
 		}
 
@@ -147,14 +145,12 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		peoples := people_tag.GetPeoplesAsMap(getTagPath())
 		for _, p := range request.Peoples {
 			results := pt.SearchByPeople(peoples[p], pathById)
-			if len(results) == 0 {
-				return map[string]struct{}{}
-			}
-			if len(photos) > 0 {
-				photos = intersect(photos, results)
-			}
+			photos = intersect(photos, results)
 			if request.Log {
 				logger.GetLogger2().Info("PEOPLE", p, len(photos), len(results))
+			}
+			if len(photos) == 0 {
+				return map[string]struct{}{}
 			}
 		}
 	}
@@ -165,9 +161,14 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 }
 
 func intersect(map1, map2 map[string]struct{}) map[string]struct{} {
-	if len(map1) == 0 || len(map2) == 0 {
+	if len(map2) == 0 {
 		return map[string]struct{}{}
 	}
+	// map1 empty, new search
+	if len(map1) == 0 {
+		return map2
+	}
+
 	for r := range map1 {
 		if _, exists := map2[r]; !exists {
 			delete(map1, r)
