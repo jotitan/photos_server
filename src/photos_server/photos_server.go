@@ -96,6 +96,13 @@ func (s Server) searchFromQuery(query string) map[string]struct{} {
 	return s.search(req)
 }
 
+func cleanSlash(value string) string {
+	if strings.HasPrefix(value, "/") {
+		return value[1:]
+	}
+	return value
+}
+
 func (s Server) search(request ParseRequest) map[string]struct{} {
 	photos := make(map[string]struct{})
 	//logger.GetLogger2().Info("REQUEST", request)
@@ -105,7 +112,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 			return map[string]struct{}{}
 		}
 		for r := range results {
-			photos[r[1:]] = struct{}{}
+			photos[cleanSlash(r)] = struct{}{}
 		}
 		//logger.GetLogger2().Info("DATE", len(photos), len(results))
 	}

@@ -572,13 +572,20 @@ func (ptm *PeopleTagManager) SearchFolder(folder int) map[int][]string {
 	return data
 }
 
+func cleanSlash(value string) string {
+	if strings.HasPrefix(value, "/") {
+		return value[1:]
+	}
+	return value
+}
+
 func (ptm *PeopleTagManager) SearchByPeople(idTag int, pathById map[int]string) map[string]struct{} {
 	pm := ptm.getPeopleTag(idTag)
 
 	results := pm.readAllPaths()
 	m := make(map[string]struct{})
 	for folder, paths := range results {
-		pathFolder := pathById[folder]
+		pathFolder := cleanSlash(pathById[folder])
 		for _, path := range paths {
 			m[pathFolder+"/"+path] = struct{}{}
 		}
