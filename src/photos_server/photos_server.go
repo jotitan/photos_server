@@ -976,7 +976,7 @@ func (s Server) searchPhotos(w http.ResponseWriter, r *http.Request) {
 	for r := range results {
 		formatResults = append(formatResults, s.newImageRestfulFromPath(r))
 	}
-	logger.GetLogger2().Info("Search time", time.Now().Sub(begin))
+	logger.GetLogger2().Info("Full search time", time.Now().Sub(begin))
 	data, _ := json.Marshal(formatResults)
 	w.Write(data)
 }
