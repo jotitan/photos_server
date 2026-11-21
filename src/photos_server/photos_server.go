@@ -127,16 +127,15 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	for _, f := range s.foldersManager.Sources {
 		createMapFolders(f.Files, foldersByName, pathById)
 	}
-	if request.Log {
-		logger.GetLogger2().Info(foldersByName)
-	}
 	if len(request.Keywords) > 0 {
 		for _, k := range request.Keywords {
 			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
-			photos = intersect(photos, results)
+			if len(photos) > 0 {
+				photos = intersect(photos, results)
+			}
 			if request.Log {
 				logger.GetLogger2().Info("KEY", k, len(photos), len(results))
 			}
@@ -151,7 +150,9 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
-			photos = intersect(photos, results)
+			if len(photos) > 0 {
+				photos = intersect(photos, results)
+			}
 			if request.Log {
 				logger.GetLogger2().Info("PEOPLE", p, len(photos), len(results))
 			}
