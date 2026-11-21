@@ -89,10 +89,11 @@ func createMapFolders(files Files, folders map[string][]string, pathById map[int
 	}
 }
 
-func (s Server) searchFromQuery(query string) map[string]struct{} {
+func (s Server) searchFromQuery(query string, log bool) map[string]struct{} {
 	folder, _ := os.Getwd()
 	peoples := people_tag.GetPeoplesAsMap(folder)
 	req := ParserManager{Peoples: peoples}.Parse(query)
+	req.Log = log
 	return s.search(req)
 }
 
@@ -105,7 +106,9 @@ func cleanSlash(value string) string {
 
 func (s Server) search(request ParseRequest) map[string]struct{} {
 	photos := make(map[string]struct{})
-	//logger.GetLogger2().Info("REQUEST", request)
+	if request.Log {
+		logger.GetLogger2().Info("REQUEST", request)
+	}
 	if request.HasDates() {
 		results := s.foldersManager.FindPhotosByDateRange(request.StartDate, request.EndDate)
 		if len(results) == 0 {
@@ -114,7 +117,9 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		for r := range results {
 			photos[cleanSlash(r)] = struct{}{}
 		}
-		//logger.GetLogger2().Info("DATE", len(photos), len(results))
+		if request.Log {
+			logger.GetLogger2().Info("DATE", len(photos), len(results))
+		}
 	}
 	pathById := make(map[int]string)
 	foldersByName := make(map[string][]string)
@@ -122,15 +127,19 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	for _, f := range s.foldersManager.Sources {
 		createMapFolders(f.Files, foldersByName, pathById)
 	}
+	if request.Log {
+		logger.GetLogger2().Info(foldersByName)
+	}
 	if len(request.Keywords) > 0 {
 		for _, k := range request.Keywords {
 			results := s.foldersManager.findFilesByFolderPaths(foldersByName[k])
-			//logger.GetLogger2().Info("KEY", k, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			//logger.GetLogger2().Info("KEY -", len(photos))
+			if request.Log {
+				logger.GetLogger2().Info("KEY", k, len(photos), len(results))
+			}
 		}
 
 	}
@@ -139,15 +148,18 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		peoples := people_tag.GetPeoplesAsMap(getTagPath())
 		for _, p := range request.Peoples {
 			results := pt.SearchByPeople(peoples[p], pathById)
-			//logger.GetLogger2().Info("PEOPLE", p, len(results))
 			if len(results) == 0 {
 				return map[string]struct{}{}
 			}
 			photos = intersect(photos, results)
-			//logger.GetLogger2().Info("PEOPLE -", len(photos))
+			if request.Log {
+				logger.GetLogger2().Info("PEOPLE", p, len(photos), len(results))
+			}
 		}
 	}
-	//logger.GetLogger2().Info("RESULTS", photos)
+	if request.Log {
+		logger.GetLogger2().Info("RESULTS", len(photos))
+	}
 	return photos
 }
 
@@ -957,7 +969,7 @@ func treatError(err error, folder string, w http.ResponseWriter) {
 func (s Server) searchPhotos(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("q")
 	begin := time.Now()
-	results := s.searchFromQuery(query)
+	results := s.searchFromQuery(query, r.FormValue("log") == "true")
 	formatResults := make([]imageRestFul, 0, len(results))
 	for r := range results {
 		formatResults = append(formatResults, s.newImageRestfulFromPath(r))

@@ -80,6 +80,7 @@ type ParseRequest struct {
 	Keywords  []string
 	StartDate time.Time
 	EndDate   time.Time
+	Log       bool
 }
 
 func newRequest() ParseRequest {
@@ -112,7 +113,6 @@ type ParserManager struct {
 }
 
 func (p ParserManager) nextToken(t *tokens) interface{} {
-
 	token, e := t.next()
 	if e != nil {
 		return empty{}
