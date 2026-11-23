@@ -1,7 +1,7 @@
 import React, {useState} from 'react'
 import {Col, Empty, Modal, Row, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
-import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
+import {getBaseUrl} from "../treeFolder";
 import './gallery.css'
 import {adaptImages} from "../gallery";
 
