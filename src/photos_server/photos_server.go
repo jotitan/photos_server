@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -89,7 +88,7 @@ func createMapFolders(files Files, folders map[string][]string, pathById map[int
 	}
 }
 
-func (s Server) searchFromQuery(query string, log bool) map[string]struct{} {
+func (s Server) searchFromQuery(query string, log bool) map[string]*Node {
 	folder, _ := os.Getwd()
 	peoples := people_tag.GetPeoplesAsMap(folder)
 	req := ParserManager{Peoples: peoples}.Parse(query)
@@ -104,18 +103,18 @@ func cleanSlash(value string) string {
 	return value
 }
 
-func (s Server) search(request ParseRequest) map[string]struct{} {
-	photos := make(map[string]struct{})
+func (s Server) search(request ParseRequest) map[string]*Node {
+	photos := make(map[string]*Node)
 	if request.Log {
 		logger.GetLogger2().Info("REQUEST", request)
 	}
 	if request.HasDates() {
 		results := s.foldersManager.FindPhotosByDateRange(request.StartDate, request.EndDate)
 		if len(results) == 0 {
-			return map[string]struct{}{}
+			return map[string]*Node{}
 		}
-		for r := range results {
-			photos[cleanSlash(r)] = struct{}{}
+		for r, n := range results {
+			photos[cleanSlash(r)] = n
 		}
 		if request.Log {
 			logger.GetLogger2().Info("DATE", len(photos), len(results))
@@ -135,7 +134,7 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 				logger.GetLogger2().Info("KEY", k, len(photos), len(results))
 			}
 			if len(photos) == 0 {
-				return map[string]struct{}{}
+				return map[string]*Node{}
 			}
 		}
 
@@ -144,13 +143,26 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 		pt := people_tag.NewPeopleTagManager(getTagPath())
 		peoples := people_tag.GetPeoplesAsMap(getTagPath())
 		for _, p := range request.Peoples {
-			results := pt.SearchByPeople(peoples[p], pathById)
+			tempResults := pt.SearchByPeople(peoples[p], pathById)
+			// Extract node from results cause receive just paths by folder
+			results := make(map[string]*Node)
+			for rootFolder, subResults := range tempResults {
+				images := make(map[string]*Node)
+				// Load all nodes by path
+				files, _, _ := s.foldersManager.Browse(rootFolder)
+				for _, file := range files {
+					images[file.Name] = file
+				}
+				for fullPath, path := range subResults {
+					results[fullPath] = images[path]
+				}
+			}
 			photos = intersect(photos, results)
 			if request.Log {
 				logger.GetLogger2().Info("PEOPLE", p, len(photos), len(results))
 			}
 			if len(photos) == 0 {
-				return map[string]struct{}{}
+				return map[string]*Node{}
 			}
 		}
 	}
@@ -160,9 +172,9 @@ func (s Server) search(request ParseRequest) map[string]struct{} {
 	return photos
 }
 
-func intersect(map1, map2 map[string]struct{}) map[string]struct{} {
+func intersect(map1, map2 map[string]*Node) map[string]*Node {
 	if len(map2) == 0 {
-		return map[string]struct{}{}
+		return map[string]*Node{}
 	}
 	// map1 empty, new search
 	if len(map1) == 0 {
@@ -185,7 +197,7 @@ func (s Server) updateExifOfDate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) getSecurityConfig(w http.ResponseWriter, r *http.Request) {
+func (s Server) getSecurityConfig(w http.ResponseWriter, _ *http.Request) {
 	header(w)
 	if s.securityAccess != nil {
 		write([]byte(s.securityAccess.GetTypeSecurity()), w)
@@ -207,7 +219,7 @@ func (s Server) connect(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) flushTags(w http.ResponseWriter, r *http.Request) {
+func (s Server) flushTags(_ http.ResponseWriter, _ *http.Request) {
 	s.foldersManager.tagManger.flush()
 }
 
@@ -294,7 +306,7 @@ func (s Server) updateTag(w http.ResponseWriter, r *http.Request, key string, up
 		http.Error(w, "Only post is allowed", 405)
 		return
 	}
-	if data, err := ioutil.ReadAll(r.Body); err == nil {
+	if data, err := io.ReadAll(r.Body); err == nil {
 		tag := tagDto{}
 		if json.Unmarshal(data, &tag) == nil {
 			if tag.ToRemove {
@@ -309,21 +321,21 @@ func (s Server) updateTag(w http.ResponseWriter, r *http.Request, key string, up
 }
 
 // Return all dates of photos
-func (s Server) getAllDates(w http.ResponseWriter, r *http.Request) {
+func (s Server) getAllDates(w http.ResponseWriter, _ *http.Request) {
 	dates := s.foldersManager.GetAllDates()
 	data, _ := json.Marshal(dates)
 	header(w)
 	write(data, w)
 }
 
-func (s Server) getAllVideosDates(w http.ResponseWriter, r *http.Request) {
+func (s Server) getAllVideosDates(w http.ResponseWriter, _ *http.Request) {
 	dates := s.videoManager.GetAllDates()
 	data, _ := json.Marshal(dates)
 	header(w)
 	write(data, w)
 }
 
-func (s Server) count(w http.ResponseWriter, r *http.Request) {
+func (s Server) count(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	write([]byte(fmt.Sprintf("{\"photos\":%d,\"videos\":%d}", s.foldersManager.Count(), s.videoManager.Count())), w)
 }
@@ -381,7 +393,7 @@ func (s Server) launchFaceDetection(w http.ResponseWriter, r *http.Request) {
 	w.Write(resultsAsJson)
 }
 
-func (s Server) getPeoples(w http.ResponseWriter, r *http.Request) {
+func (s Server) getPeoples(w http.ResponseWriter, _ *http.Request) {
 	if peoples, err := people_tag.GetPeoplesAsByte(getTagPath()); err == nil {
 		w.Write(peoples)
 	} else {
@@ -440,11 +452,11 @@ func error403(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "You can't execute this action", 403)
 }
 
-func error404(w http.ResponseWriter, r *http.Request) {
+func error404(w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "Unknown resource", 404)
 }
 
-func (s Server) checkPhotoResizer(w http.ResponseWriter, r *http.Request) {
+func (s Server) checkPhotoResizer(w http.ResponseWriter, _ *http.Request) {
 	if s.foldersManager.reducer.CheckResizer() {
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -452,7 +464,7 @@ func (s Server) checkPhotoResizer(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) getCustomConfig(w http.ResponseWriter, r *http.Request) {
+func (s Server) getCustomConfig(w http.ResponseWriter, _ *http.Request) {
 	data, _ := json.Marshal(s.custom)
 	w.Write(data)
 }
@@ -567,7 +579,7 @@ func (s Server) connectSSERemoteControl(w http.ResponseWriter, r *http.Request) 
 	s.remoteManager.Delete(name)
 }
 
-func (s Server) connectRestRemoteControl(w http.ResponseWriter, r *http.Request) {
+func (s Server) connectRestRemoteControl(_ http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	c := remote_control.NewRestRemoteControler(name, r.FormValue("url"))
 	s.remoteManager.Set(name, c)
@@ -589,7 +601,7 @@ func (s Server) remoteHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) listRemoteControl(w http.ResponseWriter, r *http.Request) {
+func (s Server) listRemoteControl(w http.ResponseWriter, _ *http.Request) {
 	data, _ := json.Marshal(s.remoteManager.List())
 	w.Write(data)
 }
@@ -635,7 +647,7 @@ func (s Server) getRemote(w http.ResponseWriter, r *http.Request) (remote_contro
 }
 
 // @Deprecated
-func (s Server) addFolder(w http.ResponseWriter, r *http.Request) {
+func (s Server) addFolder(_ http.ResponseWriter, _ *http.Request) {
 	/*folder := r.FormValue("folder")
 	*source := r.FormValue("source")
 	src, err := s.foldersManager.Sources.getSource(source)
@@ -846,7 +858,7 @@ func (s Server) imageHD(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) update(w http.ResponseWriter, r *http.Request) {
+func (s Server) update(_ http.ResponseWriter, _ *http.Request) {
 	logger.GetLogger2().Info("Launch update")
 	if err := s.foldersManager.Update(); err != nil {
 		logger.GetLogger2().Error(err.Error())
@@ -876,7 +888,7 @@ func (s Server) uploadVideo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) getSources(w http.ResponseWriter, r *http.Request) {
+func (s Server) getSources(w http.ResponseWriter, _ *http.Request) {
 	sources := s.foldersManager.Sources.getSources()
 	data, _ := json.Marshal(sources)
 	w.Write(data)
@@ -973,8 +985,8 @@ func (s Server) searchPhotos(w http.ResponseWriter, r *http.Request) {
 	begin := time.Now()
 	results := s.searchFromQuery(query, r.FormValue("log") == "true")
 	formatResults := make([]imageRestFul, 0, len(results))
-	for r := range results {
-		formatResults = append(formatResults, s.newImageRestfulFromPath(r))
+	for _, n := range results {
+		formatResults = append(formatResults, s.newImageRestful(n))
 	}
 	logger.GetLogger2().Info("Full search time", time.Now().Sub(begin))
 	data, _ := json.Marshal(formatResults)
@@ -1064,7 +1076,7 @@ func (s Server) getRootFolders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) getRootVideoFolders(w http.ResponseWriter, r *http.Request) {
+func (s Server) getRootVideoFolders(w http.ResponseWriter, _ *http.Request) {
 	logger.GetLogger2().Info("Get root videos folders")
 	header(w)
 	nodes := s.videoManager.GetSortedFolders()
@@ -1356,9 +1368,4 @@ func write(data []byte, w http.ResponseWriter) {
 	if _, err := w.Write(data); err != nil {
 		logger.GetLogger2().Error("Error when write data", err)
 	}
-}
-
-func writeError(w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(message))
 }

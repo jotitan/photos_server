@@ -3,13 +3,14 @@ package photos_server
 import (
 	"errors"
 	"fmt"
-	"github.com/jotitan/photos_server/common"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jotitan/photos_server/common"
 )
 
-// A root source
+//SourceNode is a root source
 type SourceNode struct {
 	Folder string `json:"folder"`
 	Name   string `json:"name"`

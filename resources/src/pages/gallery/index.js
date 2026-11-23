@@ -38,7 +38,7 @@ const setProperty = (ctx, property, value) => {
     return copy;
 }
 
-const adaptImages = photos => {
+export const adaptImages = photos => {
     return photos
         .filter(file => file.ImageLink != null)
         .sort((img1, img2) => new Date(img1.Date) - new Date(img2.Date))
@@ -438,6 +438,7 @@ export default function MyGallery({
     }, [currentImage, key, lightboxVisible, images]);
 
     const saveTag = (tag, callback) => {
+        // TODO fetch(urlFolder.tags,{method:'POST'}).then(d => d.json())
         axios({
             method: 'POST',
             url: urlFolder.tags,
@@ -445,7 +446,7 @@ export default function MyGallery({
         }).then(callback);
     };
 
-    // Check if pictures contains many foldesr
+    // Check if pictures contains many folders
     const isMultipleFolders = images => images.filter(img => img.HdLink).map(img => img.HdLink.replace(img.Name, '')).reduce((s, value) => s.add(value), new Set()).size > 1;
 
     const memLoadImages = useCallback(() => {

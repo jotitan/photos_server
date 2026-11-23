@@ -162,7 +162,7 @@ func (pt PeopleTag) Compact() error {
 	}
 	count := 0
 
-	for idFolder, _ := range pt.header.latestFolder {
+	for idFolder := range pt.header.latestFolder {
 		paths := pt.readPaths(idFolder)
 		if len(paths) > 0 {
 			compact.Tag(idFolder, paths, []string{})
@@ -579,18 +579,20 @@ func cleanSlash(value string) string {
 	return value
 }
 
-func (ptm *PeopleTagManager) SearchByPeople(idTag int, pathById map[int]string) map[string]struct{} {
+func (ptm *PeopleTagManager) SearchByPeople(idTag int, pathById map[int]string) map[string]map[string]string {
 	pm := ptm.getPeopleTag(idTag)
-
 	results := pm.readAllPaths()
-	m := make(map[string]struct{})
+
+	mByFolder := make(map[string]map[string]string)
 	for folder, paths := range results {
+		m := make(map[string]string)
 		pathFolder := cleanSlash(pathById[folder])
 		for _, path := range paths {
-			m[pathFolder+"/"+path] = struct{}{}
+			m[pathFolder+"/"+path] = path
 		}
+		mByFolder["/"+pathFolder] = m
 	}
-	return m
+	return mByFolder
 }
 
 func (ptm *PeopleTagManager) Search(idFolder, idTag int) []string {

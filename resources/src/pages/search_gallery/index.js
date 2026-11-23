@@ -3,38 +3,11 @@ import {Col, Empty, Modal, Row, Tooltip} from 'antd'
 import Gallery from 'react-grid-gallery'
 import {getBaseUrl, getBaseUrlHref} from "../treeFolder";
 import './gallery.css'
+import {adaptImages} from "../gallery";
 
 import {CloseOutlined, FileImageOutlined, PlusCircleOutlined,} from "@ant-design/icons";
 import {TransformComponent, TransformWrapper} from "react-zoom-pan-pinch";
 
-const adaptImages = photos => {
-    return photos
-        .filter(file => file.ImageLink != null)
-        .sort((img1, img2) => new Date(img1.Date) - new Date(img2.Date))
-        .map(img => {
-            let d = new Date(img.Date).toLocaleString();
-            let folder = img.HdLink.replace(img.Name, '').replace('/imagehd/', '');
-            return {
-                hdLink: getBaseUrlHref() + img.HdLink,
-                path: img.HdLink,
-                folder: folder,
-                Date: d,
-                caption: "", thumbnail: getBaseUrl() + img.ThumbnailLink, src: getBaseUrl() + img.ImageLink,
-                customOverlay: <div style={{
-                    padding: 2 + 'px',
-                    bottom: 0,
-                    opacity: 0.8,
-                    fontSize: 10 + 'px',
-                    position: 'absolute',
-                    backgroundColor: 'white'
-                }}>{d}</div>,
-                thumbnailWidth: img.Width || 0,
-                thumbnailHeight: img.Height || 0
-            }
-        });
-};
-
-// setIsAddFolderPanelVisible to show folder to upload
 export default function SearchGallery({
                                       hideSearchGallery
                                   }) {
@@ -111,7 +84,7 @@ export default function SearchGallery({
             <Row style={{backgroundColor: 'var(--main-bg-color)'}}>
                 <Col flex={'100%'}
                      style={{height:50,borderBottom:'solid 4px grey'}}>
-                    <input placeholder={"Recherche..."} size={30} style={{marginTop:10,marginLeft:20,width:500}} onKeyUp={search}/>
+                    <input placeholder={"Recherche..."} size={30} autoFocus={true} style={{marginTop:10,marginLeft:20,width:500}} onKeyUp={search}/>
                     <span style={{marginLeft:20,color:'white'}}>Résultats : <span style={{fontWeight:'bold'}}>{images.length}</span></span>
                     <button style={{position:'absolute',right:10,top:10}} onClick={()=>hideSearchGallery()}>Fermer</button>
                 </Col>

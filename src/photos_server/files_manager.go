@@ -169,15 +169,15 @@ func (fm *FoldersManager) GetAllDates() []common.NodeByDate {
 	return dates
 }
 
-func (fm *FoldersManager) FindPhotosByDateRange(down, up time.Time) map[string]struct{} {
+func (fm *FoldersManager) FindPhotosByDateRange(down, up time.Time) map[string]*Node {
 	dates := fm.SearchDates(down, up)
 	byDate := fm.GetPhotosByDate()
-	photos := make(map[string]struct{})
+	photos := make(map[string]*Node)
 	for _, date := range dates {
 		if list, exists := byDate[date]; exists {
 			for _, l := range list {
 				if !l.GetIsFolder() {
-					photos[l.(*Node).RelativePath] = struct{}{} // l.(*Node)
+					photos[l.(*Node).RelativePath] = l.(*Node) // l.(*Node)
 				}
 			}
 		}
@@ -952,12 +952,12 @@ func (fm FoldersManager) List() []*Node {
 	return nodes
 }
 
-func (fm *FoldersManager) findFilesByFolderPaths(folders []string) map[string]struct{} {
-	results := make(map[string]struct{})
+func (fm *FoldersManager) findFilesByFolderPaths(folders []string) map[string]*Node {
+	results := make(map[string]*Node)
 	for _, folder := range folders {
 		files, _, _ := fm.Browse(folder)
 		for _, f := range files {
-			results[cleanSlash(f.RelativePath)] = struct{}{}
+			results[cleanSlash(f.RelativePath)] = f
 		}
 	}
 	return results
